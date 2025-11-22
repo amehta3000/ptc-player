@@ -198,6 +198,18 @@ export default function Mixes() {
     }
   };
 
+  const skipBackward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, audio.currentTime - 10);
+  };
+
+  const skipForward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+  };
+
   // Extract colors from album art
   const extractColors = (imgSrc: string) => {
     const img = new Image();
@@ -434,10 +446,9 @@ export default function Mixes() {
 
           {/* Player Bar */}
           <div 
-            className="fixed bottom-0 left-0 right-0 border-t px-4 py-3 flex items-center space-x-4 backdrop-blur-xl transition-all duration-500"
+            className="fixed bottom-0 left-0 right-0 px-4 py-3 flex items-center space-x-4 backdrop-blur-xl transition-all duration-500"
             style={{ 
-              background: `linear-gradient(to right, ${dominantColor}15, ${accentColor}15)`,
-              borderColor: `${dominantColor}05`
+              background: `linear-gradient(to right, ${dominantColor}15, ${accentColor}15)`
             }}
           >
           <img 
@@ -477,16 +488,38 @@ export default function Mixes() {
               </span>
             </div>
           </div>
-          <button
-            onClick={togglePlay}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 shadow-lg"
-            style={{
-              background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
-              color: 'white'
-            }}
-          >
-            {isPlaying ? "Pause" : "Play"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={skipBackward}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{
+                background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
+              }}
+              aria-label="Skip backward 10 seconds"
+            >
+              <span className="font-bold text-xs">-10</span>
+            </button>
+            <button
+              onClick={togglePlay}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
+                color: 'white'
+              }}
+            >
+              {isPlaying ? "Pause" : "Play"}
+            </button>
+            <button
+              onClick={skipForward}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{
+                background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
+              }}
+              aria-label="Skip forward 10 seconds"
+            >
+              <span className="font-bold text-xs">+10</span>
+            </button>
+          </div>
           <audio ref={audioRef} src={currentMix.mp3} preload="metadata" />
         </div>
         </>
