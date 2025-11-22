@@ -7,10 +7,12 @@ A modern, dynamic music player built with Next.js featuring real-time audio visu
 - 🎨 **Dynamic Color Theming** - Automatically extracts colors from album artwork
 - 📊 **Real-time Audio Visualizer** - 32-band frequency spectrum analyzer
 - 🎵 **Smooth Playback** - Progress tracking with seek functionality
+- ⏩ **Skip Controls** - Jump forward/backward 10 seconds
 - 📱 **Responsive Design** - Optimized for mobile and desktop
 - 🌐 **Social Integration** - Instagram, YouTube, and Spotify links
 - ✨ **Glassmorphic UI** - Modern frosted glass effects
 - 🔤 **Space Mono Font** - Clean, monospace typography
+- 📈 **Analytics Tracking** - Microsoft Clarity integration for user behavior insights
 
 ## Getting Started
 
@@ -21,12 +23,25 @@ npm install
 
 2. Add your audio files to `public/mixes/` (*.mp3, *.aif files not included in repo)
 
-3. Run the development server:
+3. Set up Microsoft Clarity (optional but recommended for analytics):
+   - Go to [https://clarity.microsoft.com/](https://clarity.microsoft.com/)
+   - Create a new project
+   - Copy your Project ID
+   - Create a `.env.local` file in the root directory:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   - Add your Clarity Project ID to `.env.local`:
+   ```
+   NEXT_PUBLIC_CLARITY_PROJECT_ID=your_project_id_here
+   ```
+
+4. Run the development server:
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000)
+5. Open [http://localhost:3000](http://localhost:3000)
 
 ## Tech Stack
 
@@ -51,6 +66,21 @@ npm run dev
 └── styles/
     └── globals.css    # Global styles
 ```
+
+## Analytics Events Tracked
+
+When Microsoft Clarity is configured, the following user interactions are tracked:
+
+- `song_selected` - When a user clicks on a song/mix
+- `song_played` - When playback starts
+- `song_paused` - When playback is paused
+- `song_completed` - When a song finishes playing
+- `skip_forward` - When user skips forward (+10s)
+- `skip_backward` - When user skips backward (-10s)
+- `progress_scrubbed` - When user clicks on the progress bar to seek
+- `download_clicked` - When the download button is clicked
+
+All events include the song title for detailed analytics.
 
 ## Note
 

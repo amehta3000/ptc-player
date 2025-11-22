@@ -3,6 +3,13 @@ import { Mix, mixes } from "../data/mixes";
 
 type FilterType = 'all' | 'mix' | 'track';
 
+// Declare Clarity type
+declare global {
+  interface Window {
+    clarity?: (action: string, ...args: any[]) => void;
+  }
+}
+
 export default function Mixes() {
   const [currentMix, setCurrentMix] = useState<Mix | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -51,14 +58,23 @@ export default function Mixes() {
       setDuration(audio.duration);
     };
 
+    const handleSongEnd = () => {
+      // Track when song completes
+      if (typeof window !== 'undefined' && window.clarity && currentMix) {
+        window.clarity('event', 'song_completed', currentMix.title);
+      }
+    };
+
     audio.addEventListener("timeupdate", updateProgress);
     audio.addEventListener("loadedmetadata", updateDuration);
     audio.addEventListener("durationchange", updateDuration);
+    audio.addEventListener("ended", handleSongEnd);
 
     return () => {
       audio.removeEventListener("timeupdate", updateProgress);
       audio.removeEventListener("loadedmetadata", updateDuration);
       audio.removeEventListener("durationchange", updateDuration);
+      audio.removeEventListener("ended", handleSongEnd);
     };
   }, [currentMix]);
 
@@ -184,6 +200,11 @@ export default function Mixes() {
     if (isPlaying) {
       audio.pause();
       setIsPlaying(false);
+      
+      // Track pause event
+      if (typeof window !== 'undefined' && window.clarity && currentMix) {
+        window.clarity('event', 'song_paused', currentMix.title);
+      }
     } else {
       try {
         // Resume audio context if suspended
@@ -192,6 +213,11 @@ export default function Mixes() {
         }
         await audio.play();
         setIsPlaying(true);
+        
+        // Track play event
+        if (typeof window !== 'undefined' && window.clarity && currentMix) {
+          window.clarity('event', 'song_played', currentMix.title);
+        }
       } catch (error) {
         console.log("Play failed:", error);
       }
@@ -202,12 +228,22 @@ export default function Mixes() {
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = Math.max(0, audio.currentTime - 10);
+    
+    // Track skip backward
+    if (typeof window !== 'undefined' && window.clarity && currentMix) {
+      window.clarity('event', 'skip_backward', currentMix.title);
+    }
   };
 
   const skipForward = () => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+    
+    // Track skip forward
+    if (typeof window !== 'undefined' && window.clarity && currentMix) {
+      window.clarity('event', 'skip_forward', currentMix.title);
+    }
   };
 
   // Extract colors from album art
@@ -280,6 +316,11 @@ export default function Mixes() {
     setDuration(0);
     // Extract colors from album art
     extractColors(mix.cover);
+    
+    // Track song selection in Clarity
+    if (typeof window !== 'undefined' && window.clarity) {
+      window.clarity('event', 'song_selected', mix.title);
+    }
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -296,6 +337,11 @@ export default function Mixes() {
     audio.currentTime = newTime;
     setProgress(clickPercentage);
     setCurrentTime(newTime);
+    
+    // Track progress bar scrubbing
+    if (typeof window !== 'undefined' && window.clarity && currentMix) {
+      window.clarity('event', 'progress_scrubbed', currentMix.title);
+    }
   };
 
   return (
@@ -414,7 +460,13 @@ export default function Mixes() {
               </div>
               <button 
                 className="bg-neutral-700 hover:bg-neutral-600 text-xs px-3 py-1 rounded transition-colors"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Track download click
+                  if (typeof window !== 'undefined' && window.clarity) {
+                    window.clarity('event', 'download_clicked', mix.title);
+                  }
+                }}
               >
                 Download
               </button>

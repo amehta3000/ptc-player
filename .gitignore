@@ -3,3 +3,5 @@ node_modules
 *.mp3
 *.aif
 *.wav
+.env.local
+.env*.local
