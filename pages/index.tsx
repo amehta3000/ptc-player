@@ -441,7 +441,7 @@ export default function Mixes() {
       <div className="relative z-10 p-4">
       <div className="flex justify-between items-center mb-4 gap-2">
         <div className="flex items-center space-x-2 sm:space-x-3">
-          <img src="/logo3.png" alt="Part Time Chiller" className="h-10 sm:h-12" />
+          <img src="https://media.parttimechiller.com/logo3.png" alt="Part Time Chiller" className="h-10 sm:h-12" />
           <span className="text-base sm:text-xl font-bold hidden sm:inline">PartTimeChiller</span>
           {showDebug && (
             <select
