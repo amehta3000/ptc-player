@@ -565,18 +565,6 @@ export default function Mixes() {
                 </div>
                 <p className="text-xs text-neutral-400">{mix.description} • {mix.duration}</p>
               </div>
-              <button 
-                className="bg-neutral-700 hover:bg-neutral-600 text-xs px-3 py-1 rounded transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Track download click
-                  if (typeof window !== 'undefined' && window.clarity) {
-                    window.clarity('event', 'download_clicked', mix.title);
-                  }
-                }}
-              >
-                Download
-              </button>
             </div>
           </div>
         ))}
