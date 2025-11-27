@@ -13,6 +13,22 @@ declare global {
 export default function Mixes() {
   const [currentMix, setCurrentMix] = useState<Mix | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
+  
+  // List of monospace fonts
+  const fonts = [
+    'Stint Ultra Expanded',
+    'Barrio',
+    'Bungee Hairline',
+    'Splash',
+    'Cal Sans',
+    'Inconsolata',
+    'Kumbh Sans',
+    'Nabla',
+    'Barriecito'
+  ];
+  
+  const [currentFont, setCurrentFont] = useState<string>('Stint Ultra Expanded');
+  const [showDebug, setShowDebug] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -65,16 +81,24 @@ export default function Mixes() {
       }
     };
 
+    const handleError = (e: Event) => {
+      console.error('Audio error:', audio.error);
+      console.error('Error event:', e);
+      alert(`Error loading audio file: ${currentMix?.title}\nPlease check if the file exists and is in a supported format.`);
+    };
+
     audio.addEventListener("timeupdate", updateProgress);
     audio.addEventListener("loadedmetadata", updateDuration);
     audio.addEventListener("durationchange", updateDuration);
     audio.addEventListener("ended", handleSongEnd);
+    audio.addEventListener("error", handleError);
 
     return () => {
       audio.removeEventListener("timeupdate", updateProgress);
       audio.removeEventListener("loadedmetadata", updateDuration);
       audio.removeEventListener("durationchange", updateDuration);
       audio.removeEventListener("ended", handleSongEnd);
+      audio.removeEventListener("error", handleError);
     };
   }, [currentMix]);
 
@@ -137,19 +161,44 @@ export default function Mixes() {
           analyser.getByteFrequencyData(dataArray);
           
           // Sample frequency data across the spectrum
+          // bufferLength = 128 (FFT 256 / 2)
+          // We want: more bins for lows/mids, fewer but well-represented highs
           const bars: number[] = new Array(barCount);
           
           for (let i = 0; i < barCount; i++) {
-            const start = i * step;
-            const end = start + step;
-            let sum = 0;
+            // Map bar index to frequency bins using exponential curve
+            // This gives us good bass separation AND proper high-frequency response
+            const percent = i / barCount;
+            const percentNext = (i + 1) / barCount;
             
-            // Average the frequencies in this range
-            for (let j = start; j < end; j++) {
-              sum += dataArray[j];
+            // Use exponential mapping: first half gets linear, second half gets exponential
+            // This balances bass detail with high frequency coverage
+            let start, end;
+            
+            if (i < barCount / 2) {
+              // First 16 bars: more linear for bass/low-mid detail
+              start = Math.floor((percent * 2) * (bufferLength * 0.3));
+              end = Math.floor((percentNext * 2) * (bufferLength * 0.3));
+            } else {
+              // Last 16 bars: exponential for mids/highs
+              const adjustedPercent = (percent - 0.5) * 2; // 0 to 1 for second half
+              const adjustedPercentNext = (percentNext - 0.5) * 2;
+              start = Math.floor(bufferLength * 0.3 + Math.pow(adjustedPercent, 1.5) * (bufferLength * 0.7));
+              end = Math.floor(bufferLength * 0.3 + Math.pow(adjustedPercentNext, 1.5) * (bufferLength * 0.7));
             }
             
-            bars[i] = sum / step;
+            let sum = 0;
+            let count = 0;
+            
+            // Ensure we sample at least one bin
+            const rangeEnd = Math.max(end, start + 1);
+            
+            for (let j = start; j < rangeEnd && j < bufferLength; j++) {
+              sum += dataArray[j];
+              count++;
+            }
+            
+            bars[i] = count > 0 ? sum / count : 0;
           }
           
           setAudioData(bars);
@@ -344,12 +393,70 @@ export default function Mixes() {
     }
   };
 
+  // Dynamically load Google Font
+  useEffect(() => {
+    const fontFamily = currentFont.replace(/ /g, '+');
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@400;700&display=swap`;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [currentFont]);
+
+  // Debug mode keyboard shortcut (Cmd/Ctrl + D)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+        e.preventDefault();
+        setShowDebug(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-black text-white p-4">
+    <div className="min-h-screen bg-black text-white relative" style={{ fontFamily: currentFont }}>
+      {/* Background Album Cover */}
+      {currentMix && (
+        <div 
+          className="fixed inset-0 z-0 transition-opacity duration-1000"
+          style={{
+            backgroundImage: `url(${currentMix.cover})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        >
+          {/* Dark overlay with blur */}
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-3xl"></div>
+        </div>
+      )}
+      
+      {/* Content */}
+      <div className="relative z-10 p-4">
       <div className="flex justify-between items-center mb-4 gap-2">
         <div className="flex items-center space-x-2 sm:space-x-3">
-          <img src="/logo2.png" alt="Part Time Chiller" className="h-10 sm:h-12" />
+          <img src="/logo3.png" alt="Part Time Chiller" className="h-10 sm:h-12" />
           <span className="text-base sm:text-xl font-bold hidden sm:inline">PartTimeChiller</span>
+          {showDebug && (
+            <select
+              value={currentFont}
+              onChange={(e) => setCurrentFont(e.target.value)}
+              className="ml-2 px-2 py-1 text-xs rounded border border-neutral-700 bg-black/50 backdrop-blur hover:border-white transition-colors cursor-pointer focus:outline-none focus:border-white"
+              title="Select Font (Debug Mode)"
+            >
+              {fonts.map(font => (
+                <option key={font} value={font} style={{ fontFamily: font }}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex items-center space-x-2 sm:space-x-3">
           <div className="flex space-x-1 sm:space-x-2">
@@ -448,10 +555,10 @@ export default function Mixes() {
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
                   <h2 className="text-md font-medium leading-tight">{mix.title}</h2>
-                  <span className={`text-xs px-2 py-0.5 rounded ${
+                  <span className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
                     mix.type === 'mix' 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-blue-600 text-white'
+                      ? 'border-purple-500/40 text-purple-400/90' 
+                      : 'border-blue-500/40 text-blue-400/90'
                   }`}>
                     {mix.type}
                   </span>
@@ -500,7 +607,8 @@ export default function Mixes() {
           <div 
             className="fixed bottom-0 left-0 right-0 px-4 py-3 flex items-center space-x-4 backdrop-blur-xl transition-all duration-500"
             style={{ 
-              background: `linear-gradient(to right, ${dominantColor}15, ${accentColor}15)`
+              background: `linear-gradient(to right, ${dominantColor}25, ${accentColor}25)`,
+              borderColor: `${dominantColor}30`
             }}
           >
           <img 
@@ -572,10 +680,11 @@ export default function Mixes() {
               <span className="font-bold text-xs">+10</span>
             </button>
           </div>
-          <audio ref={audioRef} src={currentMix.mp3} preload="metadata" />
+          <audio ref={audioRef} src={currentMix.audio} preload="metadata" crossOrigin="anonymous" />
         </div>
         </>
       )}
+      </div>
     </div>
   );
 }

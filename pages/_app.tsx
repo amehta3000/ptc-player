@@ -1,13 +1,6 @@
 import type { AppProps } from 'next/app'
-import { Space_Mono } from 'next/font/google'
 import Head from 'next/head'
 import '../styles/globals.css'
-
-const spaceMono = Space_Mono({ 
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  variable: '--font-space-mono',
-})
 
 export default function App({ Component, pageProps }: AppProps) {
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
@@ -31,7 +24,7 @@ export default function App({ Component, pageProps }: AppProps) {
           />
         )}
       </Head>
-      <main className={`${spaceMono.variable} font-sans`}>
+      <main>
         <Component {...pageProps} />
       </main>
     </>
