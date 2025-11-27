@@ -628,8 +628,8 @@ export default function Mixes() {
           <div className="w-12 h-12 rounded bg-neutral-700 flex items-center justify-center hidden">
             <span className="text-xs text-neutral-400">🎵</span>
           </div>
-          <div className="flex-1">
-            <div className="text-sm font-medium truncate">{currentMix.title}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate overflow-hidden text-ellipsis whitespace-nowrap">{currentMix.title}</div>
             <div 
               className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden mt-1 cursor-pointer relative backdrop-blur"
               onClick={handleProgressClick}
