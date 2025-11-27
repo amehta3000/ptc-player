@@ -17,6 +17,14 @@ export const mixes: Mix[] = [
     type: "track"
   },
   {
+    title: "Synthcopated",
+    cover: "https://media.parttimechiller.com/Synthcopated_PTC.png",
+    audio: "https://media.parttimechiller.com/Synthcopated_PTC.mp3",
+    duration: "3:17",
+    description: "Synths and beats that are stressed unexpectedly, emphasizing an off-beat where a weaker beat is usually expected",
+    type: "track"
+  },
+  {
     title: "Rise Up",
     cover: "https://media.parttimechiller.com/RiseUp_PTC.png",
     audio: "https://media.parttimechiller.com/RiseUp_PTC.mp3",
