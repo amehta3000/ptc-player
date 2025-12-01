@@ -13,6 +13,8 @@ declare global {
 export default function Mixes() {
   const [currentMix, setCurrentMix] = useState<Mix | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [showDetail, setShowDetail] = useState<boolean>(false);
+  const [showVisualizer, setShowVisualizer] = useState<boolean>(false);
   
   // List of monospace fonts
   const fonts = [
@@ -47,6 +49,9 @@ export default function Mixes() {
     return mix.type === filter;
   });
 
+  // Get current track index in filtered list
+  const currentIndex = currentMix ? filteredMixes.findIndex(m => m.title === currentMix.title) : -1;
+
   // Format time helper function
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -79,6 +84,8 @@ export default function Mixes() {
       if (typeof window !== 'undefined' && window.clarity && currentMix) {
         window.clarity('event', 'song_completed', currentMix.title);
       }
+      // Auto-advance to next track
+      playNext();
     };
 
     const handleError = (e: Event) => {
@@ -295,6 +302,22 @@ export default function Mixes() {
     }
   };
 
+  const playNext = () => {
+    if (currentIndex < filteredMixes.length - 1) {
+      handleMixSelect(filteredMixes[currentIndex + 1], true);
+    }
+  };
+
+  const playPrevious = () => {
+    const audio = audioRef.current;
+    // If more than 3 seconds into the song, restart it; otherwise go to previous
+    if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+    } else if (currentIndex > 0) {
+      handleMixSelect(filteredMixes[currentIndex - 1], true);
+    }
+  };
+
   // Extract colors from album art
   const extractColors = (imgSrc: string) => {
     const img = new Image();
@@ -357,7 +380,7 @@ export default function Mixes() {
     };
   };
 
-  const handleMixSelect = (mix: Mix) => {
+  const handleMixSelect = (mix: Mix, preserveView: boolean = false) => {
     setCurrentMix(mix);
     // Reset progress when selecting new mix
     setProgress(0);
@@ -365,6 +388,12 @@ export default function Mixes() {
     setDuration(0);
     // Extract colors from album art
     extractColors(mix.cover);
+    
+    // Only reset view states if not preserving (e.g., clicking from playlist)
+    if (!preserveView) {
+      setShowDetail(false);
+      setShowVisualizer(false);
+    }
     
     // Track song selection in Clarity
     if (typeof window !== 'undefined' && window.clarity) {
@@ -599,20 +628,27 @@ export default function Mixes() {
               borderColor: `${dominantColor}30`
             }}
           >
-          <img 
-            src={currentMix.cover} 
-            alt={currentMix.title} 
-            className="w-12 h-12 rounded object-cover shadow-lg transition-all duration-500"
-            style={{ 
-              boxShadow: `0 0 0 2px ${accentColor}40`
-            }}
-            onError={(e) => {
-              // Fallback to placeholder if image fails to load
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-              target.nextElementSibling?.classList.remove('hidden');
-            }}
-          />
+          <button
+            className="p-0 m-0 border-none bg-transparent"
+            onClick={() => setShowDetail(true)}
+            aria-label="Open detailed player"
+          >
+            <img 
+              src={currentMix.cover} 
+              alt={currentMix.title} 
+              className="w-12 h-12 rounded object-cover shadow-lg transition-all duration-500"
+              style={{ 
+                boxShadow: `0 0 0 2px ${accentColor}40`
+              }}
+              onError={(e) => {
+                // Fallback to placeholder if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const sibling = (e.currentTarget as HTMLElement).nextElementSibling;
+                sibling?.classList.remove('hidden');
+              }}
+            />
+          </button>
           <div className="w-12 h-12 rounded bg-neutral-700 flex items-center justify-center hidden">
             <span className="text-xs text-neutral-400">🎵</span>
           </div>
@@ -638,39 +674,167 @@ export default function Mixes() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={skipBackward}
+              onClick={playPrevious}
               className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
               }}
-              aria-label="Skip backward 10 seconds"
+              aria-label="Previous track"
+              disabled={currentIndex === 0}
             >
-              <span className="font-bold text-xs">-10</span>
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
             </button>
             <button
               onClick={togglePlay}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 shadow-lg"
+              className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
-                color: 'white'
               }}
             >
-              {isPlaying ? "Pause" : "Play"}
+              {isPlaying ? (
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              )}
             </button>
             <button
-              onClick={skipForward}
+              onClick={playNext}
               className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
               }}
-              aria-label="Skip forward 10 seconds"
+              aria-label="Next track"
+              disabled={currentIndex === filteredMixes.length - 1}
             >
-              <span className="font-bold text-xs">+10</span>
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
             </button>
           </div>
           <audio ref={audioRef} src={currentMix.audio} preload="metadata" crossOrigin="anonymous" />
         </div>
         </>
+      )}
+      {currentMix && showDetail && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
+            <button
+              onClick={() => setShowDetail(false)}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white transition-colors"
+              aria-label="Close detailed player"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowVisualizer(v => !v)}
+              className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+            >
+              {showVisualizer ? 'Show Art' : 'Show Visualizer'}
+            </button>
+            <div className="w-9"></div>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
+            {!showVisualizer ? (
+              <img
+                src={currentMix.cover}
+                alt={currentMix.title}
+                className="w-[80vw] max-w-md aspect-square object-cover rounded shadow-xl"
+                style={{ boxShadow: `0 0 0 3px ${accentColor}40` }}
+              />
+            ) : (
+              <div className="w-full max-w-3xl h-64 sm:h-80 md:h-96 flex items-end justify-center gap-1.5 px-4">
+                {audioData.map((value, index) => {
+                  const scale = Math.max(0.08, value / 255);
+                  return (
+                    <div
+                      key={index}
+                      className="flex-1 h-full origin-bottom rounded-t-md"
+                      style={{
+                        transform: `scaleY(${scale})`,
+                        background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
+                        opacity: isPlaying ? 0.95 : 0.5,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="px-4 py-6 border-t border-neutral-800">
+            <div className="w-full max-w-3xl mx-auto space-y-4">
+              <div className="text-center text-xl font-semibold truncate">{currentMix.title}</div>
+              <div 
+                className="w-full h-2 bg-black/40 rounded-full overflow-hidden cursor-pointer"
+                onClick={handleProgressClick}
+              >
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${progress}%`,
+                    background: `linear-gradient(to right, ${dominantColor}, ${accentColor})`
+                  }}
+                />
+              </div>
+              <div className="flex justify-between items-center text-sm text-neutral-300">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <button
+                  onClick={playPrevious}
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
+                  }}
+                  disabled={currentIndex === 0}
+                  aria-label="Previous track"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={togglePlay}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
+                  }}
+                >
+                  {isPlaying ? (
+                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                    </svg>
+                  ) : (
+                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={playNext}
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
+                  }}
+                  disabled={currentIndex === filteredMixes.length - 1}
+                  aria-label="Next track"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       </div>
     </div>
