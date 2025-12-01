@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Mix, mixes } from "../data/mixes";
+import * as THREE from 'three';
 
 type FilterType = 'all' | 'mix' | 'track';
+type VisualizerType = 'bars' | 'radial' | 'threejs';
 
 // Declare Clarity type
 declare global {
@@ -15,6 +17,7 @@ export default function Mixes() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const [showVisualizer, setShowVisualizer] = useState<boolean>(false);
+  const [visualizerType, setVisualizerType] = useState<VisualizerType>('bars');
   
   // List of monospace fonts
   const fonts = [
@@ -32,6 +35,9 @@ export default function Mixes() {
   const [currentFont, setCurrentFont] = useState<string>('Stint Ultra Expanded');
   const [showDebug, setShowDebug] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const threeCanvasRef = useRef<HTMLDivElement | null>(null);
+  const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
+  const audioDataRef = useRef<number[]>(Array(32).fill(0));
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -39,6 +45,32 @@ export default function Mixes() {
   const [dominantColor, setDominantColor] = useState<string>('rgb(115, 115, 115)');
   const [accentColor, setAccentColor] = useState<string>('rgb(163, 163, 163)');
   const [audioData, setAudioData] = useState<number[]>(Array(32).fill(0));
+  
+  // Visualizer control parameters
+  const [showControls, setShowControls] = useState<boolean>(false);
+  const [freqMultiplier, setFreqMultiplier] = useState<number>(1.5);
+  const [noiseMultiplier, setNoiseMultiplier] = useState<number>(0.3);
+  const [timeSpeed, setTimeSpeed] = useState<number>(0.5);
+  const [autoRotationSpeed, setAutoRotationSpeed] = useState<number>(0.002);
+  
+  // Refs for real-time parameter access in animation loop
+  const freqMultiplierRef = useRef<number>(1.5);
+  const noiseMultiplierRef = useRef<number>(0.3);
+  const timeSpeedRef = useRef<number>(0.5);
+  const autoRotationSpeedRef = useRef<number>(0.002);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    freqMultiplierRef.current = freqMultiplier;
+    noiseMultiplierRef.current = noiseMultiplier;
+    timeSpeedRef.current = timeSpeed;
+    autoRotationSpeedRef.current = autoRotationSpeed;
+  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed]);
+  
+  // Update ref whenever audioData changes
+  useEffect(() => {
+    audioDataRef.current = audioData;
+  }, [audioData]);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -248,6 +280,224 @@ export default function Mixes() {
       return () => clearTimeout(timer);
     }
   }, [currentMix]);
+
+  // Setup Three.js visualizer
+  useEffect(() => {
+    if (!threeCanvasRef.current || visualizerType !== 'threejs' || !showVisualizer) return;
+
+    // Create scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    const container = threeCanvasRef.current;
+    const size = Math.min(container.clientWidth, container.clientHeight);
+    renderer.setSize(size, size);
+    renderer.setClearColor(0x000000, 0);
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    // Create sphere geometry using IcosahedronGeometry for more uniform vertex distribution
+    const radius = 2;
+    const detailLevel = 6; // Higher subdivision level for more triangles and detail
+    const geometry = new THREE.IcosahedronGeometry(radius, detailLevel);
+    
+    // Store original positions for animation
+    const originalPositions = new Float32Array(geometry.attributes.position.array);
+    
+    // Parse album artwork colors
+    const parseRGB = (rgbString: string) => {
+      const match = rgbString.match(/\d+/g);
+      if (match && match.length >= 3) {
+        return {
+          r: parseInt(match[0]) / 255,
+          g: parseInt(match[1]) / 255,
+          b: parseInt(match[2]) / 255
+        };
+      }
+      return { r: 0, g: 1, b: 1 }; // Fallback cyan
+    };
+    
+    const dominantRGB = parseRGB(dominantColor);
+    const accentRGB = parseRGB(accentColor);
+    
+    // Add vertex colors initialized with dominant color
+    const colors = new Float32Array(geometry.attributes.position.count * 3);
+    for (let i = 0; i < colors.length; i += 3) {
+      colors[i] = dominantRGB.r;
+      colors[i + 1] = dominantRGB.g;
+      colors[i + 2] = dominantRGB.b;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // Create material with wireframe and vertex colors
+    const material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.9,
+    });
+    
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    
+    camera.position.z = 6;
+    camera.lookAt(0, 0, 0);
+
+    threeSceneRef.current = { scene, camera, renderer, mesh, originalPositions };
+
+    // Mouse interaction variables
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let cameraRotation = { x: 0, y: 0 };
+    const rotationSpeed = 0.005;
+
+    // Mouse event handlers
+    const onMouseDown = (e: MouseEvent) => {
+      isDragging = true;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - previousMousePosition.x;
+      const deltaY = e.clientY - previousMousePosition.y;
+
+      cameraRotation.y += deltaX * rotationSpeed;
+      cameraRotation.x += deltaY * rotationSpeed;
+
+      // Clamp vertical rotation
+      cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
+
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+    };
+
+    // Add event listeners
+    renderer.domElement.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    // Animation loop
+    let frameId: number;
+    
+    const animate = () => {
+      frameId = requestAnimationFrame(animate);
+      
+      // Get current values from refs for real-time updates
+      const currentAutoRotationSpeed = autoRotationSpeedRef.current;
+      const currentTimeSpeed = timeSpeedRef.current;
+      const currentFreqMultiplier = freqMultiplierRef.current;
+      const currentNoiseMultiplier = noiseMultiplierRef.current;
+      
+      // Continuous auto-rotation of the mesh
+      mesh.rotation.y += currentAutoRotationSpeed;
+      mesh.rotation.x += currentAutoRotationSpeed * 0.5;
+      
+      // Update camera position based on user rotation
+      const radius = 6;
+      camera.position.x = radius * Math.sin(cameraRotation.y) * Math.cos(cameraRotation.x);
+      camera.position.y = radius * Math.sin(cameraRotation.x);
+      camera.position.z = radius * Math.cos(cameraRotation.y) * Math.cos(cameraRotation.x);
+      camera.lookAt(0, 0, 0);
+      
+      // Update vertices based on audio data from ref
+      const positions = geometry.attributes.position;
+      const count = positions.count;
+      const currentAudioData = audioDataRef.current;
+      
+      // Calculate average frequency (as per tutorial: analyser.getAverageFrequency())
+      let frequencySum = 0;
+      for (let i = 0; i < currentAudioData.length; i++) {
+        frequencySum += currentAudioData[i] || 0;
+      }
+      const averageFrequency = frequencySum / currentAudioData.length;
+      const normalizedFreq = averageFrequency / 255; // Normalize to 0-1
+      
+      // Use time for animation (tutorial uses u_time uniform)
+      const time = Date.now() * 0.001 * currentTimeSpeed;
+      
+      for (let i = 0; i < count; i++) {
+        // Get original position
+        const origX = originalPositions[i * 3];
+        const origY = originalPositions[i * 3 + 1];
+        const origZ = originalPositions[i * 3 + 2];
+        
+        // Create position with time offset (as per tutorial: position + u_time)
+        const posX = origX + time;
+        const posY = origY + time;
+        const posZ = origZ + time;
+        
+        // Perlin-like noise using layered sine waves
+        // Tutorial: float noise = 5. * pnoise(position + u_time, vec3(10.));
+        const noise = 
+          Math.sin(posX * 2) * Math.cos(posY * 2) * 0.5 +
+          Math.sin(posY * 3) * Math.cos(posZ * 3) * 0.3 +
+          Math.sin(posZ * 4) * Math.cos(posX * 2) * 0.4 +
+          Math.sin((posX + posY + posZ) * 1.5) * 0.3;
+        
+        // Multiply noise by intensity factor (tutorial uses 5.0, we use freqMultiplier)
+        const intensifiedNoise = noise * currentFreqMultiplier * 2;
+        
+        // Tutorial formula: displacement = (u_frequency / 30.) * (noise / 10.);
+        // Simplified: displacement = normalizedFreq * noise * scale
+        const displacement = (normalizedFreq * currentNoiseMultiplier) * (intensifiedNoise * 0.1);
+        
+        // Apply displacement along normal
+        const scale = 1 + displacement;
+        positions.setXYZ(
+          i,
+          origX * scale,
+          origY * scale,
+          origZ * scale
+        );
+        
+        // Update vertex color based on displacement
+        const colorAttr = geometry.attributes.color;
+        // Blend between dominant and accent colors based on displacement
+        const colorIntensity = Math.abs(displacement) * 8; // Amplify for visibility
+        const blend = Math.min(1, Math.max(0, colorIntensity)); // Clamp 0-1
+        
+        // Add subtle time-based variation for animation
+        const timeVariation = Math.sin(time * 0.5 + i * 0.01) * 0.15; // Subtle wave
+        const finalBlend = Math.min(1, Math.max(0, blend + timeVariation));
+        
+        // Interpolate between dominant and accent colors
+        const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * finalBlend;
+        const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * finalBlend;
+        const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * finalBlend;
+        
+        colorAttr.setXYZ(i, r, g, b);
+      }
+      
+      positions.needsUpdate = true;
+      geometry.attributes.color.needsUpdate = true;
+      geometry.computeVertexNormals(); // Recalculate normals for smooth appearance
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(frameId);
+      renderer.domElement.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      renderer.dispose();
+      geometry.dispose();
+      material.dispose();
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+      threeSceneRef.current = null;
+    };
+  }, [visualizerType, showVisualizer, dominantColor, accentColor]);
 
   const togglePlay = async () => {
     const audio = audioRef.current;
@@ -722,8 +972,21 @@ export default function Mixes() {
         </>
       )}
       {currentMix && showDetail && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
+        <div className="fixed inset-0 z-50 flex flex-col">
+          {/* Background with gradient from album art */}
+          <div 
+            className="absolute inset-0 transition-opacity duration-1000"
+            style={{
+              backgroundImage: `url(${currentMix.cover})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            <div className="absolute inset-0 bg-black/85 backdrop-blur-3xl"></div>
+          </div>
+          
+          <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-neutral-800/50">
             <button
               onClick={() => setShowDetail(false)}
               className="w-9 h-9 rounded-full flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white transition-colors"
@@ -733,15 +996,146 @@ export default function Mixes() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <button
-              onClick={() => setShowVisualizer(v => !v)}
-              className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-            >
-              {showVisualizer ? 'Show Art' : 'Show Visualizer'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowVisualizer(v => !v)}
+                className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+              >
+                {showVisualizer ? 'Show Art' : 'Show Visualizer'}
+              </button>
+              {showVisualizer && (
+                <>
+                  <button
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'threejs' : 'bars')}
+                    className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : '3D Waveform'}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                  {visualizerType === 'threejs' && (
+                    <button
+                      onClick={() => setShowControls(!showControls)}
+                      className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+                      title={showControls ? 'Hide Controls' : 'Show Controls'}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                      </svg>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
             <div className="w-9"></div>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
+          
+          {/* Control Panel */}
+          {showControls && visualizerType === 'threejs' && showVisualizer && (
+            <div className="absolute top-20 right-4 w-72 p-4 rounded-lg backdrop-blur-xl bg-black/60 border border-white/10 z-20 space-y-3">
+              <div className="text-sm font-medium text-white/90 mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Visualizer Controls
+              </div>
+              
+              {/* Frequency Multiplier */}
+              <div>
+                <label className="flex justify-between text-xs text-white/70 mb-1">
+                  <span>Audio Intensity</span>
+                  <span className="font-mono">{freqMultiplier.toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={freqMultiplier}
+                  onChange={(e) => setFreqMultiplier(parseFloat(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                  style={{
+                    accentColor: dominantColor
+                  }}
+                />
+              </div>
+              
+              {/* Noise Multiplier */}
+              <div>
+                <label className="flex justify-between text-xs text-white/70 mb-1">
+                  <span>Surface Detail</span>
+                  <span className="font-mono">{noiseMultiplier.toFixed(2)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={noiseMultiplier}
+                  onChange={(e) => setNoiseMultiplier(parseFloat(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                  style={{
+                    accentColor: dominantColor
+                  }}
+                />
+              </div>
+              
+              {/* Time Speed */}
+              <div>
+                <label className="flex justify-between text-xs text-white/70 mb-1">
+                  <span>Animation Speed</span>
+                  <span className="font-mono">{timeSpeed.toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={timeSpeed}
+                  onChange={(e) => setTimeSpeed(parseFloat(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                  style={{
+                    accentColor: dominantColor
+                  }}
+                />
+              </div>
+              
+              {/* Auto Rotation Speed */}
+              <div>
+                <label className="flex justify-between text-xs text-white/70 mb-1">
+                  <span>Rotation Speed</span>
+                  <span className="font-mono">{(autoRotationSpeed * 1000).toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.01"
+                  step="0.0005"
+                  value={autoRotationSpeed}
+                  onChange={(e) => setAutoRotationSpeed(parseFloat(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                  style={{
+                    accentColor: dominantColor
+                  }}
+                />
+              </div>
+              
+              {/* Reset Button */}
+              <button
+                onClick={() => {
+                  setFreqMultiplier(1.5);
+                  setNoiseMultiplier(0.3);
+                  setTimeSpeed(0.5);
+                  setAutoRotationSpeed(0.002);
+                }}
+                className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          )}
+          <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6">
             {!showVisualizer ? (
               <img
                 src={currentMix.cover}
@@ -749,7 +1143,7 @@ export default function Mixes() {
                 className="w-[80vw] max-w-md aspect-square object-cover rounded shadow-xl"
                 style={{ boxShadow: `0 0 0 3px ${accentColor}40` }}
               />
-            ) : (
+            ) : visualizerType === 'bars' ? (
               <div className="w-full max-w-3xl h-64 sm:h-80 md:h-96 flex items-end justify-center gap-1.5 px-4">
                 {audioData.map((value, index) => {
                   const scale = Math.max(0.08, value / 255);
@@ -766,9 +1160,90 @@ export default function Mixes() {
                   );
                 })}
               </div>
+            ) : visualizerType === 'radial' ? (
+              <div className="w-full max-w-md aspect-square flex items-center justify-center">
+                <svg className="w-full h-full" viewBox="0 0 400 400">
+                  <defs>
+                    <linearGradient id="radialGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor={dominantColor} />
+                      <stop offset="100%" stopColor={accentColor} />
+                    </linearGradient>
+                  </defs>
+                  {audioData.map((value, index) => {
+                    const barCount = audioData.length;
+                    // Perfectly space bars around the circle
+                    const angle = ((index + 0.5) / barCount) * 360; // Center each bar in its segment
+                    const angleRad = (angle * Math.PI) / 180;
+                    
+                    // Normalize frequency value (0 to 1)
+                    const normalizedFreq = value / 255;
+                    
+                    // Add traveling wave effect (matches sphere algorithm)
+                    const time = Date.now() * 0.001 * timeSpeed;
+                    const wavePosition = (time * 2) % (Math.PI * 2);
+                    const waveFactor = Math.sin(angleRad * 3 + wavePosition) * 0.5 + 0.5; // 0 to 1
+                    
+                    // Add noise for organic movement (matches sphere)
+                    const noise = 
+                      Math.sin(angleRad * 3 + time * 0.5) * 0.1 +
+                      Math.sin(angleRad * 4 + time * 0.7) * 0.08;
+                    
+                    // Calculate displacement - more reactive with higher multipliers
+                    const freqDisplacement = normalizedFreq * freqMultiplier * waveFactor * 0.8; // Increased from 0.25
+                    const noiseDisplacement = noise * noiseMultiplier * 0.5;
+                    const displacement = freqDisplacement + noiseDisplacement;
+                    
+                    // Apply to radius with better scaling
+                    const innerRadius = 60;
+                    const maxExtension = 140; // Increased for more visible movement
+                    const baseScale = 0.15; // Minimum extension
+                    const scale = baseScale + displacement;
+                    const outerRadius = innerRadius + (scale * maxExtension);
+                    
+                    // Calculate bar width based on circle circumference for perfect spacing
+                    const circumference = 2 * Math.PI * innerRadius;
+                    const barWidth = Math.max(4, (circumference / barCount) * 0.6); // 60% of segment width
+                    
+                    const x1 = 200 + innerRadius * Math.cos(angleRad - Math.PI / 2);
+                    const y1 = 200 + innerRadius * Math.sin(angleRad - Math.PI / 2);
+                    const x2 = 200 + outerRadius * Math.cos(angleRad - Math.PI / 2);
+                    const y2 = 200 + outerRadius * Math.sin(angleRad - Math.PI / 2);
+                    
+                    return (
+                      <line
+                        key={index}
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="url(#radialGradient)"
+                        strokeWidth={barWidth}
+                        strokeLinecap="round"
+                        opacity={isPlaying ? 0.95 : 0.5}
+                      />
+                    );
+                  })}
+                  {/* Center circle */}
+                  <circle
+                    cx="200"
+                    cy="200"
+                    r="55"
+                    fill="none"
+                    stroke={dominantColor}
+                    strokeWidth="2"
+                    opacity="0.3"
+                  />
+                </svg>
+              </div>
+            ) : (
+              <div 
+                ref={threeCanvasRef}
+                className="w-full max-w-md aspect-square flex items-center justify-center cursor-grab active:cursor-grabbing"
+                style={{ touchAction: 'none' }}
+              />
             )}
           </div>
-          <div className="px-4 py-6 border-t border-neutral-800">
+          <div className="relative z-10 px-4 py-6 border-t border-neutral-800/50">
             <div className="w-full max-w-3xl mx-auto space-y-4">
               <div className="text-center text-xl font-semibold truncate">{currentMix.title}</div>
               <div 
