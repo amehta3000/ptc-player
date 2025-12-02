@@ -15,7 +15,7 @@ declare global {
 export default function Mixes() {
   const [currentMix, setCurrentMix] = useState<Mix | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
-  const [showDetail, setShowDetail] = useState<boolean>(false);
+  const [showDetail, setShowDetail] = useState<boolean>(true);
   const [showVisualizer, setShowVisualizer] = useState<boolean>(false);
   const [visualizerType, setVisualizerType] = useState<VisualizerType>('bars');
   
@@ -1219,21 +1219,25 @@ export default function Mixes() {
           </div>
           
           <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-neutral-800/50">
-            <button
-              onClick={() => setShowDetail(false)}
-              className="w-9 h-9 rounded-full flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white transition-colors"
-              aria-label="Close detailed player"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-3">
+              <img src="/ptc-player/logo3.png" alt="PTC" className="h-10 w-10" />
+              <span className="text-lg font-bold">Part Time Chiller</span>
+            </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowVisualizer(v => !v)}
+                onClick={() => setShowVisualizer(!showVisualizer)}
                 className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+                title={showVisualizer ? 'Show Album Art' : 'Show Visualizer'}
               >
-                {showVisualizer ? 'Show Art' : 'Show Visualizer'}
+                {showVisualizer ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                )}
               </button>
               {showVisualizer && (
                 <>
@@ -1258,7 +1262,6 @@ export default function Mixes() {
                 </>
               )}
             </div>
-            <div className="w-9"></div>
           </div>
           
           {/* Control Panel */}
@@ -1655,6 +1658,29 @@ export default function Mixes() {
             )}
           </div>
           <div className="relative z-10 px-4 py-6 border-t border-neutral-800/50">
+            {/* Footer with Playlist and Download */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setShowDetail(false)}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-800/80 hover:bg-neutral-700 text-white transition-colors backdrop-blur"
+                aria-label="Show playlist"
+                title="Show playlist"
+              >
+                <img src="/ptc-player/playlist.svg" alt="Playlist" className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => {
+                  if (currentMix?.audio) {
+                    window.open(currentMix.audio, '_blank');
+                  }
+                }}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-800/80 hover:bg-neutral-700 text-white transition-colors backdrop-blur"
+                aria-label="Download track"
+                title="Download track"
+              >
+                <img src="/ptc-player/download.svg" alt="Download" className="w-5 h-5" />
+              </button>
+            </div>
             <div className="w-full max-w-3xl mx-auto space-y-4">
               <div className="text-center text-xl font-semibold truncate">{currentMix.title}</div>
               <div 
