@@ -5,3 +5,4 @@ node_modules
 *.wav
 .env.local
 .env*.local
+docs
