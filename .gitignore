@@ -1,5 +1,6 @@
 node_modules
 .next
+out
 *.mp3
 *.aif
 *.wav
