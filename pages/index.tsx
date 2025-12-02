@@ -3,7 +3,7 @@ import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'radial' | 'threejs';
+type VisualizerType = 'bars' | 'radial' | 'threejs' | 'whitecap';
 
 // Declare Clarity type
 declare global {
@@ -36,6 +36,7 @@ export default function Mixes() {
   const [showDebug, setShowDebug] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const threeCanvasRef = useRef<HTMLDivElement | null>(null);
+  const whitecapCanvasRef = useRef<HTMLDivElement | null>(null);
   const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
   const audioDataRef = useRef<number[]>(Array(32).fill(0));
   const [isPlaying, setIsPlaying] = useState(false);
@@ -48,16 +49,40 @@ export default function Mixes() {
   
   // Visualizer control parameters
   const [showControls, setShowControls] = useState<boolean>(false);
+  
+  // Three.js sphere controls
   const [freqMultiplier, setFreqMultiplier] = useState<number>(1.5);
   const [noiseMultiplier, setNoiseMultiplier] = useState<number>(0.3);
   const [timeSpeed, setTimeSpeed] = useState<number>(0.5);
   const [autoRotationSpeed, setAutoRotationSpeed] = useState<number>(0.002);
+  
+  // Bars visualizer controls
+  const [barsScale, setBarsScale] = useState<number>(1.0);
+  const [barsSmoothness, setBarsSmoothness] = useState<number>(0.8);
+  
+  // Radial visualizer controls
+  const [radialIntensity, setRadialIntensity] = useState<number>(1.0);
+  const [radialTimeSpeed, setRadialTimeSpeed] = useState<number>(0.5);
+  
+  // WhiteCap visualizer controls
+  const [whitecapBassPulse, setWhitecapBassPulse] = useState<number>(0.4);
+  const [whitecapMidExtension, setWhitecapMidExtension] = useState<number>(0.5);
+  const [whitecapHighShimmer, setWhitecapHighShimmer] = useState<number>(0.1);
+  const [whitecapRotationSpeed, setWhitecapRotationSpeed] = useState<number>(0.002);
   
   // Refs for real-time parameter access in animation loop
   const freqMultiplierRef = useRef<number>(1.5);
   const noiseMultiplierRef = useRef<number>(0.3);
   const timeSpeedRef = useRef<number>(0.5);
   const autoRotationSpeedRef = useRef<number>(0.002);
+  const barsScaleRef = useRef<number>(1.0);
+  const barsSmoothnessRef = useRef<number>(0.8);
+  const radialIntensityRef = useRef<number>(1.0);
+  const radialTimeSpeedRef = useRef<number>(0.5);
+  const whitecapBassPulseRef = useRef<number>(0.4);
+  const whitecapMidExtensionRef = useRef<number>(0.5);
+  const whitecapHighShimmerRef = useRef<number>(0.1);
+  const whitecapRotationSpeedRef = useRef<number>(0.002);
   
   // Update refs when state changes
   useEffect(() => {
@@ -65,7 +90,15 @@ export default function Mixes() {
     noiseMultiplierRef.current = noiseMultiplier;
     timeSpeedRef.current = timeSpeed;
     autoRotationSpeedRef.current = autoRotationSpeed;
-  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed]);
+    barsScaleRef.current = barsScale;
+    barsSmoothnessRef.current = barsSmoothness;
+    radialIntensityRef.current = radialIntensity;
+    radialTimeSpeedRef.current = radialTimeSpeed;
+    whitecapBassPulseRef.current = whitecapBassPulse;
+    whitecapMidExtensionRef.current = whitecapMidExtension;
+    whitecapHighShimmerRef.current = whitecapHighShimmer;
+    whitecapRotationSpeedRef.current = whitecapRotationSpeed;
+  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed]);
   
   // Update ref whenever audioData changes
   useEffect(() => {
@@ -496,6 +529,205 @@ export default function Mixes() {
         container.removeChild(renderer.domElement);
       }
       threeSceneRef.current = null;
+    };
+  }, [visualizerType, showVisualizer, dominantColor, accentColor]);
+
+  // Setup WhiteCap visualizer
+  useEffect(() => {
+    if (!whitecapCanvasRef.current || visualizerType !== 'whitecap' || !showVisualizer) return;
+
+    // Create scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    const container = whitecapCanvasRef.current;
+    const size = Math.min(container.clientWidth, container.clientHeight);
+    renderer.setSize(size, size);
+    renderer.setClearColor(0x000000, 0);
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+
+    // Parse album artwork colors
+    const parseRGB = (rgbString: string) => {
+      const match = rgbString.match(/\d+/g);
+      if (match && match.length >= 3) {
+        return {
+          r: parseInt(match[0]) / 255,
+          g: parseInt(match[1]) / 255,
+          b: parseInt(match[2]) / 255
+        };
+      }
+      return { r: 1, g: 0.5, b: 0 }; // Fallback warm color
+    };
+    
+    const dominantRGB = parseRGB(dominantColor);
+    const accentRGB = parseRGB(accentColor);
+
+    // Create complex wireframe geometry
+    const segmentCount = 64; // Number of radial segments
+    const ringCount = 24; // Number of concentric rings
+    const vertices: number[] = [];
+    const colors: number[] = [];
+
+    // Generate vertices for wireframe mesh
+    for (let ring = 0; ring < ringCount; ring++) {
+      const radius = (ring / ringCount) * 3;
+      for (let seg = 0; seg <= segmentCount; seg++) {
+        const theta = (seg / segmentCount) * Math.PI * 2;
+        const x = Math.cos(theta) * radius;
+        const y = Math.sin(theta) * radius;
+        const z = 0;
+        
+        vertices.push(x, y, z);
+        
+        // Initial colors (will be animated)
+        colors.push(dominantRGB.r, dominantRGB.g, dominantRGB.b);
+      }
+    }
+
+    // Create indices for line segments
+    const indices: number[] = [];
+    
+    // Radial lines
+    for (let seg = 0; seg < segmentCount; seg++) {
+      for (let ring = 0; ring < ringCount - 1; ring++) {
+        const current = ring * (segmentCount + 1) + seg;
+        const next = (ring + 1) * (segmentCount + 1) + seg;
+        indices.push(current, next);
+      }
+    }
+    
+    // Ring lines
+    for (let ring = 0; ring < ringCount; ring++) {
+      for (let seg = 0; seg < segmentCount; seg++) {
+        const current = ring * (segmentCount + 1) + seg;
+        const next = ring * (segmentCount + 1) + seg + 1;
+        indices.push(current, next);
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setIndex(indices);
+
+    const material = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending
+    });
+
+    const wireframe = new THREE.LineSegments(geometry, material);
+    const group = new THREE.Group();
+    group.add(wireframe);
+    scene.add(group);
+
+    // Animation loop
+    let frameId: number;
+    let time = 0;
+    
+    const animate = () => {
+      frameId = requestAnimationFrame(animate);
+      time += 0.01;
+      
+      // Get current audio data
+      const currentAudioData = audioDataRef.current;
+      
+      // Separate frequency bands
+      const bassEnd = Math.floor(currentAudioData.length * 0.15); // 0-15%
+      const midEnd = Math.floor(currentAudioData.length * 0.6); // 15-60%
+      
+      // Calculate average for each band
+      let bassSum = 0, midSum = 0, highSum = 0;
+      let bassCount = 0, midCount = 0, highCount = 0;
+      
+      for (let i = 0; i < currentAudioData.length; i++) {
+        if (i < bassEnd) {
+          bassSum += currentAudioData[i];
+          bassCount++;
+        } else if (i < midEnd) {
+          midSum += currentAudioData[i];
+          midCount++;
+        } else {
+          highSum += currentAudioData[i];
+          highCount++;
+        }
+      }
+      
+      const bassAvg = bassCount > 0 ? bassSum / bassCount / 255 : 0;
+      const midAvg = midCount > 0 ? midSum / midCount / 255 : 0;
+      const highAvg = highCount > 0 ? highSum / highCount / 255 : 0;
+      
+      // Update geometry based on audio
+      const positions = geometry.attributes.position;
+      const colorAttr = geometry.attributes.color;
+      
+      let vertexIndex = 0;
+      for (let ring = 0; ring < ringCount; ring++) {
+        const ringPercent = ring / ringCount;
+        const baseRadius = ringPercent * 3;
+        
+        for (let seg = 0; seg <= segmentCount; seg++) {
+          const theta = (seg / segmentCount) * Math.PI * 2;
+          
+          // Bass controls overall scale and pulse
+          const bassPulse = 1 + bassAvg * whitecapBassPulseRef.current;
+          
+          // Mid frequencies control radial extension (wings/spokes)
+          const midModulation = midAvg * Math.sin(theta * 3 + time) * whitecapMidExtensionRef.current;
+          
+          // High frequencies add shimmer/noise
+          const highNoise = highAvg * (Math.sin(theta * 8 + time * 5) * whitecapHighShimmerRef.current);
+          
+          const finalRadius = baseRadius * bassPulse + midModulation + highNoise;
+          
+          const x = Math.cos(theta) * finalRadius;
+          const y = Math.sin(theta) * finalRadius;
+          const z = Math.sin(ring * 0.5 + time + bassAvg * 2) * 0.3; // Add wave motion
+          
+          positions.setXYZ(vertexIndex, x, y, z);
+          
+          // Color based on position and audio
+          const colorBlend = ringPercent; // Inner = warm, outer = cool
+          
+          // Bass = warm (dominant color), High = cool (accent color)
+          const warmIntensity = bassAvg * (1 - colorBlend);
+          const coolIntensity = highAvg * colorBlend;
+          
+          const r = dominantRGB.r * (0.5 + warmIntensity) + accentRGB.r * coolIntensity;
+          const g = dominantRGB.g * (0.5 + warmIntensity) + accentRGB.g * coolIntensity;
+          const b = dominantRGB.b * (0.5 + warmIntensity) + accentRGB.b * coolIntensity;
+          
+          colorAttr.setXYZ(vertexIndex, r, g, b);
+          vertexIndex++;
+        }
+      }
+      
+      positions.needsUpdate = true;
+      colorAttr.needsUpdate = true;
+      
+      // Continuous rotation
+      group.rotation.z += whitecapRotationSpeedRef.current;
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(frameId);
+      renderer.dispose();
+      geometry.dispose();
+      material.dispose();
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
     };
   }, [visualizerType, showVisualizer, dominantColor, accentColor]);
 
@@ -1006,25 +1238,23 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'threejs' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'threejs' : v === 'threejs' ? 'whitecap' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : '3D Waveform'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'threejs' ? '3D Sphere' : 'WhiteCap'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                   </button>
-                  {visualizerType === 'threejs' && (
-                    <button
-                      onClick={() => setShowControls(!showControls)}
-                      className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                      title={showControls ? 'Hide Controls' : 'Show Controls'}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                      </svg>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowControls(!showControls)}
+                    className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+                    title={showControls ? 'Hide Controls' : 'Show Controls'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                  </button>
                 </>
               )}
             </div>
@@ -1032,7 +1262,7 @@ export default function Mixes() {
           </div>
           
           {/* Control Panel */}
-          {showControls && visualizerType === 'threejs' && showVisualizer && (
+          {showControls && showVisualizer && (
             <div className="absolute top-20 right-4 w-72 p-4 rounded-lg backdrop-blur-xl bg-black/60 border border-white/10 z-20 space-y-3">
               <div className="text-sm font-medium text-white/90 mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -1041,98 +1271,273 @@ export default function Mixes() {
                 Visualizer Controls
               </div>
               
-              {/* Frequency Multiplier */}
-              <div>
-                <label className="flex justify-between text-xs text-white/70 mb-1">
-                  <span>Audio Intensity</span>
-                  <span className="font-mono">{freqMultiplier.toFixed(1)}</span>
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={freqMultiplier}
-                  onChange={(e) => setFreqMultiplier(parseFloat(e.target.value))}
-                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-                  style={{
-                    accentColor: dominantColor
-                  }}
-                />
-              </div>
+              {/* Bars Controls */}
+              {visualizerType === 'bars' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Bar Height</span>
+                      <span className="font-mono">{barsScale.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.5"
+                      step="0.1"
+                      value={barsScale}
+                      onChange={(e) => setBarsScale(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Smoothness</span>
+                      <span className="font-mono">{barsSmoothness.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1.5"
+                      step="0.05"
+                      value={barsSmoothness}
+                      onChange={(e) => setBarsSmoothness(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setBarsScale(1.0);
+                      setBarsSmoothness(0.8);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
               
-              {/* Noise Multiplier */}
-              <div>
-                <label className="flex justify-between text-xs text-white/70 mb-1">
-                  <span>Surface Detail</span>
-                  <span className="font-mono">{noiseMultiplier.toFixed(2)}</span>
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={noiseMultiplier}
-                  onChange={(e) => setNoiseMultiplier(parseFloat(e.target.value))}
-                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-                  style={{
-                    accentColor: dominantColor
-                  }}
-                />
-              </div>
+              {/* Radial Controls */}
+              {visualizerType === 'radial' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Intensity</span>
+                      <span className="font-mono">{radialIntensity.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2"
+                      step="0.1"
+                      value={radialIntensity}
+                      onChange={(e) => setRadialIntensity(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Animation Speed</span>
+                      <span className="font-mono">{radialTimeSpeed.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={radialTimeSpeed}
+                      onChange={(e) => setRadialTimeSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setRadialIntensity(1.0);
+                      setRadialTimeSpeed(0.5);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
               
-              {/* Time Speed */}
-              <div>
-                <label className="flex justify-between text-xs text-white/70 mb-1">
-                  <span>Animation Speed</span>
-                  <span className="font-mono">{timeSpeed.toFixed(1)}</span>
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={timeSpeed}
-                  onChange={(e) => setTimeSpeed(parseFloat(e.target.value))}
-                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-                  style={{
-                    accentColor: dominantColor
-                  }}
-                />
-              </div>
+              {/* Three.js Sphere Controls */}
+              {visualizerType === 'threejs' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Audio Intensity</span>
+                      <span className="font-mono">{freqMultiplier.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={freqMultiplier}
+                      onChange={(e) => setFreqMultiplier(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Surface Detail</span>
+                      <span className="font-mono">{noiseMultiplier.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={noiseMultiplier}
+                      onChange={(e) => setNoiseMultiplier(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Animation Speed</span>
+                      <span className="font-mono">{timeSpeed.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={timeSpeed}
+                      onChange={(e) => setTimeSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Rotation Speed</span>
+                      <span className="font-mono">{(autoRotationSpeed * 1000).toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.01"
+                      step="0.0005"
+                      value={autoRotationSpeed}
+                      onChange={(e) => setAutoRotationSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setFreqMultiplier(1.5);
+                      setNoiseMultiplier(0.3);
+                      setTimeSpeed(0.5);
+                      setAutoRotationSpeed(0.002);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
               
-              {/* Auto Rotation Speed */}
-              <div>
-                <label className="flex justify-between text-xs text-white/70 mb-1">
-                  <span>Rotation Speed</span>
-                  <span className="font-mono">{(autoRotationSpeed * 1000).toFixed(1)}</span>
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="0.01"
-                  step="0.0005"
-                  value={autoRotationSpeed}
-                  onChange={(e) => setAutoRotationSpeed(parseFloat(e.target.value))}
-                  className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-                  style={{
-                    accentColor: dominantColor
-                  }}
-                />
-              </div>
-              
-              {/* Reset Button */}
-              <button
-                onClick={() => {
-                  setFreqMultiplier(1.5);
-                  setNoiseMultiplier(0.3);
-                  setTimeSpeed(0.5);
-                  setAutoRotationSpeed(0.002);
-                }}
-                className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
-              >
-                Reset to Defaults
-              </button>
+              {/* WhiteCap Controls */}
+              {visualizerType === 'whitecap' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Bass Pulse</span>
+                      <span className="font-mono">{whitecapBassPulse.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={whitecapBassPulse}
+                      onChange={(e) => setWhitecapBassPulse(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Mid Extension</span>
+                      <span className="font-mono">{whitecapMidExtension.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={whitecapMidExtension}
+                      onChange={(e) => setWhitecapMidExtension(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>High Shimmer</span>
+                      <span className="font-mono">{whitecapHighShimmer.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.5"
+                      step="0.025"
+                      value={whitecapHighShimmer}
+                      onChange={(e) => setWhitecapHighShimmer(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Rotation Speed</span>
+                      <span className="font-mono">{(whitecapRotationSpeed * 1000).toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.01"
+                      step="0.0005"
+                      value={whitecapRotationSpeed}
+                      onChange={(e) => setWhitecapRotationSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setWhitecapBassPulse(0.4);
+                      setWhitecapMidExtension(0.5);
+                      setWhitecapHighShimmer(0.1);
+                      setWhitecapRotationSpeed(0.002);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
             </div>
           )}
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6">
@@ -1146,7 +1551,7 @@ export default function Mixes() {
             ) : visualizerType === 'bars' ? (
               <div className="w-full max-w-3xl h-64 sm:h-80 md:h-96 flex items-end justify-center gap-1.5 px-4">
                 {audioData.map((value, index) => {
-                  const scale = Math.max(0.08, value / 255);
+                  const scale = Math.max(0.08, (value / 255) * barsScale);
                   return (
                     <div
                       key={index}
@@ -1155,6 +1560,7 @@ export default function Mixes() {
                         transform: `scaleY(${scale})`,
                         background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
                         opacity: isPlaying ? 0.95 : 0.5,
+                        transition: `transform ${barsSmoothness * 100}ms ease-out`
                       }}
                     />
                   );
@@ -1179,7 +1585,7 @@ export default function Mixes() {
                     const normalizedFreq = value / 255;
                     
                     // Add traveling wave effect (matches sphere algorithm)
-                    const time = Date.now() * 0.001 * timeSpeed;
+                    const time = Date.now() * 0.001 * radialTimeSpeed;
                     const wavePosition = (time * 2) % (Math.PI * 2);
                     const waveFactor = Math.sin(angleRad * 3 + wavePosition) * 0.5 + 0.5; // 0 to 1
                     
@@ -1189,8 +1595,8 @@ export default function Mixes() {
                       Math.sin(angleRad * 4 + time * 0.7) * 0.08;
                     
                     // Calculate displacement - more reactive with higher multipliers
-                    const freqDisplacement = normalizedFreq * freqMultiplier * waveFactor * 0.8; // Increased from 0.25
-                    const noiseDisplacement = noise * noiseMultiplier * 0.5;
+                    const freqDisplacement = normalizedFreq * radialIntensity * waveFactor * 0.8;
+                    const noiseDisplacement = noise * radialIntensity * 0.5;
                     const displacement = freqDisplacement + noiseDisplacement;
                     
                     // Apply to radius with better scaling
@@ -1235,11 +1641,16 @@ export default function Mixes() {
                   />
                 </svg>
               </div>
-            ) : (
+            ) : visualizerType === 'threejs' ? (
               <div 
                 ref={threeCanvasRef}
                 className="w-full max-w-md aspect-square flex items-center justify-center cursor-grab active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
+              />
+            ) : (
+              <div 
+                ref={whitecapCanvasRef}
+                className="w-full max-w-md aspect-square flex items-center justify-center"
               />
             )}
           </div>

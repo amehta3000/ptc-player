@@ -3,12 +3,12 @@ import Head from 'next/head'
 import '../styles/globals.css'
 
 export default function App({ Component, pageProps }: AppProps) {
-  const clarityId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
+  // const clarityId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
   
   return (
     <>
-      <Head>
-        {/* Microsoft Clarity */}
+      {/* Microsoft Clarity - Temporarily disabled to avoid CSP errors */}
+      {/* <Head>
         {clarityId && (
           <script
             type="text/javascript"
@@ -23,7 +23,7 @@ export default function App({ Component, pageProps }: AppProps) {
             }}
           />
         )}
-      </Head>
+      </Head> */}
       <main>
         <Component {...pageProps} />
       </main>
