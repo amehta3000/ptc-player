@@ -3,7 +3,7 @@ import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'radial' | 'threejs' | 'whitecap';
+type VisualizerType = 'bars' | 'radial' | 'orb' | 'web';
 
 // Declare Clarity type
 declare global {
@@ -15,9 +15,9 @@ declare global {
 export default function Mixes() {
   const [currentMix, setCurrentMix] = useState<Mix | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
-  const [showDetail, setShowDetail] = useState<boolean>(true);
-  const [showVisualizer, setShowVisualizer] = useState<boolean>(false);
-  const [visualizerType, setVisualizerType] = useState<VisualizerType>('bars');
+  const [showDetail, setShowDetail] = useState<boolean>(false);
+  const [showVisualizer, setShowVisualizer] = useState<boolean>(true);
+  const [visualizerType, setVisualizerType] = useState<VisualizerType>('orb');
   
   // List of monospace fonts
   const fonts = [
@@ -37,28 +37,32 @@ export default function Mixes() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const threeCanvasRef = useRef<HTMLDivElement | null>(null);
   const whitecapCanvasRef = useRef<HTMLDivElement | null>(null);
+  const barsContainerRef = useRef<HTMLDivElement | null>(null);
   const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
-  const audioDataRef = useRef<number[]>(Array(32).fill(0));
+  const audioDataRef = useRef<number[]>(Array(64).fill(0));
+  const dominantColorRef = useRef<string>('rgb(115, 115, 115)');
+  const accentColorRef = useRef<string>('rgb(163, 163, 163)');
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [dominantColor, setDominantColor] = useState<string>('rgb(115, 115, 115)');
   const [accentColor, setAccentColor] = useState<string>('rgb(163, 163, 163)');
-  const [audioData, setAudioData] = useState<number[]>(Array(32).fill(0));
+  const [audioData, setAudioData] = useState<number[]>(Array(64).fill(0));
   
   // Visualizer control parameters
   const [showControls, setShowControls] = useState<boolean>(false);
   
   // Three.js sphere controls
-  const [freqMultiplier, setFreqMultiplier] = useState<number>(1.5);
-  const [noiseMultiplier, setNoiseMultiplier] = useState<number>(0.3);
-  const [timeSpeed, setTimeSpeed] = useState<number>(0.5);
-  const [autoRotationSpeed, setAutoRotationSpeed] = useState<number>(0.002);
+  const [freqMultiplier, setFreqMultiplier] = useState<number>(3.6);
+  const [noiseMultiplier, setNoiseMultiplier] = useState<number>(0.55);
+  const [timeSpeed, setTimeSpeed] = useState<number>(2.0);
+  const [autoRotationSpeed, setAutoRotationSpeed] = useState<number>(0.003);
   
   // Bars visualizer controls
   const [barsScale, setBarsScale] = useState<number>(1.0);
-  const [barsSmoothness, setBarsSmoothness] = useState<number>(0.8);
+  const [barsSmoothness, setBarsSmoothness] = useState<number>(1.0);
+  const [barsWidth, setBarsWidth] = useState<number>(4);
   
   // Radial visualizer controls
   const [radialIntensity, setRadialIntensity] = useState<number>(1.0);
@@ -71,12 +75,13 @@ export default function Mixes() {
   const [whitecapRotationSpeed, setWhitecapRotationSpeed] = useState<number>(0.002);
   
   // Refs for real-time parameter access in animation loop
-  const freqMultiplierRef = useRef<number>(1.5);
-  const noiseMultiplierRef = useRef<number>(0.3);
-  const timeSpeedRef = useRef<number>(0.5);
-  const autoRotationSpeedRef = useRef<number>(0.002);
+  const freqMultiplierRef = useRef<number>(3.6);
+  const noiseMultiplierRef = useRef<number>(0.55);
+  const timeSpeedRef = useRef<number>(2.0);
+  const autoRotationSpeedRef = useRef<number>(0.003);
   const barsScaleRef = useRef<number>(1.0);
-  const barsSmoothnessRef = useRef<number>(0.8);
+  const barsSmoothnessRef = useRef<number>(1.0);
+  const barsWidthRef = useRef<number>(4);
   const radialIntensityRef = useRef<number>(1.0);
   const radialTimeSpeedRef = useRef<number>(0.5);
   const whitecapBassPulseRef = useRef<number>(0.4);
@@ -92,18 +97,25 @@ export default function Mixes() {
     autoRotationSpeedRef.current = autoRotationSpeed;
     barsScaleRef.current = barsScale;
     barsSmoothnessRef.current = barsSmoothness;
+    barsWidthRef.current = barsWidth;
     radialIntensityRef.current = radialIntensity;
     radialTimeSpeedRef.current = radialTimeSpeed;
     whitecapBassPulseRef.current = whitecapBassPulse;
     whitecapMidExtensionRef.current = whitecapMidExtension;
     whitecapHighShimmerRef.current = whitecapHighShimmer;
     whitecapRotationSpeedRef.current = whitecapRotationSpeed;
-  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed]);
+  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed]);
   
   // Update ref whenever audioData changes
   useEffect(() => {
     audioDataRef.current = audioData;
   }, [audioData]);
+  
+  // Update color refs when colors change
+  useEffect(() => {
+    dominantColorRef.current = dominantColor;
+    accentColorRef.current = accentColor;
+  }, [dominantColor, accentColor]);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -186,7 +198,7 @@ export default function Mixes() {
         const analyser = audioContext.createAnalyser();
         const source = audioContext.createMediaElementSource(audio);
         
-        analyser.fftSize = 256; // Increased for better frequency resolution
+        analyser.fftSize = 2048; // Higher FFT for better frequency resolution
         analyser.smoothingTimeConstant = 0.8; // Smoothing for better visual effect
         source.connect(analyser);
         analyser.connect(audioContext.destination);
@@ -217,8 +229,7 @@ export default function Mixes() {
     const analyser = analyserRef.current;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    const barCount = 32; // Number of bars to display
-    const step = Math.floor(bufferLength / barCount);
+    const barCount = 64; // Number of bars to display
     let frameCount = 0;
 
     const animate = () => {
@@ -232,45 +243,80 @@ export default function Mixes() {
         if (isCurrentlyPlaying) {
           analyser.getByteFrequencyData(dataArray);
           
-          // Sample frequency data across the spectrum
-          // bufferLength = 128 (FFT 256 / 2)
-          // We want: more bins for lows/mids, fewer but well-represented highs
+          // Dual-curve logarithmic: gentle curve for bass, standard curve for mids/highs
           const bars: number[] = new Array(barCount);
+          const sampleRate = audioContextRef.current?.sampleRate || 44100;
+          const binFreqRange = sampleRate / analyser.fftSize; // ~21.5 Hz per bin at 2048 FFT
+          
+          // Use 40% of bars for bass/low-mids with gentler curve
+          const bassCutoff = 0.4;
+          const bassTransitionFreq = 800; // Transition frequency
+          const minFreq = 20;
+          const maxFreq = 16000;
           
           for (let i = 0; i < barCount; i++) {
-            // Map bar index to frequency bins using exponential curve
-            // This gives us good bass separation AND proper high-frequency response
-            const percent = i / barCount;
-            const percentNext = (i + 1) / barCount;
+            let f0, f1;
             
-            // Use exponential mapping: first half gets linear, second half gets exponential
-            // This balances bass detail with high frequency coverage
-            let start, end;
-            
-            if (i < barCount / 2) {
-              // First 16 bars: more linear for bass/low-mid detail
-              start = Math.floor((percent * 2) * (bufferLength * 0.3));
-              end = Math.floor((percentNext * 2) * (bufferLength * 0.3));
+            if (i < barCount * bassCutoff) {
+              // Gentle logarithmic curve for bass (20-800 Hz)
+              // Use square root to flatten the curve and spread bass bars more evenly
+              const t0 = i / (barCount * bassCutoff);
+              const t1 = (i + 1) / (barCount * bassCutoff);
+              
+              // Apply square root to t values to make distribution more linear-like
+              const adjusted_t0 = Math.sqrt(t0);
+              const adjusted_t1 = Math.sqrt(t1);
+              
+              f0 = minFreq * Math.pow(bassTransitionFreq / minFreq, adjusted_t0);
+              f1 = minFreq * Math.pow(bassTransitionFreq / minFreq, adjusted_t1);
             } else {
-              // Last 16 bars: exponential for mids/highs
-              const adjustedPercent = (percent - 0.5) * 2; // 0 to 1 for second half
-              const adjustedPercentNext = (percentNext - 0.5) * 2;
-              start = Math.floor(bufferLength * 0.3 + Math.pow(adjustedPercent, 1.5) * (bufferLength * 0.7));
-              end = Math.floor(bufferLength * 0.3 + Math.pow(adjustedPercentNext, 1.5) * (bufferLength * 0.7));
+              // Standard logarithmic for mids/highs (800-16000 Hz)
+              const midHighIndex = i - (barCount * bassCutoff);
+              const midHighCount = barCount * (1 - bassCutoff);
+              const t0 = midHighIndex / midHighCount;
+              const t1 = (midHighIndex + 1) / midHighCount;
+              
+              f0 = bassTransitionFreq * Math.pow(maxFreq / bassTransitionFreq, t0);
+              f1 = bassTransitionFreq * Math.pow(maxFreq / bassTransitionFreq, t1);
             }
+            
+            // Map to bin indices
+            let startIndex = Math.floor(f0 / binFreqRange);
+            let endIndex = Math.floor(f1 / binFreqRange);
+            
+            // Ensure each bar has at least one unique bin
+            if (endIndex <= startIndex) {
+              endIndex = startIndex + 1;
+            }
+            
+            // Clamp to valid range
+            startIndex = Math.max(0, Math.min(startIndex, bufferLength - 1));
+            endIndex = Math.min(bufferLength - 1, endIndex);
             
             let sum = 0;
             let count = 0;
             
-            // Ensure we sample at least one bin
-            const rangeEnd = Math.max(end, start + 1);
-            
-            for (let j = start; j < rangeEnd && j < bufferLength; j++) {
-              sum += dataArray[j];
+            for (let bin = startIndex; bin <= endIndex; bin++) {
+              sum += dataArray[bin];
               count++;
             }
             
-            bars[i] = count > 0 ? sum / count : 0;
+            const avg = count ? sum / count : 0;
+            
+            // Loudness compensation based on frequency
+            let loudnessBoost = 1.0;
+            if (i < barCount * 0.2) {
+              // Extra boost for sub-bass/bass (first 20%)
+              loudnessBoost = 1.5;
+            } else if (i < barCount * 0.35) {
+              // Moderate boost for low-mids (20-35%)
+              loudnessBoost = 1.2;
+            } else if (i > barCount * 0.75) {
+              // Boost highs (last 25%)
+              loudnessBoost = 1 + ((i / barCount - 0.75) / 0.25) * 0.6;
+            }
+            
+            bars[i] = avg * loudnessBoost;
           }
           
           setAudioData(bars);
@@ -316,7 +362,7 @@ export default function Mixes() {
 
   // Setup Three.js visualizer
   useEffect(() => {
-    if (!threeCanvasRef.current || visualizerType !== 'threejs' || !showVisualizer) return;
+    if (!threeCanvasRef.current || visualizerType !== 'orb' || !showVisualizer || !currentMix) return;
 
     // Create scene
     const scene = new THREE.Scene();
@@ -324,6 +370,8 @@ export default function Mixes() {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     
     const container = threeCanvasRef.current;
+    if (!container) return;
+    
     const size = Math.min(container.clientWidth, container.clientHeight);
     renderer.setSize(size, size);
     renderer.setClearColor(0x000000, 0);
@@ -338,28 +386,12 @@ export default function Mixes() {
     // Store original positions for animation
     const originalPositions = new Float32Array(geometry.attributes.position.array);
     
-    // Parse album artwork colors
-    const parseRGB = (rgbString: string) => {
-      const match = rgbString.match(/\d+/g);
-      if (match && match.length >= 3) {
-        return {
-          r: parseInt(match[0]) / 255,
-          g: parseInt(match[1]) / 255,
-          b: parseInt(match[2]) / 255
-        };
-      }
-      return { r: 0, g: 1, b: 1 }; // Fallback cyan
-    };
-    
-    const dominantRGB = parseRGB(dominantColor);
-    const accentRGB = parseRGB(accentColor);
-    
-    // Add vertex colors initialized with dominant color
+    // Add vertex colors initialized with a default color (will be updated in animation loop)
     const colors = new Float32Array(geometry.attributes.position.count * 3);
     for (let i = 0; i < colors.length; i += 3) {
-      colors[i] = dominantRGB.r;
-      colors[i + 1] = dominantRGB.g;
-      colors[i + 2] = dominantRGB.b;
+      colors[i] = 0.5;
+      colors[i + 1] = 0.5;
+      colors[i + 2] = 0.5;
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
@@ -415,8 +447,22 @@ export default function Mixes() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
 
-    // Animation loop
+    // Parse album artwork colors helper
+    const parseRGB = (rgbString: string) => {
+      const match = rgbString.match(/\d+/g);
+      if (match && match.length >= 3) {
+        return {
+          r: parseInt(match[0]) / 255,
+          g: parseInt(match[1]) / 255,
+          b: parseInt(match[2]) / 255
+        };
+      }
+      return { r: 0, g: 1, b: 1 }; // Fallback cyan
+    };
+
+    // Animation loop with smooth transitions
     let frameId: number;
+    let currentEnergyLevel = 0.1; // Start at calm state (0.1 = 10%)
     
     const animate = () => {
       frameId = requestAnimationFrame(animate);
@@ -426,6 +472,10 @@ export default function Mixes() {
       const currentTimeSpeed = timeSpeedRef.current;
       const currentFreqMultiplier = freqMultiplierRef.current;
       const currentNoiseMultiplier = noiseMultiplierRef.current;
+      
+      // Update colors dynamically from current state via refs
+      const dominantRGB = parseRGB(dominantColorRef.current);
+      const accentRGB = parseRGB(accentColorRef.current);
       
       // Continuous auto-rotation of the mesh
       mesh.rotation.y += currentAutoRotationSpeed;
@@ -530,11 +580,11 @@ export default function Mixes() {
       }
       threeSceneRef.current = null;
     };
-  }, [visualizerType, showVisualizer, dominantColor, accentColor]);
+  }, [visualizerType, showVisualizer, currentMix]);
 
   // Setup WhiteCap visualizer
   useEffect(() => {
-    if (!whitecapCanvasRef.current || visualizerType !== 'whitecap' || !showVisualizer) return;
+    if (!whitecapCanvasRef.current || visualizerType !== 'web' || !showVisualizer) return;
 
     // Create scene
     const scene = new THREE.Scene();
@@ -873,8 +923,8 @@ export default function Mixes() {
     
     // Only reset view states if not preserving (e.g., clicking from playlist)
     if (!preserveView) {
-      setShowDetail(false);
-      setShowVisualizer(false);
+      setShowDetail(true);
+      setShowVisualizer(true);
     }
     
     // Track song selection in Clarity
@@ -969,7 +1019,7 @@ export default function Mixes() {
             </select>
           )}
         </div>
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center justify-center flex-1">
           <div className="flex space-x-1 sm:space-x-2">
             <a
               href="https://instagram.com/parttimechiller"
@@ -1005,8 +1055,8 @@ export default function Mixes() {
               </svg>
             </a>
           </div>
-          <div className="h-6 w-px bg-neutral-700 hidden sm:block"></div>
-          <div className="flex space-x-1 sm:space-x-2">
+        </div>
+        <div className="flex space-x-1 sm:space-x-2">
             <button
               onClick={() => setFilter('all')}
               className={`px-2 sm:px-3 py-1 rounded text-xs sm:text-sm transition-colors ${
@@ -1039,7 +1089,6 @@ export default function Mixes() {
             </button>
           </div>
         </div>
-      </div>
 
       <div className="space-y-2">
         {filteredMixes.map((mix, idx) => (
@@ -1064,18 +1113,16 @@ export default function Mixes() {
                 <span className="text-xs text-neutral-400">🎵</span>
               </div>
               <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-md font-medium leading-tight">{mix.title}</h2>
-                  <span className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
-                    mix.type === 'mix' 
-                      ? 'border-purple-500/40 text-purple-400/90' 
-                      : 'border-blue-500/40 text-blue-400/90'
-                  }`}>
-                    {mix.type}
-                  </span>
-                </div>
+                <h2 className="text-md font-medium leading-tight">{mix.title}</h2>
                 <p className="text-xs text-neutral-400">{mix.description} • {mix.duration}</p>
               </div>
+              <span className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
+                mix.type === 'mix' 
+                  ? 'border-purple-500/40 text-purple-400/90' 
+                  : 'border-blue-500/40 text-blue-400/90'
+              }`}>
+                {mix.type}
+              </span>
             </div>
           </div>
         ))}
@@ -1084,22 +1131,31 @@ export default function Mixes() {
       {currentMix && (
         <>
           {/* Waveform Visualizer */}
-          <div className="fixed bottom-20 left-0 right-0 h-24 flex items-end justify-center gap-1.5 px-4 pointer-events-none">
-            {audioData.map((value, index) => {
-              const scale = Math.max(0.08, value / 255);
-              
-              return (
-                <div
-                  key={index}
-                  className="flex-1 h-full origin-bottom rounded-t-md will-change-transform"
-                  style={{
-                    transform: `scaleY(${scale})`,
-                    background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
-                    opacity: isPlaying ? 0.9 : 0.4,
-                  }}
-                />
-              );
-            })}
+          <div className="fixed bottom-20 left-0 right-0 h-24 pointer-events-none">
+            {/* Gradient background for better visibility */}
+            <div 
+              className="absolute inset-0" 
+              style={{
+                background: `linear-gradient(to top, ${dominantColor}15, transparent)`,
+              }}
+            />
+            <div className="relative h-full flex items-end justify-center gap-1.5 px-4">
+              {audioData.map((value, index) => {
+                const scale = Math.max(0.08, value / 255);
+                
+                return (
+                  <div
+                    key={index}
+                    className="flex-1 h-full origin-bottom rounded-t-md will-change-transform"
+                    style={{
+                      transform: `scaleY(${scale})`,
+                      background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
+                      opacity: isPlaying ? 0.9 : 0.4,
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
 
           {/* Player Bar */}
@@ -1242,9 +1298,9 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'threejs' : v === 'threejs' ? 'whitecap' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'orb' : v === 'orb' ? 'web' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'threejs' ? '3D Sphere' : 'WhiteCap'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : 'Web'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1271,7 +1327,7 @@ export default function Mixes() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                Visualizer Controls
+                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : 'Web'} Controls
               </div>
               
               {/* Bars Controls */}
@@ -1311,10 +1367,28 @@ export default function Mixes() {
                     />
                   </div>
                   
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Bar Width</span>
+                      <span className="font-mono">{barsWidth}px</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="4"
+                      max="60"
+                      step="2"
+                      value={barsWidth}
+                      onChange={(e) => setBarsWidth(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
                   <button
                     onClick={() => {
                       setBarsScale(1.0);
-                      setBarsSmoothness(0.8);
+                      setBarsSmoothness(1.0);
+                      setBarsWidth(4);
                     }}
                     className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
                   >
@@ -1372,8 +1446,8 @@ export default function Mixes() {
                 </>
               )}
               
-              {/* Three.js Sphere Controls */}
-              {visualizerType === 'threejs' && (
+              {/* Orb Controls */}
+              {visualizerType === 'orb' && (
                 <>
                   <div>
                     <label className="flex justify-between text-xs text-white/70 mb-1">
@@ -1445,10 +1519,10 @@ export default function Mixes() {
                   
                   <button
                     onClick={() => {
-                      setFreqMultiplier(1.5);
-                      setNoiseMultiplier(0.3);
-                      setTimeSpeed(0.5);
-                      setAutoRotationSpeed(0.002);
+                      setFreqMultiplier(3.6);
+                      setNoiseMultiplier(0.55);
+                      setTimeSpeed(2.0);
+                      setAutoRotationSpeed(0.003);
                     }}
                     className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
                   >
@@ -1456,9 +1530,9 @@ export default function Mixes() {
                   </button>
                 </>
               )}
-              
-              {/* WhiteCap Controls */}
-              {visualizerType === 'whitecap' && (
+               
+              {/* Web Controls */}
+              {visualizerType === 'web' && (
                 <>
                   <div>
                     <label className="flex justify-between text-xs text-white/70 mb-1">
@@ -1552,14 +1626,20 @@ export default function Mixes() {
                 style={{ boxShadow: `0 0 0 3px ${accentColor}40` }}
               />
             ) : visualizerType === 'bars' ? (
-              <div className="w-full max-w-3xl h-64 sm:h-80 md:h-96 flex items-end justify-center gap-1.5 px-4">
+              <div 
+                ref={barsContainerRef}
+                className="w-full h-64 sm:h-80 md:h-96 flex items-end justify-between px-0"
+              >
                 {audioData.map((value, index) => {
                   const scale = Math.max(0.08, (value / 255) * barsScale);
                   return (
                     <div
                       key={index}
-                      className="flex-1 h-full origin-bottom rounded-t-md"
+                      className="h-full origin-bottom rounded-t-md"
                       style={{
+                        width: `${barsWidth}px`,
+                        maxWidth: `${barsWidth}px`,
+                        minWidth: `${barsWidth}px`,
                         transform: `scaleY(${scale})`,
                         background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
                         opacity: isPlaying ? 0.95 : 0.5,
@@ -1569,6 +1649,7 @@ export default function Mixes() {
                   );
                 })}
               </div>
+            
             ) : visualizerType === 'radial' ? (
               <div className="w-full max-w-md aspect-square flex items-center justify-center">
                 <svg className="w-full h-full" viewBox="0 0 400 400">
@@ -1644,43 +1725,20 @@ export default function Mixes() {
                   />
                 </svg>
               </div>
-            ) : visualizerType === 'threejs' ? (
+            ) : visualizerType === 'orb' ? (
               <div 
                 ref={threeCanvasRef}
                 className="w-full max-w-md aspect-square flex items-center justify-center cursor-grab active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
               />
-            ) : (
+            ) : visualizerType === 'web' ? (
               <div 
                 ref={whitecapCanvasRef}
                 className="w-full max-w-md aspect-square flex items-center justify-center"
               />
-            )}
+            ) : null}
           </div>
           <div className="relative z-10 px-4 py-6 border-t border-neutral-800/50">
-            {/* Footer with Playlist and Download */}
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => setShowDetail(false)}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-800/80 hover:bg-neutral-700 text-white transition-colors backdrop-blur"
-                aria-label="Show playlist"
-                title="Show playlist"
-              >
-                <img src="/ptc-player/playlist.svg" alt="Playlist" className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => {
-                  if (currentMix?.audio) {
-                    window.open(currentMix.audio, '_blank');
-                  }
-                }}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-800/80 hover:bg-neutral-700 text-white transition-colors backdrop-blur"
-                aria-label="Download track"
-                title="Download track"
-              >
-                <img src="/ptc-player/download.svg" alt="Download" className="w-5 h-5" />
-              </button>
-            </div>
             <div className="w-full max-w-3xl mx-auto space-y-4">
               <div className="text-center text-xl font-semibold truncate">{currentMix.title}</div>
               <div 
@@ -1699,50 +1757,69 @@ export default function Mixes() {
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
-              <div className="flex items-center justify-center gap-4 pt-2">
+              <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={playPrevious}
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
-                  }}
-                  disabled={currentIndex === 0}
-                  aria-label="Previous track"
+                  onClick={() => setShowDetail(false)}
+                  className="w-12 h-12 rounded-full flex items-center justify-center bg-neutral-800/80 hover:bg-neutral-700 text-white transition-colors backdrop-blur"
+                  aria-label="Show playlist"
+                  title="Show playlist"
                 >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-                  </svg>
+                  <img src="/ptc-player/playlist.svg" alt="Playlist" className="w-6 h-6" />
                 </button>
-                <button
-                  onClick={togglePlay}
-                  className="w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
-                  }}
-                >
-                  {isPlaying ? (
-                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={playPrevious}
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                    style={{
+                      background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
+                    }}
+                    disabled={currentIndex === 0}
+                    aria-label="Previous track"
+                  >
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
                     </svg>
-                  ) : (
-                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z"/>
+                  </button>
+                  <button
+                    onClick={togglePlay}
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                    style={{
+                      background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
+                    }}
+                  >
+                    {isPlaying ? (
+                      <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                      </svg>
+                    ) : (
+                      <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={playNext}
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                    style={{
+                      background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
+                    }}
+                    disabled={currentIndex === filteredMixes.length - 1}
+                    aria-label="Next track"
+                  >
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
                     </svg>
-                  )}
-                </button>
-                <button
-                  onClick={playNext}
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`
-                  }}
-                  disabled={currentIndex === filteredMixes.length - 1}
-                  aria-label="Next track"
+                  </button>
+                </div>
+                <a
+                  href={currentMix?.audio}
+                  download={currentMix?.title}
+                  className="w-12 h-12 rounded-full flex items-center justify-center bg-neutral-800/80 hover:bg-neutral-700 text-white transition-colors backdrop-blur"
+                  aria-label="Download track"
+                  title="Download track"
                 >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
-                  </svg>
-                </button>
+                  <img src="/ptc-player/download.svg" alt="Download" className="w-6 h-6" />
+                </a>
               </div>
             </div>
           </div>

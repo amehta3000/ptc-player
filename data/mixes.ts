@@ -25,11 +25,11 @@ export const mixes: Mix[] = [
     type: "track"
   },
   {
-    title: "Rise Up",
-    cover: "https://media.parttimechiller.com/RiseUp_PTC.png",
-    audio: "https://media.parttimechiller.com/RiseUp_PTC.mp3",
-    duration: "3:28",
-    description: "Time to get up and get down",
+    title: "Some Vibes",
+    cover: "https://media.parttimechiller.com/SomeVibes_PTC.png",
+    audio: "https://media.parttimechiller.com/SomeVibes_PTC.mp3",
+    duration: "2:15",
+    description: "Some Roland vibes for your midnight soul",
     type: "track"
   },
   {
@@ -55,5 +55,13 @@ export const mixes: Mix[] = [
     duration: "3:00:00",
     description: "Perfect early summertime evening vibes recorded at Tamarak Ventures 2025",
     type: "mix"
-  }  
+  },  
+  {
+    title: "Rise Up",
+    cover: "https://media.parttimechiller.com/RiseUp_PTC.png",
+    audio: "https://media.parttimechiller.com/RiseUp_PTC.mp3",
+    duration: "3:28",
+    description: "Time to get up and get down",
+    type: "track"
+  }
 ]; 
