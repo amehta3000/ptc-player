@@ -3,7 +3,7 @@ import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'radial' | 'orb' | 'web';
+type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain';
 
 // Declare Clarity type
 declare global {
@@ -37,6 +37,7 @@ export default function Mixes() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const threeCanvasRef = useRef<HTMLDivElement | null>(null);
   const whitecapCanvasRef = useRef<HTMLDivElement | null>(null);
+  const terrainCanvasRef = useRef<HTMLDivElement | null>(null);
   const barsContainerRef = useRef<HTMLDivElement | null>(null);
   const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
   const audioDataRef = useRef<number[]>(Array(64).fill(0));
@@ -74,6 +75,14 @@ export default function Mixes() {
   const [whitecapHighShimmer, setWhitecapHighShimmer] = useState<number>(0.1);
   const [whitecapRotationSpeed, setWhitecapRotationSpeed] = useState<number>(0.002);
   
+  // Terrain visualizer controls
+  const [terrainAmplitude, setTerrainAmplitude] = useState<number>(3.9);
+  const [terrainSpeed, setTerrainSpeed] = useState<number>(17.5);
+  const [terrainDecay, setTerrainDecay] = useState<number>(0.95);
+  const [terrainCameraDistance, setTerrainCameraDistance] = useState<number>(9.5);
+  const [terrainAutoRotation, setTerrainAutoRotation] = useState<number>(0.0005);
+  const [terrainRenderMode, setTerrainRenderMode] = useState<'grid' | 'wireframe' | 'surface'>('wireframe');
+  
   // Refs for real-time parameter access in animation loop
   const freqMultiplierRef = useRef<number>(3.6);
   const noiseMultiplierRef = useRef<number>(0.55);
@@ -88,6 +97,12 @@ export default function Mixes() {
   const whitecapMidExtensionRef = useRef<number>(0.5);
   const whitecapHighShimmerRef = useRef<number>(0.1);
   const whitecapRotationSpeedRef = useRef<number>(0.002);
+  const terrainAmplitudeRef = useRef<number>(2.0);
+  const terrainSpeedRef = useRef<number>(1.0);
+  const terrainDecayRef = useRef<number>(0.95);
+  const terrainCameraDistanceRef = useRef<number>(8);
+  const terrainAutoRotationRef = useRef<number>(0.002);
+  const terrainRenderModeRef = useRef<'grid' | 'wireframe' | 'surface'>('wireframe');
   
   // Update refs when state changes
   useEffect(() => {
@@ -104,7 +119,13 @@ export default function Mixes() {
     whitecapMidExtensionRef.current = whitecapMidExtension;
     whitecapHighShimmerRef.current = whitecapHighShimmer;
     whitecapRotationSpeedRef.current = whitecapRotationSpeed;
-  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed]);
+    terrainAmplitudeRef.current = terrainAmplitude;
+    terrainSpeedRef.current = terrainSpeed;
+    terrainDecayRef.current = terrainDecay;
+    terrainCameraDistanceRef.current = terrainCameraDistance;
+    terrainAutoRotationRef.current = terrainAutoRotation;
+    terrainRenderModeRef.current = terrainRenderMode;
+  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed, terrainAmplitude, terrainSpeed, terrainDecay, terrainCameraDistance, terrainAutoRotation, terrainRenderMode]);
   
   // Update ref whenever audioData changes
   useEffect(() => {
@@ -781,6 +802,317 @@ export default function Mixes() {
     };
   }, [visualizerType, showVisualizer, dominantColor, accentColor]);
 
+  // Terrain Visualizer (3D Audio Waves)
+  useEffect(() => {
+    if (!terrainCanvasRef.current || visualizerType !== 'terrain' || !showVisualizer) return;
+
+    const container = terrainCanvasRef.current;
+    container.style.cursor = 'grab';
+    container.style.touchAction = 'none';
+    
+    // Three.js setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: false, // Disabled for performance
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setClearColor(0x000000, 0);
+    container.appendChild(renderer.domElement);
+    
+    // Camera control state
+    let cameraRotation = { x: -0.5, y: 0 };
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+    
+    // Mouse/touch controls
+    const onMouseDown = (e: MouseEvent | TouchEvent) => {
+      isDragging = true;
+      container.style.cursor = 'grabbing';
+      const pos = 'touches' in e ? e.touches[0] : e;
+      lastMousePos = { x: pos.clientX, y: pos.clientY };
+    };
+    
+    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      const pos = 'touches' in e ? e.touches[0] : e;
+      const deltaX = pos.clientX - lastMousePos.x;
+      const deltaY = pos.clientY - lastMousePos.y;
+      
+      cameraRotation.y += deltaX * 0.005;
+      cameraRotation.x += deltaY * 0.005;
+      cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
+      
+      lastMousePos = { x: pos.clientX, y: pos.clientY };
+    };
+    
+    const onMouseUp = () => {
+      isDragging = false;
+      container.style.cursor = 'grab';
+    };
+    
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('mousemove', onMouseMove);
+    container.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('mouseleave', onMouseUp);
+    container.addEventListener('touchstart', onMouseDown);
+    container.addEventListener('touchmove', onMouseMove);
+    container.addEventListener('touchend', onMouseUp);
+    
+    const updateCameraPosition = () => {
+      const distance = terrainCameraDistanceRef.current;
+      const autoRotation = terrainAutoRotationRef.current;
+      
+      // Apply auto-rotation if not dragging
+      if (!isDragging) {
+        cameraRotation.y += autoRotation;
+      }
+      
+      // Calculate camera position
+      camera.position.x = distance * Math.sin(cameraRotation.y) * Math.cos(cameraRotation.x);
+      camera.position.y = distance * Math.sin(cameraRotation.x);
+      camera.position.z = distance * Math.cos(cameraRotation.y) * Math.cos(cameraRotation.x);
+      camera.lookAt(0, 0, -5);
+    };
+    
+    updateCameraPosition();
+    
+    // Parse colors for material - helper function
+    const parseRGB = (rgbString: string) => {
+      const match = rgbString.match(/\d+/g);
+      if (match && match.length >= 3) {
+        return {
+          r: parseInt(match[0]) / 255,
+          g: parseInt(match[1]) / 255,
+          b: parseInt(match[2]) / 255
+        };
+      }
+      return { r: 1, g: 0.5, b: 0 };
+    };
+    
+    // Terrain parameters (heavily reduced for performance)
+    const segmentsX = 32; // Number of points per line (reduced from 64)
+    const segmentsZ = 20; // Number of lines in history (reduced from 40)
+    const width = 10;
+    const depth = 20;
+    
+    // Create plane geometry
+    const geometry = new THREE.PlaneGeometry(width, depth, segmentsX - 1, segmentsZ - 1);
+    geometry.rotateX(-Math.PI / 2); // Make it horizontal
+    
+    // Store original positions for wave decay
+    const positions = geometry.attributes.position;
+    const waveHistory: number[][] = [];
+    
+    // Initialize wave history with flat lines
+    for (let i = 0; i < segmentsZ; i++) {
+      waveHistory.push(new Array(segmentsX).fill(0));
+    }
+    
+    // Create material with vertex colors (initialize with gray, will be updated in animate)
+    const colors = new Float32Array(positions.count * 3);
+    for (let i = 0; i < positions.count; i++) {
+      colors[i * 3] = 0.5;
+      colors[i * 3 + 1] = 0.5;
+      colors[i * 3 + 2] = 0.5;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // Create materials for different render modes
+    const meshMaterial = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      wireframe: terrainRenderModeRef.current === 'wireframe',
+      transparent: true,
+      opacity: terrainRenderModeRef.current === 'wireframe' ? 0.8 : 1.0,
+      side: THREE.DoubleSide,
+      color: 0xffffff
+    });
+    
+    const pointsMaterial = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.15,
+      transparent: true,
+      opacity: 0.9,
+      sizeAttenuation: true
+    });
+    
+    // Create both mesh and points objects
+    const terrain = new THREE.Mesh(geometry, meshMaterial);
+    const terrainPoints = new THREE.Points(geometry, pointsMaterial);
+    terrain.position.z = -depth / 2;
+    terrainPoints.position.z = -depth / 2;
+    
+    // Add the appropriate object based on render mode
+    const currentMode = terrainRenderModeRef.current;
+    if (currentMode === 'grid') {
+      scene.add(terrainPoints);
+    } else {
+      scene.add(terrain);
+    }
+    
+    let lastUpdateTime = Date.now();
+    let frameCount = 0;
+    
+    let frameId = 0;
+    const animate = () => {
+      frameId = requestAnimationFrame(animate);
+      
+      const currentTime = Date.now();
+      const currentAudioData = audioDataRef.current;
+      const currentAmplitude = terrainAmplitudeRef.current;
+      const currentDecay = terrainDecayRef.current;
+      const currentSpeed = terrainSpeedRef.current;
+      
+      // Get current colors from refs for dynamic updates
+      const dominantRGB = parseRGB(dominantColorRef.current);
+      const accentRGB = parseRGB(accentColorRef.current);
+      
+      // Update camera position every frame for smooth rotation
+      updateCameraPosition();
+      
+      // Update wave history at specified interval
+      const shouldUpdateWave = currentTime - lastUpdateTime >= 1000 / currentSpeed;
+      if (shouldUpdateWave) {
+        // Shift all waves back (toward camera)
+        waveHistory.pop();
+        
+        // Downsample audio data to match segmentsX (32 points instead of 64)
+        const newWave: number[] = [];
+        const step = Math.floor(currentAudioData.length / segmentsX);
+        for (let i = 0; i < segmentsX; i++) {
+          const index = Math.floor(i * step);
+          newWave.push((currentAudioData[index] || 0) / 255 * currentAmplitude);
+        }
+        waveHistory.unshift(newWave);
+        
+        lastUpdateTime = currentTime;
+      }
+      
+      // Update geometry vertices and colors EVERY FRAME for fluid animation
+      const colorAttr = geometry.attributes.color;
+      
+      // Calculate interpolation factor for smooth transitions between wave updates
+      const timeSinceLastUpdate = currentTime - lastUpdateTime;
+      const updateInterval = 1000 / currentSpeed;
+      const interpolationFactor = Math.min(1, timeSinceLastUpdate / updateInterval);
+      
+      // Pre-calculate decay factors
+      const decayFactors: number[] = [];
+      for (let z = 0; z < segmentsZ; z++) {
+        decayFactors[z] = Math.pow(currentDecay, z);
+      }
+      
+      // Also get current live audio data for front wave interpolation
+      const liveWave: number[] = [];
+      const step = Math.floor(currentAudioData.length / segmentsX);
+      for (let i = 0; i < segmentsX; i++) {
+        const index = Math.floor(i * step);
+        liveWave.push((currentAudioData[index] || 0) / 255 * currentAmplitude);
+      }
+      
+      for (let z = 0; z < segmentsZ; z++) {
+        const decayFactor = decayFactors[z];
+        // Depth gradient: 0 at front (closest), 1 at back (farthest)
+        const depthGradient = z / (segmentsZ - 1);
+        
+        for (let x = 0; x < segmentsX; x++) {
+          const index = z * segmentsX + x;
+          
+          // Get wave height from history
+          let waveHeight = (waveHistory[z][x] || 0) * decayFactor;
+          
+          // Interpolate the front wave with live audio data for ultra-smooth animation
+          if (z === 0) {
+            const targetHeight = liveWave[x] || 0;
+            waveHeight = waveHeight + (targetHeight - waveHeight) * interpolationFactor;
+          }
+          
+          // Update Y position
+          positions.setY(index, waveHeight);
+          
+          // Create multi-dimensional gradient mapping
+          // Height intensity: higher waves get more accent color
+          const heightIntensity = Math.min(1, Math.max(0, waveHeight / currentAmplitude));
+          
+          // Create dramatic color gradient for visibility
+          // Front (z=0) uses accent color, back (z=max) uses dominant color
+          let r, g, b;
+          
+          if (heightIntensity > 0.7) {
+            // High peaks: bright accent color
+            r = accentRGB.r * 1.5;
+            g = accentRGB.g * 1.5;
+            b = accentRGB.b * 1.5;
+          } else {
+            // Base color: blend between accent (front) and dominant (back) based on depth
+            r = accentRGB.r * (1 - depthGradient) + dominantRGB.r * depthGradient;
+            g = accentRGB.g * (1 - depthGradient) + dominantRGB.g * depthGradient;
+            b = accentRGB.b * (1 - depthGradient) + dominantRGB.b * depthGradient;
+            
+            // Add height-based brightening
+            const brighten = heightIntensity * 0.4;
+            r += brighten;
+            g += brighten;
+            b += brighten;
+          }
+          
+          // Clamp values
+          r = Math.min(1, Math.max(0, r));
+          g = Math.min(1, Math.max(0, g));
+          b = Math.min(1, Math.max(0, b));
+          
+          colorAttr.setXYZ(index, r, g, b);
+        }
+      }
+      
+      positions.needsUpdate = true;
+      colorAttr.needsUpdate = true;
+      
+      // Handle render mode changes
+      const currentMode = terrainRenderModeRef.current;
+      const isGridMode = currentMode === 'grid';
+      const shouldShowPoints = isGridMode && !scene.children.includes(terrainPoints);
+      const shouldShowMesh = !isGridMode && !scene.children.includes(terrain);
+      
+      if (shouldShowPoints) {
+        scene.remove(terrain);
+        scene.add(terrainPoints);
+      } else if (shouldShowMesh) {
+        scene.remove(terrainPoints);
+        scene.add(terrain);
+      }
+      
+      // Update mesh material if wireframe/surface mode changed
+      if (!isGridMode) {
+        const shouldBeWireframe = currentMode === 'wireframe';
+        if (meshMaterial.wireframe !== shouldBeWireframe) {
+          meshMaterial.wireframe = shouldBeWireframe;
+          meshMaterial.opacity = shouldBeWireframe ? 0.8 : 1.0;
+          meshMaterial.needsUpdate = true;
+        }
+      }
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+    
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(frameId);
+      renderer.dispose();
+      geometry.dispose();
+      meshMaterial.dispose();
+      pointsMaterial.dispose();
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+    };
+  }, [visualizerType, showVisualizer, dominantColor, accentColor]);
+
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -1298,9 +1630,9 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'orb' : v === 'orb' ? 'web' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : 'Web'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : 'Terrain'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1327,7 +1659,7 @@ export default function Mixes() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : 'Web'} Controls
+                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : 'Terrain'} Controls
               </div>
               
               {/* Bars Controls */}
@@ -1615,6 +1947,127 @@ export default function Mixes() {
                   </button>
                 </>
               )}
+              
+              {/* Terrain Controls */}
+              {visualizerType === 'terrain' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Wave Amplitude</span>
+                      <span className="font-mono">{terrainAmplitude.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5"
+                      step="0.1"
+                      value={terrainAmplitude}
+                      onChange={(e) => setTerrainAmplitude(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Wave Speed</span>
+                      <span className="font-mono">{terrainSpeed.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="20"
+                      step="0.5"
+                      value={terrainSpeed}
+                      onChange={(e) => setTerrainSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Wave Decay</span>
+                      <span className="font-mono">{terrainDecay.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.85"
+                      max="0.99"
+                      step="0.01"
+                      value={terrainDecay}
+                      onChange={(e) => setTerrainDecay(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Camera Distance</span>
+                      <span className="font-mono">{terrainCameraDistance.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="5"
+                      max="15"
+                      step="0.5"
+                      value={terrainCameraDistance}
+                      onChange={(e) => setTerrainCameraDistance(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Auto Rotation</span>
+                      <span className="font-mono">{terrainAutoRotation.toFixed(4)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.01"
+                      step="0.0005"
+                      value={terrainAutoRotation}
+                      onChange={(e) => setTerrainAutoRotation(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex items-center justify-between text-xs text-white/70">
+                      <span>Render Mode</span>
+                      <button
+                        onClick={() => {
+                          const modes: Array<'grid' | 'wireframe' | 'surface'> = ['grid', 'wireframe', 'surface'];
+                          const currentIndex = modes.indexOf(terrainRenderMode);
+                          const nextIndex = (currentIndex + 1) % modes.length;
+                          setTerrainRenderMode(modes[nextIndex]);
+                        }}
+                        className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 transition-all duration-300 text-xs font-medium capitalize"
+                      >
+                        {terrainRenderMode}
+                      </button>
+                    </label>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setTerrainAmplitude(3.9);
+                      setTerrainSpeed(17.5);
+                      setTerrainDecay(0.95);
+                      setTerrainCameraDistance(9.5);
+                      setTerrainAutoRotation(0.0005);
+                      setTerrainRenderMode('wireframe');
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
             </div>
           )}
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6">
@@ -1735,6 +2188,11 @@ export default function Mixes() {
               <div 
                 ref={whitecapCanvasRef}
                 className="w-full max-w-md aspect-square flex items-center justify-center"
+              />
+            ) : visualizerType === 'terrain' ? (
+              <div 
+                ref={terrainCanvasRef}
+                className="w-full max-w-2xl h-96 flex items-center justify-center"
               />
             ) : null}
           </div>
