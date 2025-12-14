@@ -323,10 +323,6 @@ export class ChrysalisVisualizer extends BaseVisualizer {
     this.colors = colors;
   }
 
-  updateConfig(config: VisualizerConfig): void {
-    this.config = { ...this.config, ...config };
-  }
-
   setCameraView(axis: 'x' | 'y' | 'z'): void {
     switch (axis) {
       case 'x':
