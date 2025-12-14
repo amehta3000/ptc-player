@@ -3,7 +3,7 @@ import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain';
+type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain' | 'chrysalis';
 
 // Declare Clarity type
 declare global {
@@ -38,6 +38,7 @@ export default function Mixes() {
   const threeCanvasRef = useRef<HTMLDivElement | null>(null);
   const whitecapCanvasRef = useRef<HTMLDivElement | null>(null);
   const terrainCanvasRef = useRef<HTMLDivElement | null>(null);
+  const chrysalisCanvasRef = useRef<HTMLDivElement | null>(null);
   const barsContainerRef = useRef<HTMLDivElement | null>(null);
   const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
   const audioDataRef = useRef<number[]>(Array(64).fill(0));
@@ -83,6 +84,15 @@ export default function Mixes() {
   const [terrainAutoRotation, setTerrainAutoRotation] = useState<number>(0.0005);
   const [terrainRenderMode, setTerrainRenderMode] = useState<'grid' | 'wireframe' | 'surface'>('wireframe');
   
+  // Chrysalis visualizer controls
+  const [chrysalisSlices, setChrysalisSlices] = useState<number>(56);
+  const [chrysalisWaviness, setChrysalisWaviness] = useState<number>(0.05);
+  const [chrysalisRotationSpeed, setChrysalisRotationSpeed] = useState<number>(0.003);
+  const [chrysalisPulseIntensity, setChrysalisPulseIntensity] = useState<number>(0.7);
+  const [chrysalisLissajousA, setChrysalisLissajousA] = useState<number>(3);
+  const [chrysalisLissajousB, setChrysalisLissajousB] = useState<number>(4);
+  const [chrysalisLineThickness, setChrysalisLineThickness] = useState<number>(2);
+  
   // Refs for real-time parameter access in animation loop
   const freqMultiplierRef = useRef<number>(3.6);
   const noiseMultiplierRef = useRef<number>(0.55);
@@ -103,6 +113,13 @@ export default function Mixes() {
   const terrainCameraDistanceRef = useRef<number>(8);
   const terrainAutoRotationRef = useRef<number>(0.002);
   const terrainRenderModeRef = useRef<'grid' | 'wireframe' | 'surface'>('wireframe');
+  const chrysalisSlicesRef = useRef<number>(32);
+  const chrysalisWavinessRef = useRef<number>(0.3);
+  const chrysalisRotationSpeedRef = useRef<number>(0.002);
+  const chrysalisPulseIntensityRef = useRef<number>(0.5);
+  const chrysalisLissajousARef = useRef<number>(3);
+  const chrysalisLissajousBRef = useRef<number>(4);
+  const chrysalisLineThicknessRef = useRef<number>(2);
   
   // Update refs when state changes
   useEffect(() => {
@@ -125,7 +142,14 @@ export default function Mixes() {
     terrainCameraDistanceRef.current = terrainCameraDistance;
     terrainAutoRotationRef.current = terrainAutoRotation;
     terrainRenderModeRef.current = terrainRenderMode;
-  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed, terrainAmplitude, terrainSpeed, terrainDecay, terrainCameraDistance, terrainAutoRotation, terrainRenderMode]);
+    chrysalisSlicesRef.current = chrysalisSlices;
+    chrysalisWavinessRef.current = chrysalisWaviness;
+    chrysalisRotationSpeedRef.current = chrysalisRotationSpeed;
+    chrysalisPulseIntensityRef.current = chrysalisPulseIntensity;
+    chrysalisLissajousARef.current = chrysalisLissajousA;
+    chrysalisLissajousBRef.current = chrysalisLissajousB;
+    chrysalisLineThicknessRef.current = chrysalisLineThickness;
+  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed, terrainAmplitude, terrainSpeed, terrainDecay, terrainCameraDistance, terrainAutoRotation, terrainRenderMode, chrysalisSlices, chrysalisWaviness, chrysalisRotationSpeed, chrysalisPulseIntensity, chrysalisLissajousA, chrysalisLissajousB, chrysalisLineThickness]);
   
   // Update ref whenever audioData changes
   useEffect(() => {
@@ -1113,6 +1137,336 @@ export default function Mixes() {
     };
   }, [visualizerType, showVisualizer, dominantColor, accentColor]);
 
+  // Chrysalis Visualizer (Spherical Frequency Contours)
+  useEffect(() => {
+    if (!chrysalisCanvasRef.current || visualizerType !== 'chrysalis' || !showVisualizer) return;
+
+    const container = chrysalisCanvasRef.current;
+    container.style.cursor = 'grab';
+    container.style.touchAction = 'none';
+    
+    // Three.js setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true
+    });
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setClearColor(0x000000, 0); // Transparent background
+    container.appendChild(renderer.domElement);
+    
+    // Camera position
+    camera.position.z = 12;
+    
+    // Group to hold all contour loops
+    const chrysalisGroup = new THREE.Group();
+    scene.add(chrysalisGroup);
+    
+    // Mouse/touch control state
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+    let userRotation = { x: 0, y: 0 };
+    
+    // Mouse/touch controls
+    const onMouseDown = (e: MouseEvent | TouchEvent) => {
+      isDragging = true;
+      container.style.cursor = 'grabbing';
+      const pos = 'touches' in e ? e.touches[0] : e;
+      lastMousePos = { x: pos.clientX, y: pos.clientY };
+    };
+    
+    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      const pos = 'touches' in e ? e.touches[0] : e;
+      const deltaX = pos.clientX - lastMousePos.x;
+      const deltaY = pos.clientY - lastMousePos.y;
+      
+      userRotation.y += deltaX * 0.005;
+      userRotation.x += deltaY * 0.005;
+      
+      lastMousePos = { x: pos.clientX, y: pos.clientY };
+    };
+    
+    const onMouseUp = () => {
+      isDragging = false;
+      container.style.cursor = 'grab';
+    };
+    
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('mousemove', onMouseMove);
+    container.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('mouseleave', onMouseUp);
+    container.addEventListener('touchstart', onMouseDown);
+    container.addEventListener('touchmove', onMouseMove);
+    container.addEventListener('touchend', onMouseUp);
+    
+    // Handle window resize
+    const handleResize = () => {
+      if (!container || !camera || !renderer) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Camera view switching function
+    (window as any).chrysalisCameraView = (axis: 'x' | 'y' | 'z') => {
+      switch (axis) {
+        case 'x':
+          // View from X axis (side view)
+          userRotation.x = 0;
+          userRotation.y = Math.PI / 2;
+          break;
+        case 'y':
+          // View from Y axis (top view)
+          userRotation.x = -Math.PI / 2;
+          userRotation.y = 0;
+          break;
+        case 'z':
+          // View from Z axis (front view)
+          userRotation.x = 0;
+          userRotation.y = 0;
+          break;
+      }
+    };
+    
+    // Simple noise function (Perlin-like)
+    const noise = (x: number, y: number, seed: number): number => {
+      const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453123;
+      return n - Math.floor(n);
+    };
+    
+    // Get HSL color based on hue
+    const getColorFromHue = (hue: number): THREE.Color => {
+      return new THREE.Color().setHSL(hue / 360, 0.8, 0.6);
+    };
+    
+    // Create a single vertical circle loop (like a standing bread slice)
+    const createContourLoop = (
+      sliceAngle: number,
+      distanceFromCenter: number,
+      loopRadius: number,
+      vertices: number,
+      color: THREE.Color,
+      noiseScale: number,
+      seed: number
+    ): THREE.LineLoop => {
+      const points: THREE.Vector3[] = [];
+      
+      // Generate vertices in a vertical circle
+      for (let i = 0; i < vertices; i++) {
+        const t = (i / vertices) * Math.PI * 2; // 0 to 2π around the circle
+        
+        // Vertical circle in YZ plane, then rotate to slice angle
+        const localY = loopRadius * Math.sin(t);
+        const localZ = loopRadius * Math.cos(t);
+        
+        // Add Perlin-like noise to radius for organic irregularity
+        const noiseValue = noise(
+          t * 2, 
+          sliceAngle * 3, 
+          seed
+        );
+        const radiusVariation = 1 + (noiseValue - 0.5) * noiseScale;
+        
+        // Apply noise to the local Z (depth) coordinate
+        const noisyZ = localZ * radiusVariation;
+        
+        // Position at distance from center, rotated by slice angle
+        const x = (distanceFromCenter + noisyZ) * Math.cos(sliceAngle);
+        const z = (distanceFromCenter + noisyZ) * Math.sin(sliceAngle);
+        const y = localY;
+        
+        points.push(new THREE.Vector3(x, y, z));
+      }
+      
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({ 
+        color: color,
+        transparent: true,
+        opacity: 0.7,
+        linewidth: 2
+      });
+      
+      const loop = new THREE.LineLoop(geometry, material);
+      return loop;
+    };
+    
+    // Store loops for animation updates
+    const loops: { 
+      loop: THREE.LineLoop; 
+      baseY: number; 
+      baseRadius: number; 
+      freqIndex: number;
+      vertices: number;
+      seed: number;
+    }[] = [];
+    
+    // Initialize loops
+    const initializeLoops = () => {
+      const numLoops = chrysalisSlicesRef.current;
+      const loopRadius = 5; // Radius of each vertical circle
+      const maxDistance = 4; // Maximum distance from center
+      const verticesPerLoop = 80; // 50-100 vertices for smoothness
+      
+      // Clear existing loops
+      loops.forEach(loopData => {
+        chrysalisGroup.remove(loopData.loop);
+        loopData.loop.geometry.dispose();
+        (loopData.loop.material as THREE.Material).dispose();
+      });
+      loops.length = 0;
+      
+      for (let i = 0; i < numLoops; i++) {
+        // Slice angle around the center (360° distribution)
+        const sliceAngle = (i / numLoops) * Math.PI * 2;
+        
+        // Distance from center - using spherical profile
+        // Outer slices closer to center, creates sphere-like arrangement
+        const ratio = i / (numLoops - 1);
+        const distanceFromCenter = maxDistance * Math.sin(ratio * Math.PI);
+        
+        // Map frequency: distribute frequencies
+        const freqIndex = i;
+        
+        // Color: cycle through hue spectrum (0-360 degrees)
+        const hue = (i / numLoops) * 360;
+        const color = getColorFromHue(hue);
+        
+        const loop = createContourLoop(
+          sliceAngle,
+          distanceFromCenter,
+          loopRadius,
+          verticesPerLoop,
+          color,
+          chrysalisWavinessRef.current, // Use waviness as noise scale
+          i * 100 // Unique seed for each loop
+        );
+        
+        chrysalisGroup.add(loop);
+        loops.push({ 
+          loop, 
+          baseY: 0,
+          baseRadius: loopRadius,
+          freqIndex,
+          vertices: verticesPerLoop,
+          seed: i * 100
+        });
+      }
+    };
+    
+    initializeLoops();
+    
+    let frameId = 0;
+    const animate = () => {
+      frameId = requestAnimationFrame(animate);
+      
+      const currentAudioData = audioDataRef.current;
+      const noiseScale = chrysalisWavinessRef.current;
+      const rotationSpeed = chrysalisRotationSpeedRef.current;
+      const pulseIntensity = chrysalisPulseIntensityRef.current;
+      const currentSlices = chrysalisSlicesRef.current;
+      
+      // Reinitialize loops if the number changed
+      if (loops.length !== currentSlices) {
+        initializeLoops();
+      }
+      
+      // Apply user rotation and auto-rotation
+      if (!isDragging && rotationSpeed > 0) {
+        userRotation.y += rotationSpeed;
+      }
+      
+      chrysalisGroup.rotation.x = userRotation.x;
+      chrysalisGroup.rotation.y = userRotation.y;
+      
+      // Update each loop based on its frequency band
+      loops.forEach((loopData, index) => {
+        // Get frequency value for this loop
+        const freqBandIndex = Math.floor((loopData.freqIndex / loops.length) * currentAudioData.length);
+        const freqIndex = Math.min(freqBandIndex, currentAudioData.length - 1);
+        const freqValue = (currentAudioData[freqIndex] || 0) / 255;
+        
+        // Calculate slice angle for this loop
+        const sliceAngle = (index / loops.length) * Math.PI * 2;
+        
+        // Distance from center with spherical profile
+        const ratio = index / (loops.length - 1);
+        const maxDistance = 4;
+        const distanceFromCenter = maxDistance * Math.sin(ratio * Math.PI);
+        
+        // Modulate loop radius based on frequency amplitude
+        const animatedRadius = loopData.baseRadius * (1 + freqValue * pulseIntensity);
+        
+        // Regenerate loop vertices with animated radius
+        const points: THREE.Vector3[] = [];
+        const time = Date.now() * 0.001;
+        
+        for (let i = 0; i < loopData.vertices; i++) {
+          const t = (i / loopData.vertices) * Math.PI * 2;
+          
+          // Vertical circle
+          const localY = animatedRadius * Math.sin(t);
+          const localZ = animatedRadius * Math.cos(t);
+          
+          // Animated noise
+          const noiseValue = noise(
+            t * 2 + time * 0.2, 
+            sliceAngle * 3, 
+            loopData.seed
+          );
+          const radiusVariation = 1 + (noiseValue - 0.5) * noiseScale;
+          const noisyZ = localZ * radiusVariation;
+          
+          // Position at distance from center, rotated by slice angle
+          const x = (distanceFromCenter + noisyZ) * Math.cos(sliceAngle);
+          const z = (distanceFromCenter + noisyZ) * Math.sin(sliceAngle);
+          const y = localY;
+          
+          points.push(new THREE.Vector3(x, y, z));
+        }
+        
+        // Update geometry
+        loopData.loop.geometry.setFromPoints(points);
+        
+        // Update material opacity based on frequency (more active = brighter)
+        const material = loopData.loop.material as THREE.LineBasicMaterial;
+        material.opacity = 0.5 + freqValue * 0.4;
+      });
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+    
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(frameId);
+      renderer.dispose();
+      loops.forEach(loopData => {
+        loopData.loop.geometry.dispose();
+        (loopData.loop.material as THREE.Material).dispose();
+      });
+      container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('mousemove', onMouseMove);
+      container.removeEventListener('mouseup', onMouseUp);
+      container.removeEventListener('mouseleave', onMouseUp);
+      container.removeEventListener('touchstart', onMouseDown);
+      container.removeEventListener('touchmove', onMouseMove);
+      container.removeEventListener('touchend', onMouseUp);
+      window.removeEventListener('resize', handleResize);
+      delete (window as any).chrysalisCameraView;
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+    };
+  }, [visualizerType, showVisualizer]);
+
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -1630,12 +1984,55 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : 'Terrain'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Randomize visualizer type
+                      const types: VisualizerType[] = ['bars', 'radial', 'orb', 'web', 'terrain', 'chrysalis'];
+                      const randomType = types[Math.floor(Math.random() * types.length)];
+                      setVisualizerType(randomType);
+                      
+                      // Randomize settings based on type
+                      if (randomType === 'bars') {
+                        setBarsScale(Math.random() * 2 + 0.5);
+                        setBarsSmoothness(Math.random() * 0.5 + 0.05);
+                        setBarsWidth(Math.floor(Math.random() * 11) + 2);
+                      } else if (randomType === 'radial') {
+                        setRadialIntensity(Math.random() * 1.5 + 0.5);
+                        setRadialTimeSpeed(Math.random() * 0.015 + 0.005);
+                      } else if (randomType === 'web') {
+                        setWhitecapBassPulse(Math.random() * 2 + 1);
+                        setWhitecapMidExtension(Math.random() * 1.5 + 0.5);
+                        setWhitecapHighShimmer(Math.random() * 1.5 + 0.5);
+                        setWhitecapRotationSpeed(Math.random() * 0.015 + 0.005);
+                      } else if (randomType === 'terrain') {
+                        setTerrainAmplitude(Math.random() * 4 + 1);
+                        setTerrainSpeed(Math.random() * 19 + 1);
+                        setTerrainDecay(Math.random() * 0.14 + 0.85);
+                        setTerrainCameraDistance(Math.random() * 10 + 5);
+                        setTerrainAutoRotation(Math.random() * 0.01);
+                        const modes: Array<'grid' | 'wireframe' | 'surface'> = ['grid', 'wireframe', 'surface'];
+                        setTerrainRenderMode(modes[Math.floor(Math.random() * modes.length)]);
+                      } else if (randomType === 'chrysalis') {
+                        setChrysalisSlices(Math.floor(Math.random() * 7) * 8 + 16);
+                        setChrysalisWaviness(Math.random());
+                        setChrysalisRotationSpeed(Math.random() * 0.01);
+                        setChrysalisPulseIntensity(Math.random() * 1.5);
+                        setChrysalisLineThickness(Math.random() * 4.5 + 0.5);
+                      }
+                    }}
+                    className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+                    title="Randomize Visualizer"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                     </svg>
                   </button>
                   <button
@@ -1659,7 +2056,7 @@ export default function Mixes() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : 'Terrain'} Controls
+                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'} Controls
               </div>
               
               {/* Bars Controls */}
@@ -2068,6 +2465,149 @@ export default function Mixes() {
                   </button>
                 </>
               )}
+              
+              {/* Chrysalis Controls */}
+              {visualizerType === 'chrysalis' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Contour Loops</span>
+                      <span className="font-mono">{chrysalisSlices}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="16"
+                      max="64"
+                      step="8"
+                      value={chrysalisSlices}
+                      onChange={(e) => setChrysalisSlices(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Noise Scale</span>
+                      <span className="font-mono">{chrysalisWaviness.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={chrysalisWaviness}
+                      onChange={(e) => setChrysalisWaviness(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Rotation Speed</span>
+                      <span className="font-mono">{chrysalisRotationSpeed.toFixed(4)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.01"
+                      step="0.0005"
+                      value={chrysalisRotationSpeed}
+                      onChange={(e) => setChrysalisRotationSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Pulse Intensity</span>
+                      <span className="font-mono">{chrysalisPulseIntensity.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1.5"
+                      step="0.1"
+                      value={chrysalisPulseIntensity}
+                      onChange={(e) => setChrysalisPulseIntensity(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Line Thickness</span>
+                      <span className="font-mono">{chrysalisLineThickness.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5"
+                      step="0.5"
+                      value={chrysalisLineThickness}
+                      onChange={(e) => setChrysalisLineThickness(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex items-center justify-between text-xs text-white/70 mb-2">
+                      <span>Camera View</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => {
+                          if (typeof window !== 'undefined' && (window as any).chrysalisCameraView) {
+                            (window as any).chrysalisCameraView('x');
+                          }
+                        }}
+                        className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                      >
+                        X
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (typeof window !== 'undefined' && (window as any).chrysalisCameraView) {
+                            (window as any).chrysalisCameraView('y');
+                          }
+                        }}
+                        className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                      >
+                        Y
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (typeof window !== 'undefined' && (window as any).chrysalisCameraView) {
+                            (window as any).chrysalisCameraView('z');
+                          }
+                        }}
+                        className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                      >
+                        Z
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setChrysalisSlices(56);
+                      setChrysalisWaviness(0.05);
+                      setChrysalisRotationSpeed(0.003);
+                      setChrysalisPulseIntensity(0.7);
+                      setChrysalisLissajousA(3);
+                      setChrysalisLissajousB(4);
+                      setChrysalisLineThickness(2);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
             </div>
           )}
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6">
@@ -2187,12 +2727,17 @@ export default function Mixes() {
             ) : visualizerType === 'web' ? (
               <div 
                 ref={whitecapCanvasRef}
-                className="w-full max-w-md aspect-square flex items-center justify-center"
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center"
               />
             ) : visualizerType === 'terrain' ? (
               <div 
                 ref={terrainCanvasRef}
-                className="w-full max-w-2xl h-96 flex items-center justify-center"
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center"
+              />
+            ) : visualizerType === 'chrysalis' ? (
+              <div 
+                ref={chrysalisCanvasRef}
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center"
               />
             ) : null}
           </div>
