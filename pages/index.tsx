@@ -3,7 +3,7 @@ import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain' | 'chrysalis';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis';
 
 // Declare Clarity type
 declare global {
@@ -65,16 +65,16 @@ export default function Mixes() {
   const [barsScale, setBarsScale] = useState<number>(1.0);
   const [barsSmoothness, setBarsSmoothness] = useState<number>(1.0);
   const [barsWidth, setBarsWidth] = useState<number>(4);
+  const [barsColorMode, setBarsColorMode] = useState<boolean>(false);
   
-  // Radial visualizer controls
-  const [radialIntensity, setRadialIntensity] = useState<number>(1.0);
-  const [radialTimeSpeed, setRadialTimeSpeed] = useState<number>(0.5);
+
   
   // WhiteCap visualizer controls
   const [whitecapBassPulse, setWhitecapBassPulse] = useState<number>(0.4);
   const [whitecapMidExtension, setWhitecapMidExtension] = useState<number>(0.5);
   const [whitecapHighShimmer, setWhitecapHighShimmer] = useState<number>(0.1);
   const [whitecapRotationSpeed, setWhitecapRotationSpeed] = useState<number>(0.002);
+  const [whitecapColorMode, setWhitecapColorMode] = useState<boolean>(false);
   
   // Terrain visualizer controls
   const [terrainAmplitude, setTerrainAmplitude] = useState<number>(3.9);
@@ -101,12 +101,13 @@ export default function Mixes() {
   const barsScaleRef = useRef<number>(1.0);
   const barsSmoothnessRef = useRef<number>(1.0);
   const barsWidthRef = useRef<number>(4);
-  const radialIntensityRef = useRef<number>(1.0);
-  const radialTimeSpeedRef = useRef<number>(0.5);
+  const barsColorModeRef = useRef<boolean>(false);
+
   const whitecapBassPulseRef = useRef<number>(0.4);
   const whitecapMidExtensionRef = useRef<number>(0.5);
   const whitecapHighShimmerRef = useRef<number>(0.1);
   const whitecapRotationSpeedRef = useRef<number>(0.002);
+  const whitecapColorModeRef = useRef<boolean>(false);
   const terrainAmplitudeRef = useRef<number>(2.0);
   const terrainSpeedRef = useRef<number>(1.0);
   const terrainDecayRef = useRef<number>(0.95);
@@ -130,12 +131,13 @@ export default function Mixes() {
     barsScaleRef.current = barsScale;
     barsSmoothnessRef.current = barsSmoothness;
     barsWidthRef.current = barsWidth;
-    radialIntensityRef.current = radialIntensity;
-    radialTimeSpeedRef.current = radialTimeSpeed;
+    barsColorModeRef.current = barsColorMode;
+
     whitecapBassPulseRef.current = whitecapBassPulse;
     whitecapMidExtensionRef.current = whitecapMidExtension;
     whitecapHighShimmerRef.current = whitecapHighShimmer;
     whitecapRotationSpeedRef.current = whitecapRotationSpeed;
+    whitecapColorModeRef.current = whitecapColorMode;
     terrainAmplitudeRef.current = terrainAmplitude;
     terrainSpeedRef.current = terrainSpeed;
     terrainDecayRef.current = terrainDecay;
@@ -149,7 +151,7 @@ export default function Mixes() {
     chrysalisLissajousARef.current = chrysalisLissajousA;
     chrysalisLissajousBRef.current = chrysalisLissajousB;
     chrysalisLineThicknessRef.current = chrysalisLineThickness;
-  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, radialIntensity, radialTimeSpeed, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed, terrainAmplitude, terrainSpeed, terrainDecay, terrainCameraDistance, terrainAutoRotation, terrainRenderMode, chrysalisSlices, chrysalisWaviness, chrysalisRotationSpeed, chrysalisPulseIntensity, chrysalisLissajousA, chrysalisLissajousB, chrysalisLineThickness]);
+  }, [freqMultiplier, noiseMultiplier, timeSpeed, autoRotationSpeed, barsScale, barsSmoothness, barsWidth, barsColorMode, whitecapBassPulse, whitecapMidExtension, whitecapHighShimmer, whitecapRotationSpeed, whitecapColorMode, terrainAmplitude, terrainSpeed, terrainDecay, terrainCameraDistance, terrainAutoRotation, terrainRenderMode, chrysalisSlices, chrysalisWaviness, chrysalisRotationSpeed, chrysalisPulseIntensity, chrysalisLissajousA, chrysalisLissajousB, chrysalisLineThickness]);
   
   // Update ref whenever audioData changes
   useEffect(() => {
@@ -788,15 +790,40 @@ export default function Mixes() {
           positions.setXYZ(vertexIndex, x, y, z);
           
           // Color based on position and audio
-          const colorBlend = ringPercent; // Inner = warm, outer = cool
+          let r, g, b;
           
-          // Bass = warm (dominant color), High = cool (accent color)
-          const warmIntensity = bassAvg * (1 - colorBlend);
-          const coolIntensity = highAvg * colorBlend;
-          
-          const r = dominantRGB.r * (0.5 + warmIntensity) + accentRGB.r * coolIntensity;
-          const g = dominantRGB.g * (0.5 + warmIntensity) + accentRGB.g * coolIntensity;
-          const b = dominantRGB.b * (0.5 + warmIntensity) + accentRGB.b * coolIntensity;
+          if (whitecapColorModeRef.current) {
+            // Rainbow HSL mode (same as Chrysalis)
+            const hue = ((seg / segmentCount) * 360 + ring * 15) % 360; // Spiral color pattern
+            const saturation = 0.8;
+            const lightness = 0.5 + bassAvg * 0.2; // Audio reactive brightness
+            
+            // Convert HSL to RGB
+            const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+            const x_val = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+            const m = lightness - c / 2;
+            
+            let r1, g1, b1;
+            if (hue < 60) { r1 = c; g1 = x_val; b1 = 0; }
+            else if (hue < 120) { r1 = x_val; g1 = c; b1 = 0; }
+            else if (hue < 180) { r1 = 0; g1 = c; b1 = x_val; }
+            else if (hue < 240) { r1 = 0; g1 = x_val; b1 = c; }
+            else if (hue < 300) { r1 = x_val; g1 = 0; b1 = c; }
+            else { r1 = c; g1 = 0; b1 = x_val; }
+            
+            r = r1 + m;
+            g = g1 + m;
+            b = b1 + m;
+          } else {
+            // Original album color mode
+            const colorBlend = ringPercent;
+            const warmIntensity = bassAvg * (1 - colorBlend);
+            const coolIntensity = highAvg * colorBlend;
+            
+            r = dominantRGB.r * (0.5 + warmIntensity) + accentRGB.r * coolIntensity;
+            g = dominantRGB.g * (0.5 + warmIntensity) + accentRGB.g * coolIntensity;
+            b = dominantRGB.b * (0.5 + warmIntensity) + accentRGB.b * coolIntensity;
+          }
           
           colorAttr.setXYZ(vertexIndex, r, g, b);
           vertexIndex++;
@@ -1776,7 +1803,7 @@ export default function Mixes() {
           </div>
         </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 pb-28">
         {filteredMixes.map((mix, idx) => (
           <div
             key={idx}
@@ -1816,33 +1843,35 @@ export default function Mixes() {
 
       {currentMix && (
         <>
-          {/* Waveform Visualizer */}
-          <div className="fixed bottom-20 left-0 right-0 h-24 pointer-events-none">
-            {/* Gradient background for better visibility */}
-            <div 
-              className="absolute inset-0" 
-              style={{
-                background: `linear-gradient(to top, ${dominantColor}15, transparent)`,
-              }}
-            />
-            <div className="relative h-full flex items-end justify-center gap-1.5 px-4">
-              {audioData.map((value, index) => {
-                const scale = Math.max(0.08, value / 255);
-                
-                return (
-                  <div
-                    key={index}
-                    className="flex-1 h-full origin-bottom rounded-t-md will-change-transform"
-                    style={{
-                      transform: `scaleY(${scale})`,
-                      background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
-                      opacity: isPlaying ? 0.9 : 0.4,
-                    }}
-                  />
-                );
-              })}
+          {/* Waveform Visualizer - Only show when detail view is active */}
+          {showDetail && (
+            <div className="fixed bottom-20 left-0 right-0 h-24 pointer-events-none">
+              {/* Gradient background for better visibility */}
+              <div 
+                className="absolute inset-0" 
+                style={{
+                  background: `linear-gradient(to top, ${dominantColor}15, transparent)`,
+                }}
+              />
+              <div className="relative h-full flex items-end justify-center gap-1.5 px-4">
+                {audioData.map((value, index) => {
+                  const scale = Math.max(0.08, value / 255);
+                  
+                  return (
+                    <div
+                      key={index}
+                      className="flex-1 h-full origin-bottom rounded-t-md will-change-transform"
+                      style={{
+                        transform: `scaleY(${scale})`,
+                        background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
+                        opacity: isPlaying ? 0.9 : 0.4,
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Player Bar */}
           <div 
@@ -1984,9 +2013,9 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'radial' : v === 'radial' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1995,7 +2024,7 @@ export default function Mixes() {
                   <button
                     onClick={() => {
                       // Randomize visualizer type
-                      const types: VisualizerType[] = ['bars', 'radial', 'orb', 'web', 'terrain', 'chrysalis'];
+                      const types: VisualizerType[] = ['bars', 'orb', 'web', 'terrain', 'chrysalis'];
                       const randomType = types[Math.floor(Math.random() * types.length)];
                       setVisualizerType(randomType);
                       
@@ -2004,9 +2033,6 @@ export default function Mixes() {
                         setBarsScale(Math.random() * 2 + 0.5);
                         setBarsSmoothness(Math.random() * 0.5 + 0.05);
                         setBarsWidth(Math.floor(Math.random() * 11) + 2);
-                      } else if (randomType === 'radial') {
-                        setRadialIntensity(Math.random() * 1.5 + 0.5);
-                        setRadialTimeSpeed(Math.random() * 0.015 + 0.005);
                       } else if (randomType === 'web') {
                         setWhitecapBassPulse(Math.random() * 2 + 1);
                         setWhitecapMidExtension(Math.random() * 1.5 + 0.5);
@@ -2056,7 +2082,7 @@ export default function Mixes() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'radial' ? 'Radial' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'} Controls
+                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'} Controls
               </div>
               
               {/* Bars Controls */}
@@ -2113,11 +2139,28 @@ export default function Mixes() {
                     />
                   </div>
                   
+                  <div>
+                    <label className="flex items-center justify-between text-xs text-white/70">
+                      <span>Rainbow Colors</span>
+                      <button
+                        onClick={() => setBarsColorMode(!barsColorMode)}
+                        className={`px-3 py-1 rounded transition-all duration-300 text-xs font-medium ${
+                          barsColorMode 
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                            : 'bg-white/10 hover:bg-white/20 text-white/70'
+                        }`}
+                      >
+                        {barsColorMode ? 'ON' : 'OFF'}
+                      </button>
+                    </label>
+                  </div>
+                  
                   <button
                     onClick={() => {
                       setBarsScale(1.0);
                       setBarsSmoothness(1.0);
                       setBarsWidth(4);
+                      setBarsColorMode(false);
                     }}
                     className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
                   >
@@ -2126,54 +2169,7 @@ export default function Mixes() {
                 </>
               )}
               
-              {/* Radial Controls */}
-              {visualizerType === 'radial' && (
-                <>
-                  <div>
-                    <label className="flex justify-between text-xs text-white/70 mb-1">
-                      <span>Intensity</span>
-                      <span className="font-mono">{radialIntensity.toFixed(1)}</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="2"
-                      step="0.1"
-                      value={radialIntensity}
-                      onChange={(e) => setRadialIntensity(parseFloat(e.target.value))}
-                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-                      style={{ accentColor: dominantColor }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="flex justify-between text-xs text-white/70 mb-1">
-                      <span>Animation Speed</span>
-                      <span className="font-mono">{radialTimeSpeed.toFixed(1)}</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={radialTimeSpeed}
-                      onChange={(e) => setRadialTimeSpeed(parseFloat(e.target.value))}
-                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-                      style={{ accentColor: dominantColor }}
-                    />
-                  </div>
-                  
-                  <button
-                    onClick={() => {
-                      setRadialIntensity(1.0);
-                      setRadialTimeSpeed(0.5);
-                    }}
-                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
-                  >
-                    Reset to Defaults
-                  </button>
-                </>
-              )}
+
               
               {/* Orb Controls */}
               {visualizerType === 'orb' && (
@@ -2331,12 +2327,29 @@ export default function Mixes() {
                     />
                   </div>
                   
+                  <div>
+                    <label className="flex items-center justify-between text-xs text-white/70">
+                      <span>Rainbow Colors</span>
+                      <button
+                        onClick={() => setWhitecapColorMode(!whitecapColorMode)}
+                        className={`px-3 py-1 rounded transition-all duration-300 text-xs font-medium ${
+                          whitecapColorMode 
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                            : 'bg-white/10 hover:bg-white/20 text-white/70'
+                        }`}
+                      >
+                        {whitecapColorMode ? 'ON' : 'OFF'}
+                      </button>
+                    </label>
+                  </div>
+                  
                   <button
                     onClick={() => {
                       setWhitecapBassPulse(0.4);
                       setWhitecapMidExtension(0.5);
                       setWhitecapHighShimmer(0.1);
                       setWhitecapRotationSpeed(0.002);
+                      setWhitecapColorMode(false);
                     }}
                     className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
                   >
@@ -2622,9 +2635,22 @@ export default function Mixes() {
               <div 
                 ref={barsContainerRef}
                 className="w-full h-64 sm:h-80 md:h-96 flex items-end justify-between px-0"
+                key={`bars-${barsColorMode}`}
               >
                 {audioData.map((value, index) => {
                   const scale = Math.max(0.08, (value / 255) * barsScale);
+                  
+                  // Calculate HSL color (same as Chrysalis)
+                  let barColor;
+                  if (barsColorMode) {
+                    const hue = (index / audioData.length) * 360;
+                    const saturation = 80;
+                    const lightness = 60;
+                    barColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                  } else {
+                    barColor = `linear-gradient(to top, ${dominantColor}, ${accentColor})`;
+                  }
+                  
                   return (
                     <div
                       key={index}
@@ -2634,7 +2660,7 @@ export default function Mixes() {
                         maxWidth: `${barsWidth}px`,
                         minWidth: `${barsWidth}px`,
                         transform: `scaleY(${scale})`,
-                        background: `linear-gradient(to top, ${dominantColor}, ${accentColor})`,
+                        background: barColor,
                         opacity: isPlaying ? 0.95 : 0.5,
                         transition: `transform ${barsSmoothness * 100}ms ease-out`
                       }}
@@ -2643,81 +2669,6 @@ export default function Mixes() {
                 })}
               </div>
             
-            ) : visualizerType === 'radial' ? (
-              <div className="w-full max-w-md aspect-square flex items-center justify-center">
-                <svg className="w-full h-full" viewBox="0 0 400 400">
-                  <defs>
-                    <linearGradient id="radialGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor={dominantColor} />
-                      <stop offset="100%" stopColor={accentColor} />
-                    </linearGradient>
-                  </defs>
-                  {audioData.map((value, index) => {
-                    const barCount = audioData.length;
-                    // Perfectly space bars around the circle
-                    const angle = ((index + 0.5) / barCount) * 360; // Center each bar in its segment
-                    const angleRad = (angle * Math.PI) / 180;
-                    
-                    // Normalize frequency value (0 to 1)
-                    const normalizedFreq = value / 255;
-                    
-                    // Add traveling wave effect (matches sphere algorithm)
-                    const time = Date.now() * 0.001 * radialTimeSpeed;
-                    const wavePosition = (time * 2) % (Math.PI * 2);
-                    const waveFactor = Math.sin(angleRad * 3 + wavePosition) * 0.5 + 0.5; // 0 to 1
-                    
-                    // Add noise for organic movement (matches sphere)
-                    const noise = 
-                      Math.sin(angleRad * 3 + time * 0.5) * 0.1 +
-                      Math.sin(angleRad * 4 + time * 0.7) * 0.08;
-                    
-                    // Calculate displacement - more reactive with higher multipliers
-                    const freqDisplacement = normalizedFreq * radialIntensity * waveFactor * 0.8;
-                    const noiseDisplacement = noise * radialIntensity * 0.5;
-                    const displacement = freqDisplacement + noiseDisplacement;
-                    
-                    // Apply to radius with better scaling
-                    const innerRadius = 60;
-                    const maxExtension = 140; // Increased for more visible movement
-                    const baseScale = 0.15; // Minimum extension
-                    const scale = baseScale + displacement;
-                    const outerRadius = innerRadius + (scale * maxExtension);
-                    
-                    // Calculate bar width based on circle circumference for perfect spacing
-                    const circumference = 2 * Math.PI * innerRadius;
-                    const barWidth = Math.max(4, (circumference / barCount) * 0.6); // 60% of segment width
-                    
-                    const x1 = 200 + innerRadius * Math.cos(angleRad - Math.PI / 2);
-                    const y1 = 200 + innerRadius * Math.sin(angleRad - Math.PI / 2);
-                    const x2 = 200 + outerRadius * Math.cos(angleRad - Math.PI / 2);
-                    const y2 = 200 + outerRadius * Math.sin(angleRad - Math.PI / 2);
-                    
-                    return (
-                      <line
-                        key={index}
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke="url(#radialGradient)"
-                        strokeWidth={barWidth}
-                        strokeLinecap="round"
-                        opacity={isPlaying ? 0.95 : 0.5}
-                      />
-                    );
-                  })}
-                  {/* Center circle */}
-                  <circle
-                    cx="200"
-                    cy="200"
-                    r="55"
-                    fill="none"
-                    stroke={dominantColor}
-                    strokeWidth="2"
-                    opacity="0.3"
-                  />
-                </svg>
-              </div>
             ) : visualizerType === 'orb' ? (
               <div 
                 ref={threeCanvasRef}
