@@ -20,7 +20,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
     vertices: number;
     seed: number;
   }> = [];
-  private userRotation = { x: 0, y: 0 };
+  private userRotation = { x: -0.8, y: 0.3 };
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
 

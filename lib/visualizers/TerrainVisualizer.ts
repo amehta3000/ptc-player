@@ -135,12 +135,26 @@ export class TerrainVisualizer extends BaseVisualizer {
     }
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    // Create material
-    const material = new THREE.MeshBasicMaterial({
+    // Add lighting for depth perception
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    this.scene.add(ambientLight);
+    
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight1.position.set(5, 10, 5);
+    this.scene.add(directionalLight1);
+    
+    const directionalLight2 = new THREE.DirectionalLight(0x4466ff, 0.4);
+    directionalLight2.position.set(-5, 5, -5);
+    this.scene.add(directionalLight2);
+    
+    // Create material with lighting
+    const material = new THREE.MeshPhongMaterial({
       vertexColors: true,
       wireframe: true,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.8,
+      shininess: 30,
+      flatShading: false
     });
     
     this.mesh = new THREE.Mesh(this.geometry, material);
@@ -278,6 +292,7 @@ export class TerrainVisualizer extends BaseVisualizer {
     
     positions.needsUpdate = true;
     colorAttr.needsUpdate = true;
+    this.geometry.computeVertexNormals(); // Compute normals for proper lighting
   }
   
   render(): void {

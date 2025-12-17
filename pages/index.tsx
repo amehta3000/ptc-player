@@ -60,6 +60,8 @@ export default function Mixes() {
   const [noiseMultiplier, setNoiseMultiplier] = useState<number>(0.55);
   const [timeSpeed, setTimeSpeed] = useState<number>(2.0);
   const [autoRotationSpeed, setAutoRotationSpeed] = useState<number>(0.003);
+  const [orbWireframe, setOrbWireframe] = useState<boolean>(true);
+  const [orbRadius, setOrbRadius] = useState<number>(2.0);
   
   // Bars visualizer controls
   const [barsScale, setBarsScale] = useState<number>(1.0);
@@ -426,9 +428,8 @@ export default function Mixes() {
     container.appendChild(renderer.domElement);
 
     // Create sphere geometry using IcosahedronGeometry for more uniform vertex distribution
-    const radius = 2;
     const detailLevel = 6; // Higher subdivision level for more triangles and detail
-    const geometry = new THREE.IcosahedronGeometry(radius, detailLevel);
+    const geometry = new THREE.IcosahedronGeometry(orbRadius, detailLevel);
     
     // Store original positions for animation
     const originalPositions = new Float32Array(geometry.attributes.position.array);
@@ -442,10 +443,11 @@ export default function Mixes() {
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    // Create material with wireframe and vertex colors
+    // Create material - toggle between wireframe with vertex colors and solid yellow
     const material = new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      wireframe: true,
+      vertexColors: orbWireframe,
+      wireframe: orbWireframe,
+      color: orbWireframe ? 0xffffff : 0xffff00,
       transparent: true,
       opacity: 0.9,
     });
@@ -627,7 +629,7 @@ export default function Mixes() {
       }
       threeSceneRef.current = null;
     };
-  }, [visualizerType, showVisualizer, currentMix]);
+  }, [visualizerType, showVisualizer, currentMix, orbWireframe, orbRadius]);
 
   // Setup WhiteCap visualizer
   useEffect(() => {
@@ -874,8 +876,20 @@ export default function Mixes() {
     renderer.setClearColor(0x000000, 0);
     container.appendChild(renderer.domElement);
     
-    // Camera control state
-    let cameraRotation = { x: -0.5, y: 0 };
+    // Add lighting for depth perception
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+    
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight1.position.set(5, 10, 5);
+    scene.add(directionalLight1);
+    
+    const directionalLight2 = new THREE.DirectionalLight(0x4466ff, 0.3);
+    directionalLight2.position.set(-5, 5, -5);
+    scene.add(directionalLight2);
+    
+    // Camera control state - elevated angle looking down at terrain
+    let cameraRotation = { x: 0.840, y: 1.102 };
     let isDragging = false;
     let lastMousePos = { x: 0, y: 0 };
     
@@ -972,14 +986,15 @@ export default function Mixes() {
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    // Create materials for different render modes
-    const meshMaterial = new THREE.MeshBasicMaterial({
+    // Create materials for different render modes with lighting support
+    const meshMaterial = new THREE.MeshPhongMaterial({
       vertexColors: true,
       wireframe: terrainRenderModeRef.current === 'wireframe',
       transparent: true,
       opacity: terrainRenderModeRef.current === 'wireframe' ? 0.8 : 1.0,
       side: THREE.DoubleSide,
-      color: 0xffffff
+      shininess: 30,
+      flatShading: false
     });
     
     const pointsMaterial = new THREE.PointsMaterial({
@@ -1121,6 +1136,7 @@ export default function Mixes() {
       
       positions.needsUpdate = true;
       colorAttr.needsUpdate = true;
+      geometry.computeVertexNormals(); // Compute normals for proper lighting
       
       // Handle render mode changes
       const currentMode = terrainRenderModeRef.current;
@@ -1712,9 +1728,9 @@ export default function Mixes() {
       {/* Content */}
       <div className="relative z-10 p-4">
       <div className="flex justify-between items-center mb-4 gap-2">
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer" onClick={() => setShowDetail(false)}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="Part Time Chiller" className="h-10 sm:h-12" />
-          <span className="text-base sm:text-xl font-bold hidden sm:inline">PartTimeChiller</span>
+          <span className="text-base sm:text-xl font-bold hidden sm:inline">Part Time Chiller</span>
           {showDebug && (
             <select
               value={currentFont}
@@ -1988,7 +2004,7 @@ export default function Mixes() {
           </div>
           
           <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-neutral-800/50">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowDetail(false)}>
               <img src="/ptc-player/logo3.png" alt="PTC" className="h-10 w-10" />
               <span className="text-lg font-bold">Part Time Chiller</span>
             </div>
@@ -2240,12 +2256,44 @@ export default function Mixes() {
                     />
                   </div>
                   
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Orb Radius</span>
+                      <span className="font-mono">{orbRadius.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="4"
+                      step="0.1"
+                      value={orbRadius}
+                      onChange={(e) => setOrbRadius(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => setOrbWireframe(!orbWireframe)}
+                    className={`w-full px-3 py-2 rounded text-sm font-medium transition-all ${
+                      orbWireframe
+                        ? 'bg-neutral-800 hover:bg-neutral-700 text-white'
+                        : 'text-white hover:bg-white/10'
+                    }`}
+                    style={!orbWireframe ? {
+                      background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})`,
+                    } : undefined}
+                  >
+                    {orbWireframe ? 'Wireframe Mode' : 'Solid Mode'}
+                  </button>
+                  
                   <button
                     onClick={() => {
                       setFreqMultiplier(3.6);
                       setNoiseMultiplier(0.55);
                       setTimeSpeed(2.0);
                       setAutoRotationSpeed(0.003);
+                      setOrbRadius(2.0);
                     }}
                     className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
                   >
@@ -2632,11 +2680,11 @@ export default function Mixes() {
             ) : visualizerType === 'bars' ? (
               <div 
                 ref={barsContainerRef}
-                className="w-full h-64 sm:h-80 md:h-96 flex items-end justify-between px-0"
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-end justify-between px-0"
                 key={`bars-${barsColorMode}`}
               >
                 {audioData.map((value, index) => {
-                  const scale = Math.max(0.08, (value / 255) * barsScale);
+                  const scale = Math.min(1.0, Math.max(0.02, (value / 255) * barsScale));
                   
                   // Calculate HSL color (same as Chrysalis)
                   let barColor;
@@ -2670,13 +2718,13 @@ export default function Mixes() {
             ) : visualizerType === 'orb' ? (
               <div 
                 ref={threeCanvasRef}
-                className="w-full max-w-md aspect-square flex items-center justify-center cursor-grab active:cursor-grabbing"
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center cursor-grab active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
               />
             ) : visualizerType === 'web' ? (
               <div 
                 ref={whitecapCanvasRef}
-                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center"
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center mx-auto"
               />
             ) : visualizerType === 'terrain' ? (
               <div 
