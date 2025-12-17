@@ -851,7 +851,7 @@ export default function Mixes() {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [visualizerType, showVisualizer, dominantColor, accentColor]);
+  }, [visualizerType, showVisualizer, dominantColor, accentColor, currentMix]);
 
   // Terrain Visualizer (3D Audio Waves)
   useEffect(() => {
@@ -1162,7 +1162,7 @@ export default function Mixes() {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [visualizerType, showVisualizer, dominantColor, accentColor]);
+  }, [visualizerType, showVisualizer, dominantColor, accentColor, currentMix]);
 
   // Chrysalis Visualizer (Spherical Frequency Contours)
   useEffect(() => {
@@ -1492,7 +1492,7 @@ export default function Mixes() {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [visualizerType, showVisualizer]);
+  }, [visualizerType, showVisualizer, currentMix]);
 
   const togglePlay = async () => {
     const audio = audioRef.current;
