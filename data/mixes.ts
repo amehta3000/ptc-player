@@ -8,6 +8,14 @@ export interface Mix {
 }
 
 export const mixes: Mix[] = [
+   {
+    title: "Okay",
+    cover: "https://media.parttimechiller.com/Okay_PTC.png",
+    audio: "https://media.parttimechiller.com/Okay_PTC.mp3",
+    duration: "3:43",
+    description: "I heard ya, okay?",
+    type: "track"
+  },   
   {
     title: "Slow down",
     cover: "https://media.parttimechiller.com/Slowdown_PTC.png",
@@ -24,14 +32,6 @@ export const mixes: Mix[] = [
     description: "Low end head nodding vibes",
     type: "track"
   },
-   {
-    title: "Okay",
-    cover: "https://media.parttimechiller.com/Okay_PTC.png",
-    audio: "https://media.parttimechiller.com/Okay_PTC.mp3",
-    duration: "3:43",
-    description: "I heard ya, okay?",
-    type: "track"
-  }, 
   {
     title: "Synthcopated",
     cover: "https://media.parttimechiller.com/Synthcopated_PTC.png",

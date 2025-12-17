@@ -17,7 +17,7 @@ export default function Mixes() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const [showVisualizer, setShowVisualizer] = useState<boolean>(true);
-  const [visualizerType, setVisualizerType] = useState<VisualizerType>('orb');
+  const [visualizerType, setVisualizerType] = useState<VisualizerType>('terrain');
   
   // List of monospace fonts
   const fonts = [
@@ -1634,11 +1634,9 @@ export default function Mixes() {
     // Extract colors from album art
     extractColors(mix.cover);
     
-    // Only reset view states if not preserving (e.g., clicking from playlist)
-    if (!preserveView) {
-      setShowDetail(true);
-      setShowVisualizer(true);
-    }
+    // Always show visualizer and detail view when selecting a new track
+    setShowDetail(true);
+    setShowVisualizer(true);
     
     // Track song selection in Clarity
     if (typeof window !== 'undefined' && window.clarity) {
