@@ -29,6 +29,8 @@ export abstract class BaseVisualizer {
   protected config: VisualizerConfig;
   protected colors: ColorScheme;
   protected animationFrameId: number | null = null;
+  protected isInitialized: boolean = false;
+  protected currentAudioAnalysis: AudioAnalysis | null = null;
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     this.container = container;
@@ -38,23 +40,67 @@ export abstract class BaseVisualizer {
   
   /**
    * Initialize the visualizer (setup canvas, Three.js scene, etc.)
+   * Should NOT start animation loop - that's handled by start()
    */
   abstract init(): void;
   
   /**
-   * Update visualizer with new audio data
+   * Update visualizer internal state with new audio data
+   * This is called before render() in the animation loop
    */
   abstract update(audioAnalysis: AudioAnalysis): void;
   
   /**
-   * Render the current frame
+   * Render the current frame to the canvas/DOM
+   * This is called after update() in the animation loop
    */
   abstract render(): void;
   
   /**
    * Clean up resources (remove event listeners, dispose Three.js objects, etc.)
+   * Should stop any running animation loops
    */
   abstract destroy(): void;
+  
+  /**
+   * Start the visualizer (init + animation loop)
+   * Call this once after construction
+   */
+  start(): void {
+    if (this.isInitialized) {
+      console.warn('Visualizer already initialized');
+      return;
+    }
+    
+    this.init();
+    this.isInitialized = true;
+    this.startInternalAnimationLoop();
+  }
+  
+  /**
+   * Internal animation loop that calls update() then render()
+   * Override this if you need custom loop behavior
+   */
+  protected startInternalAnimationLoop(): void {
+    const animate = () => {
+      this.animationFrameId = requestAnimationFrame(animate);
+      
+      if (this.currentAudioAnalysis) {
+        this.update(this.currentAudioAnalysis);
+      }
+      
+      this.render();
+    };
+    animate();
+  }
+  
+  /**
+   * Set audio data (called from external animation loop)
+   * This decouples audio updates from rendering
+   */
+  setAudioData(audioAnalysis: AudioAnalysis): void {
+    this.currentAudioAnalysis = audioAnalysis;
+  }
   
   /**
    * Update configuration values

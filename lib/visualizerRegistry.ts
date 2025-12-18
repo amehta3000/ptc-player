@@ -9,8 +9,9 @@ import { RadialVisualizer } from './visualizers/RadialVisualizer';
 import { OrbVisualizer } from './visualizers/OrbVisualizer';
 import { WebVisualizer } from './visualizers/WebVisualizer';
 import { TerrainVisualizer } from './visualizers/TerrainVisualizer';
+import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
 
-export type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain';
+export type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain' | 'sonicGalaxy';
 
 type VisualizerConstructor = new (
   container: HTMLDivElement,
@@ -83,9 +84,9 @@ export class VisualizerRegistry {
 
 // Register all visualizers
 VisualizerRegistry.register('bars', 'Bars', BarsVisualizer, {
-  scale: 1.0,
+  scale: 0.5,
   smoothness: 1.0,
-  width: 4
+  width: 4,
 });
 
 VisualizerRegistry.register('radial', 'Radial', RadialVisualizer, {
@@ -113,4 +114,18 @@ VisualizerRegistry.register('terrain', 'Terrain', TerrainVisualizer, {
   decay: 0.95,
   cameraDistance: 8,
   autoRotation: 0.002
+});
+
+VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer, {
+  particleCount: 10000,
+  attractorCount: 3,
+  bassGravity: 2.0,
+  midSpin: 0.9,
+  highEnergy: 1.5,
+  maxSpeed: 8,
+  velocityDamping: 0.04,
+  particleSize: 0.5,
+  cameraSpeed: 0.004,
+  boundSize: 8,
+  beatSensitivity: 1.2
 });

@@ -81,16 +81,15 @@ export class TerrainVisualizer extends BaseVisualizer {
   }
   
   init(): void {
-    // Create wrapper
-    const wrapper = document.createElement('div');
-    wrapper.className = 'w-full max-w-2xl h-96 flex items-center justify-center cursor-grab active:cursor-grabbing';
-    wrapper.style.touchAction = 'none';
+    // Use container directly - get dimensions
+    const containerWidth = this.container.clientWidth || 800;
+    const containerHeight = this.container.clientHeight || 600;
     
     // Three.js setup
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
       75,
-      wrapper.clientWidth / wrapper.clientHeight,
+      containerWidth / containerHeight,
       0.1,
       1000
     );
@@ -100,18 +99,20 @@ export class TerrainVisualizer extends BaseVisualizer {
       powerPreference: 'high-performance'
     });
     
-    this.renderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
+    this.renderer.setSize(containerWidth, containerHeight);
     this.renderer.setClearColor(0x000000, 0);
-    wrapper.appendChild(this.renderer.domElement);
+    this.container.appendChild(this.renderer.domElement);
+    this.container.style.cursor = 'grab';
+    this.container.style.touchAction = 'none';
     
     // Initial camera position
     this.updateCameraPosition();
     
     // Create plane geometry
-    const width = 10;
+    const planeWidth = 10;
     const depth = 20;
     this.geometry = new THREE.PlaneGeometry(
-      width,
+      planeWidth,
       depth,
       this.segmentsX - 1,
       this.segmentsZ - 1
@@ -164,15 +165,13 @@ export class TerrainVisualizer extends BaseVisualizer {
     this.lastUpdateTime = Date.now();
     
     // Add mouse/touch controls
-    this.setupCameraControls(wrapper);
+    this.setupCameraControls(this.container);
     
-    this.container.appendChild(wrapper);
-    
-    // Start animation loop
-    this.startAnimationLoop(() => this.render());
+    // Animation loop handled by base class start() method
   }
   
   private setupCameraControls(element: HTMLDivElement): void {
+    element.style.cursor = 'grab';
     const onMouseDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
       const pos = 'touches' in e ? e.touches[0] : e;
@@ -224,7 +223,7 @@ export class TerrainVisualizer extends BaseVisualizer {
   }
   
   update(audioAnalysis: AudioAnalysis): void {
-    if (!this.geometry) return;
+    if (!this.isInitialized || !this.geometry || !this.camera) return;
     
     const { audioData } = audioAnalysis;
     const amplitude = this.config.amplitude || 2.0;
@@ -296,9 +295,8 @@ export class TerrainVisualizer extends BaseVisualizer {
   }
   
   render(): void {
-    if (this.renderer && this.scene && this.camera) {
-      this.renderer.render(this.scene, this.camera);
-    }
+    if (!this.isInitialized || !this.renderer || !this.scene || !this.camera) return;
+    this.renderer.render(this.scene, this.camera);
   }
   
   updateColors(colors: ColorScheme): void {
@@ -308,6 +306,7 @@ export class TerrainVisualizer extends BaseVisualizer {
   
   destroy(): void {
     this.stopAnimationLoop();
+    this.isInitialized = false;
     
     if (this.renderer) {
       this.renderer.dispose();

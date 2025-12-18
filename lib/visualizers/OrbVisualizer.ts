@@ -68,10 +68,10 @@ export class OrbVisualizer extends BaseVisualizer {
   }
   
   init(): void {
-    // Create wrapper
-    const wrapper = document.createElement('div');
-    wrapper.className = 'w-full max-w-md aspect-square flex items-center justify-center cursor-grab active:cursor-grabbing';
-    wrapper.style.touchAction = 'none';
+    // Use container directly
+    const width = this.container.clientWidth || 500;
+    const height = this.container.clientHeight || 500;
+    const size = Math.min(width, height, 500);
     
     // Three.js setup
     this.scene = new THREE.Scene();
@@ -83,10 +83,11 @@ export class OrbVisualizer extends BaseVisualizer {
     );
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     
-    const size = Math.min(wrapper.clientWidth, 500);
     this.renderer.setSize(size, size);
     this.renderer.setClearColor(0x000000, 0);
-    wrapper.appendChild(this.renderer.domElement);
+    this.container.appendChild(this.renderer.domElement);
+    this.container.style.cursor = 'grab';
+    this.container.style.touchAction = 'none';
     
     // Create icosahedron geometry
     this.geometry = new THREE.IcosahedronGeometry(2, 80);
@@ -118,12 +119,9 @@ export class OrbVisualizer extends BaseVisualizer {
     this.camera.lookAt(0, 0, 0);
     
     // Add mouse controls
-    this.setupMouseControls(wrapper);
+    this.setupMouseControls(this.container);
     
-    this.container.appendChild(wrapper);
-    
-    // Start animation loop
-    this.startAnimationLoop(() => this.render());
+    // Animation loop handled by base class start() method
   }
   
   private setupMouseControls(element: HTMLDivElement): void {
@@ -160,7 +158,7 @@ export class OrbVisualizer extends BaseVisualizer {
   }
   
   update(audioAnalysis: AudioAnalysis): void {
-    if (!this.geometry || !this.originalPositions || !this.camera) return;
+    if (!this.isInitialized || !this.geometry || !this.originalPositions || !this.mesh || !this.camera) return;
     
     const { normalizedFrequency } = audioAnalysis;
     const freqMultiplier = this.config.freqMultiplier || 3.6;
@@ -232,9 +230,8 @@ export class OrbVisualizer extends BaseVisualizer {
   }
   
   render(): void {
-    if (this.renderer && this.scene && this.camera) {
-      this.renderer.render(this.scene, this.camera);
-    }
+    if (!this.isInitialized || !this.renderer || !this.scene || !this.camera) return;
+    this.renderer.render(this.scene, this.camera);
   }
   
   updateColors(colors: ColorScheme): void {
@@ -244,6 +241,7 @@ export class OrbVisualizer extends BaseVisualizer {
   
   destroy(): void {
     this.stopAnimationLoop();
+    this.isInitialized = false;
     
     if (this.renderer) {
       this.renderer.dispose();

@@ -65,19 +65,19 @@ export class WebVisualizer extends BaseVisualizer {
   }
   
   init(): void {
-    // Create wrapper
-    const wrapper = document.createElement('div');
-    wrapper.className = 'w-full max-w-md aspect-square flex items-center justify-center';
+    // Use container directly
+    const width = this.container.clientWidth || 500;
+    const height = this.container.clientHeight || 500;
+    const size = Math.min(width, height, 500);
     
     // Three.js setup
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     
-    const size = Math.min(wrapper.clientWidth, 500);
     this.renderer.setSize(size, size);
     this.renderer.setClearColor(0x000000, 0);
-    wrapper.appendChild(this.renderer.domElement);
+    this.container.appendChild(this.renderer.domElement);
     
     // Position camera
     this.camera.position.set(0, 5, 5);
@@ -143,14 +143,11 @@ export class WebVisualizer extends BaseVisualizer {
     this.mesh = new THREE.LineSegments(this.geometry, material);
     this.group.add(this.mesh);
     
-    this.container.appendChild(wrapper);
-    
-    // Start animation loop
-    this.startAnimationLoop(() => this.render());
+    // Animation loop handled by base class start() method
   }
   
   update(audioAnalysis: AudioAnalysis): void {
-    if (!this.geometry || !this.group) return;
+    if (!this.isInitialized || !this.geometry || !this.group) return;
     
     const { bassAvg, midAvg, highAvg } = audioAnalysis;
     const bassPulse = this.config.bassPulse || 0.4;
@@ -216,9 +213,8 @@ export class WebVisualizer extends BaseVisualizer {
   }
   
   render(): void {
-    if (this.renderer && this.scene && this.camera) {
-      this.renderer.render(this.scene, this.camera);
-    }
+    if (!this.isInitialized || !this.renderer || !this.scene || !this.camera) return;
+    this.renderer.render(this.scene, this.camera);
   }
   
   updateColors(colors: ColorScheme): void {
@@ -228,6 +224,7 @@ export class WebVisualizer extends BaseVisualizer {
   
   destroy(): void {
     this.stopAnimationLoop();
+    this.isInitialized = false;
     
     if (this.renderer) {
       this.renderer.dispose();

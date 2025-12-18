@@ -43,13 +43,9 @@ export class RadialVisualizer extends BaseVisualizer {
   }
   
   init(): void {
-    // Create wrapper div
-    const wrapper = document.createElement('div');
-    wrapper.className = 'w-full max-w-md aspect-square flex items-center justify-center';
-    
-    // Create SVG
+    // Create SVG directly in container
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    this.svg.setAttribute('class', 'w-full h-full');
+    this.svg.setAttribute('class', 'w-full h-full max-w-md mx-auto');
     this.svg.setAttribute('viewBox', '0 0 400 400');
     
     // Create gradient
@@ -85,14 +81,14 @@ export class RadialVisualizer extends BaseVisualizer {
     centerCircle.setAttribute('opacity', '0.3');
     this.svg.appendChild(centerCircle);
     
-    wrapper.appendChild(this.svg);
-    this.container.appendChild(wrapper);
+    this.container.appendChild(this.svg);
     
-    // Start animation loop
-    this.startAnimationLoop(() => this.render());
+    // Animation loop handled by base class start() method
   }
   
   update(audioAnalysis: AudioAnalysis): void {
+    if (!this.isInitialized || !this.svg) return;
+    
     const { audioData, isPlaying } = audioAnalysis;
     const intensity = this.config.intensity || 1.0;
     const timeSpeed = this.config.timeSpeed || 0.5;
@@ -176,6 +172,7 @@ export class RadialVisualizer extends BaseVisualizer {
   
   destroy(): void {
     this.stopAnimationLoop();
+    this.isInitialized = false;
     this.bars = [];
     this.svg = null;
     this.container.innerHTML = '';

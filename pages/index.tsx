@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
+import { SonicGalaxyVisualizer } from '../lib/visualizers/SonicGalaxyVisualizer';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis' | 'sonicGalaxy';
 
 // Declare Clarity type
 declare global {
@@ -39,6 +40,7 @@ export default function Mixes() {
   const whitecapCanvasRef = useRef<HTMLDivElement | null>(null);
   const terrainCanvasRef = useRef<HTMLDivElement | null>(null);
   const chrysalisCanvasRef = useRef<HTMLDivElement | null>(null);
+  const sonicGalaxyCanvasRef = useRef<HTMLDivElement | null>(null);
   const barsContainerRef = useRef<HTMLDivElement | null>(null);
   const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
   const audioDataRef = useRef<number[]>(Array(64).fill(0));
@@ -64,7 +66,7 @@ export default function Mixes() {
   const [orbRadius, setOrbRadius] = useState<number>(2.0);
   
   // Bars visualizer controls
-  const [barsScale, setBarsScale] = useState<number>(1.0);
+  const [barsScale, setBarsScale] = useState<number>(0.5);
   const [barsSmoothness, setBarsSmoothness] = useState<number>(1.0);
   const [barsWidth, setBarsWidth] = useState<number>(4);
   const [barsColorMode, setBarsColorMode] = useState<boolean>(false);
@@ -94,6 +96,19 @@ export default function Mixes() {
   const [chrysalisLissajousA, setChrysalisLissajousA] = useState<number>(3);
   const [chrysalisLissajousB, setChrysalisLissajousB] = useState<number>(4);
   const [chrysalisLineThickness, setChrysalisLineThickness] = useState<number>(2);
+  
+  // Sonic Galaxy visualizer controls
+  const [galaxyParticleCount, setGalaxyParticleCount] = useState<number>(50000);
+  const [galaxyAttractorCount, setGalaxyAttractorCount] = useState<number>(4);
+  const [galaxyBassGravity, setGalaxyBassGravity] = useState<number>(2.0);
+  const [galaxyMidSpin, setGalaxyMidSpin] = useState<number>(2.0);
+  const [galaxyMaxSpeed, setGalaxyMaxSpeed] = useState<number>(8);
+  const [galaxyDamping, setGalaxyDamping] = useState<number>(0.05);
+  const [galaxyParticleSize, setGalaxyParticleSize] = useState<number>(0.5);
+  const [galaxyCameraSpeed, setGalaxyCameraSpeed] = useState<number>(0.005);
+  const [galaxyBoundSize, setGalaxyBoundSize] = useState<number>(10);
+  const [galaxyBeatSensitivity, setGalaxyBeatSensitivity] = useState<number>(1.2);
+  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
   
   // Refs for real-time parameter access in animation loop
   const freqMultiplierRef = useRef<number>(3.6);
@@ -1510,6 +1525,77 @@ export default function Mixes() {
     };
   }, [visualizerType, showVisualizer, currentMix]);
 
+  // Sonic Galaxy Visualizer
+  useEffect(() => {
+    if (!sonicGalaxyCanvasRef.current || visualizerType !== 'sonicGalaxy' || !showVisualizer) return;
+
+    const container = sonicGalaxyCanvasRef.current;
+    
+    // Create visualizer instance
+    const visualizer = new SonicGalaxyVisualizer(
+      container,
+      {
+        particleCount: galaxyParticleCount,
+        attractorCount: galaxyAttractorCount,
+        bassGravity: galaxyBassGravity,
+        midSpin: galaxyMidSpin,
+        maxSpeed: galaxyMaxSpeed,
+        velocityDamping: galaxyDamping,
+        particleSize: galaxyParticleSize,
+        cameraSpeed: galaxyCameraSpeed,
+        boundSize: galaxyBoundSize,
+        beatSensitivity: galaxyBeatSensitivity
+      },
+      {
+        dominant: dominantColorRef.current,
+        accent: accentColorRef.current
+      }
+    );
+    
+    // Start the visualizer (init + animation loop)
+    visualizer.start();
+    
+    // Store visualizer for cleanup
+    (window as any).sonicGalaxyVisualizer = visualizer;
+    
+    // Audio data update loop (separate from render loop)
+    let frameId = 0;
+    const updateAudio = () => {
+      frameId = requestAnimationFrame(updateAudio);
+      
+      // Get audio data from existing refs
+      const currentAudioData = audioDataRef.current;
+      
+      // Calculate frequency band averages from audio data
+      const bassAvg = currentAudioData.slice(0, 10).reduce((a, b) => a + b, 0) / 10 * 2.55;
+      const midAvg = currentAudioData.slice(10, 30).reduce((a, b) => a + b, 0) / 20 * 2.55;
+      const highAvg = currentAudioData.slice(30, 64).reduce((a, b) => a + b, 0) / 34 * 2.55;
+      
+      // Feed audio data to visualizer
+      visualizer.setAudioData({
+        frequencyData: new Uint8Array(64),
+        audioData: currentAudioData,
+        bassAvg,
+        midAvg,
+        highAvg,
+        averageFrequency: 0,
+        normalizedFrequency: 0,
+        isPlaying
+      });
+    };
+    
+    updateAudio();
+    
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(frameId);
+      visualizer.destroy();
+      delete (window as any).sonicGalaxyVisualizer;
+    };
+  }, [visualizerType, showVisualizer, currentMix, galaxyParticleCount, galaxyAttractorCount,
+      galaxyBassGravity, galaxyMidSpin, galaxyMaxSpeed, galaxyDamping, galaxyParticleSize,
+      galaxyCameraSpeed, galaxyBoundSize, galaxyBeatSensitivity, isPlaying]);
+
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -2027,9 +2113,9 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : v === 'chrysalis' ? 'sonicGalaxy' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : visualizerType === 'chrysalis' ? 'Chrysalis' : 'Sonic Galaxy'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2038,7 +2124,7 @@ export default function Mixes() {
                   <button
                     onClick={() => {
                       // Randomize visualizer type
-                      const types: VisualizerType[] = ['bars', 'orb', 'web', 'terrain', 'chrysalis'];
+                      const types: VisualizerType[] = ['bars', 'orb', 'web', 'terrain', 'chrysalis', 'sonicGalaxy'];
                       const randomType = types[Math.floor(Math.random() * types.length)];
                       setVisualizerType(randomType);
                       
@@ -2096,7 +2182,7 @@ export default function Mixes() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : 'Chrysalis'} Controls
+                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : visualizerType === 'chrysalis' ? 'Chrysalis' : 'Sonic Galaxy'} Controls
               </div>
               
               {/* Bars Controls */}
@@ -2667,6 +2753,206 @@ export default function Mixes() {
                   </button>
                 </>
               )}
+              
+              {/* Sonic Galaxy Controls */}
+              {visualizerType === 'sonicGalaxy' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Particle Count</span>
+                      <span className="font-mono">{galaxyParticleCount.toLocaleString()}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="10000"
+                      max="100000"
+                      step="10000"
+                      value={galaxyParticleCount}
+                      onChange={(e) => setGalaxyParticleCount(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Attractors</span>
+                      <span className="font-mono">{galaxyAttractorCount}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="6"
+                      step="1"
+                      value={galaxyAttractorCount}
+                      onChange={(e) => setGalaxyAttractorCount(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Bass Gravity</span>
+                      <span className="font-mono">{galaxyBassGravity.toFixed(1)}x</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5"
+                      step="0.1"
+                      value={galaxyBassGravity}
+                      onChange={(e) => setGalaxyBassGravity(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Mid Spin</span>
+                      <span className="font-mono">{galaxyMidSpin.toFixed(1)}x</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5"
+                      step="0.1"
+                      value={galaxyMidSpin}
+                      onChange={(e) => setGalaxyMidSpin(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Max Speed</span>
+                      <span className="font-mono">{galaxyMaxSpeed}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="15"
+                      step="0.5"
+                      value={galaxyMaxSpeed}
+                      onChange={(e) => setGalaxyMaxSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Damping</span>
+                      <span className="font-mono">{galaxyDamping.toFixed(3)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.2"
+                      step="0.01"
+                      value={galaxyDamping}
+                      onChange={(e) => setGalaxyDamping(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Particle Size</span>
+                      <span className="font-mono">{galaxyParticleSize.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={galaxyParticleSize}
+                      onChange={(e) => setGalaxyParticleSize(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Camera Speed</span>
+                      <span className="font-mono">{galaxyCameraSpeed.toFixed(4)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.02"
+                      step="0.001"
+                      value={galaxyCameraSpeed}
+                      onChange={(e) => setGalaxyCameraSpeed(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Bound Size</span>
+                      <span className="font-mono">{galaxyBoundSize}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="5"
+                      max="20"
+                      step="1"
+                      value={galaxyBoundSize}
+                      onChange={(e) => setGalaxyBoundSize(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Beat Sensitivity</span>
+                      <span className="font-mono">{galaxyBeatSensitivity.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2"
+                      step="0.1"
+                      value={galaxyBeatSensitivity}
+                      onChange={(e) => setGalaxyBeatSensitivity(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setGalaxyParticleCount(10000);
+                      setGalaxyAttractorCount(3);
+                      setGalaxyBassGravity(2.0);
+                      setGalaxyMidSpin(2.0);
+                      setGalaxyMaxSpeed(3);
+                      setGalaxyDamping(0.05);
+                      setGalaxyParticleSize(0.5);
+                      setGalaxyCameraSpeed(0.004);
+                      setGalaxyBoundSize(11);
+                      setGalaxyBeatSensitivity(1.8);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowDebugPanel(!showDebugPanel)}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    {showDebugPanel ? '✕ Hide Debug Panel' : '⚙ Show Debug Panel'}
+                  </button>
+                </>
+              )}
             </div>
           )}
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6">
@@ -2736,6 +3022,34 @@ export default function Mixes() {
                 ref={chrysalisCanvasRef}
                 className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center"
               />
+            ) : visualizerType === 'sonicGalaxy' ? (
+              <div className="relative w-full max-w-3xl aspect-square max-h-[60vh]">
+                <div 
+                  ref={sonicGalaxyCanvasRef}
+                  className="w-full h-full flex items-center justify-center"
+                />
+                {/* Debug Panel */}
+                {showDebugPanel && (
+                  <div className="absolute top-0 left-0 bg-black/80 backdrop-blur-sm p-3 rounded text-xs font-mono text-white/70 space-y-1 border border-white/10">
+                  <div className="text-white/90 font-bold mb-2">Debug Values</div>
+                  <div>Particle Count: <span className="text-white">{galaxyParticleCount}</span></div>
+                  <div>Attractors: <span className="text-white">{galaxyAttractorCount}</span></div>
+                  <div>Bass Gravity: <span className="text-white">{galaxyBassGravity.toFixed(1)}x</span></div>
+                  <div>Mid Spin: <span className="text-white">{galaxyMidSpin.toFixed(1)}x</span></div>
+                  <div>Max Speed: <span className="text-white">{galaxyMaxSpeed}</span></div>
+                  <div>Damping: <span className="text-white">{galaxyDamping.toFixed(3)}</span></div>
+                  <div>Particle Size: <span className="text-white">{galaxyParticleSize.toFixed(1)}</span></div>
+                  <div>Camera Speed: <span className="text-white">{galaxyCameraSpeed.toFixed(4)}</span></div>
+                  <div>Bound Size: <span className="text-white">{galaxyBoundSize}</span></div>
+                  <div>Beat Sensitivity: <span className="text-white">{galaxyBeatSensitivity.toFixed(1)}</span></div>
+                  <div className="pt-2 mt-2 border-t border-white/20">
+                    <div>Bass Avg: <span className="text-white">{audioData.length > 0 ? Math.floor(audioData.slice(0, 8).reduce((a, b) => a + b, 0) / 8) : 0}</span></div>
+                    <div>Mid Avg: <span className="text-white">{audioData.length > 0 ? Math.floor(audioData.slice(8, 32).reduce((a, b) => a + b, 0) / 24) : 0}</span></div>
+                    <div>High Avg: <span className="text-white">{audioData.length > 0 ? Math.floor(audioData.slice(32).reduce((a, b) => a + b, 0) / (audioData.length - 32)) : 0}</span></div>
+                  </div>
+                  </div>
+                )}
+              </div>
             ) : null}
           </div>
           <div className="relative z-10 px-4 py-6 border-t border-neutral-800/50">

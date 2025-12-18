@@ -24,10 +24,10 @@ export class BarsVisualizer extends BaseVisualizer {
         name: 'Bar Height',
         key: 'scale',
         min: 0.5,
-        max: 2,
+        max: 1.5,
         step: 0.1,
-        default: 1.0,
-        value: this.config.scale || 1.0
+        default: 0.5,
+        value: this.config.scale || 0.5
       },
       {
         name: 'Smoothness',
@@ -80,6 +80,8 @@ export class BarsVisualizer extends BaseVisualizer {
   }
   
   update(audioAnalysis: AudioAnalysis): void {
+    if (!this.isInitialized || !this.barsContainer) return;
+    
     const { audioData, isPlaying } = audioAnalysis;
     const scale = this.config.scale || 1.0;
     const smoothness = this.config.smoothness || 1.0;
@@ -121,7 +123,10 @@ export class BarsVisualizer extends BaseVisualizer {
   }
   
   destroy(): void {
-    if (this.barsContainer) {
+    this.stopAnimationLoop();
+    this.isInitialized = false;
+    
+    if (this.barsContainer && this.container.contains(this.barsContainer)) {
       this.container.removeChild(this.barsContainer);
       this.barsContainer = null;
     }

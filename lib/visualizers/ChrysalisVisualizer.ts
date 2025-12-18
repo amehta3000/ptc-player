@@ -246,7 +246,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   }
 
   update(audioAnalysis: AudioAnalysis): void {
-    if (!this.chrysalisGroup) return;
+    if (!this.isInitialized || !this.chrysalisGroup) return;
 
     const currentSlices = this.config.slices || 56;
     if (this.loops.length !== currentSlices) {
@@ -306,9 +306,8 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   }
 
   render(): void {
-    if (this.renderer && this.scene && this.camera) {
-      this.renderer.render(this.scene, this.camera);
-    }
+    if (!this.isInitialized || !this.renderer || !this.scene || !this.camera) return;
+    this.renderer.render(this.scene, this.camera);
   }
 
   resize(width: number, height: number): void {
@@ -341,6 +340,9 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   }
 
   destroy(): void {
+    this.stopAnimationLoop();
+    this.isInitialized = false;
+    
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
     }

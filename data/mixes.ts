@@ -17,6 +17,14 @@ export const mixes: Mix[] = [
     type: "track"
   },   
   {
+    title: "Dive into dark",
+    cover: "https://media.parttimechiller.com/DiveIntoDark_PTC.png",
+    audio: "https://media.parttimechiller.com/DiveIntoDark_PTC.mp3",
+    duration: "2:52",
+    description: "Sometimes you need to go deep into the dark",
+    type: "track"
+  },    
+  {
     title: "Slow down",
     cover: "https://media.parttimechiller.com/Slowdown_PTC.png",
     audio: "https://media.parttimechiller.com/Slowdown_PTC.mp3",
@@ -40,16 +48,7 @@ export const mixes: Mix[] = [
     description: "A little bounce for an ounce.",
     type: "track"
   },
-  {
-    title: "Dive into dark",
-    cover: "https://media.parttimechiller.com/DiveIntoDark_PTC.png",
-    audio: "https://media.parttimechiller.com/DiveIntoDark_PTC.mp3",
-    duration: "2:52",
-    description: "Sometimes you need to go deep into the dark",
-    type: "track"
-  },  
-
-       {
+   {
     title: "Midnight interlude",
     cover: "https://media.parttimechiller.com/Midnight_Interlude_PTC.png",
     audio: "https://media.parttimechiller.com/Midnight_Interlude_PTC.mp3",
