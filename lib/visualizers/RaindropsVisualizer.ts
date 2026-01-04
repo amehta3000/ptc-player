@@ -39,6 +39,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
   private layoutMode: number = 0; // 0=rainfall, 1=row, 2=grid, 3=spiral
   private resizeObserver: ResizeObserver | null = null;
   private gridOverlay: THREE.LineSegments | null = null;
+  private rowAxisOverlay: THREE.LineSegments | null = null;
   private gridCellOrder: number[] = [];
   private gridCursor = 0;
 
@@ -58,8 +59,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
         min: 32,
         max: 256,
         step: 16,
-        default: 32,
-        value: this.config.maxRipples || 32
+        default: 64,
+        value: this.config.maxRipples ?? 64
       },
       {
         name: 'Bass Threshold',
@@ -67,8 +68,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
         min: 0.1,
         max: 0.8,
         step: 0.05,
-        default: 0.55,
-        value: this.config.bassThreshold || 0.55
+        default: 0.1,
+        value: this.config.bassThreshold ?? 0.1
       },
       {
         name: 'Drizzle Rate',
@@ -77,7 +78,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
         max: 0.5,
         step: 0.05,
         default: 0.05,
-        value: this.config.drizzleRate || 0.05
+        value: this.config.drizzleRate ?? 0.05
       },
       {
         name: 'Plane Size',
@@ -86,7 +87,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
         max: 40,
         step: 2,
         default: 40,
-        value: this.config.planeSize || 40
+        value: this.config.planeSize ?? 40
       },
       {
         name: 'Intensity',
@@ -94,8 +95,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
         min: 0.5,
         max: 3,
         step: 0.1,
-        default: 1.0,
-        value: this.config.intensity || 1.0
+        default: 0.8,
+        value: this.config.intensity ?? 0.8
       },
       {
         name: 'Ring Thickness',
@@ -103,8 +104,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
         min: 0.1,
         max: 1,
         step: 0.05,
-        default: 0.15,
-        value: this.config.ringThickness || 0.15
+        default: 0.1,
+        value: this.config.ringThickness ?? 0.1
       },
       {
         name: 'Layout Mode',
@@ -113,7 +114,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
         max: 3,
         step: 1,
         default: 0,
-        value: this.config.layoutMode || 0
+        value: this.config.layoutMode ?? 0
       },
       {
         name: 'Show Grid Overlay',
@@ -208,38 +209,68 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.gridOverlay = null;
     }
 
-    const layoutMode = this.config.layoutMode || 0;
-    const showGridOverlay = (this.config.showGridOverlay ?? 1) > 0;
-    if (layoutMode !== 2 || !showGridOverlay) return;
-
-    const { halfWidth, halfHeight } = this.getLayoutBounds();
-    const insetX = halfWidth * 0.9;
-    const insetY = halfHeight * 0.9;
-    const divisions = 8;
-
-    const positions: number[] = [];
-    for (let i = 0; i <= divisions; i++) {
-      const t = i / divisions;
-      const x = (t - 0.5) * insetX * 2;
-      const y = (t - 0.5) * insetY * 2;
-
-      // vertical lines (x constant)
-      positions.push(x, 0.01, -insetY, x, 0.01, insetY);
-      // horizontal lines (y constant)
-      positions.push(-insetX, 0.01, y, insetX, 0.01, y);
+    if (this.rowAxisOverlay) {
+      this.scene.remove(this.rowAxisOverlay);
+      this.rowAxisOverlay.geometry.dispose();
+      (this.rowAxisOverlay.material as THREE.Material).dispose();
+      this.rowAxisOverlay = null;
     }
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const layoutMode = this.config.layoutMode || 0;
+    const showOverlay = (this.config.showGridOverlay ?? 1) > 0;
+    if (!showOverlay) return;
 
-    const material = new THREE.LineBasicMaterial({
-      color: new THREE.Color(1, 1, 1),
-      transparent: true,
-      opacity: 0.08
-    });
+    // Grid overlay (only in grid mode)
+    if (layoutMode === 2) {
+      const { halfWidth, halfHeight } = this.getLayoutBounds();
+      const insetX = halfWidth * 0.9;
+      const insetY = halfHeight * 0.9;
+      const divisions = 8;
 
-    this.gridOverlay = new THREE.LineSegments(geometry, material);
-    this.scene.add(this.gridOverlay);
+      const positions: number[] = [];
+      for (let i = 0; i <= divisions; i++) {
+        const t = i / divisions;
+        const x = (t - 0.5) * insetX * 2;
+        const y = (t - 0.5) * insetY * 2;
+
+        // vertical lines (x constant)
+        positions.push(x, 0.01, -insetY, x, 0.01, insetY);
+        // horizontal lines (y constant)
+        positions.push(-insetX, 0.01, y, insetX, 0.01, y);
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+      const material = new THREE.LineBasicMaterial({
+        color: new THREE.Color(1, 1, 1),
+        transparent: true,
+        opacity: 0.08
+      });
+
+      this.gridOverlay = new THREE.LineSegments(geometry, material);
+      this.scene.add(this.gridOverlay);
+      return;
+    }
+
+    // Row axis overlay (only in row mode)
+    if (layoutMode === 1) {
+      const { halfWidth } = this.getLayoutBounds();
+      const insetX = halfWidth * 0.9;
+
+      const positions = [-insetX, 0.01, 0, insetX, 0.01, 0];
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+      const material = new THREE.LineBasicMaterial({
+        color: new THREE.Color(1, 1, 1),
+        transparent: true,
+        opacity: 0.12
+      });
+
+      this.rowAxisOverlay = new THREE.LineSegments(geometry, material);
+      this.scene.add(this.rowAxisOverlay);
+    }
   }
 
   private getGridCellIndex(frequencyBand: number): number {
@@ -284,7 +315,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       case 1: // Single row - low to high frequencies left to right
         {
           const normalizedBand = frequencyBand / 63;
-          const x = (normalizedBand - 0.5) * insetX * 2;
+          const x = -insetX + (normalizedBand * insetX * 2);
           const y = 0;
           position = new THREE.Vector2(x, y);
         }
@@ -408,6 +439,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
     const now = performance.now();
     const baseThreshold = (this.config.bassThreshold || 0.3) * 255;
+    const layoutMode = this.config.layoutMode || 0;
     
     // Check each frequency band and create ripple if threshold exceeded
     for (let i = 0; i < audioData.audioData.length; i++) {
@@ -417,12 +449,26 @@ export class RaindropsVisualizer extends BaseVisualizer {
       // Lower frequencies need lower threshold (kicks/bass are important)
       // Higher frequencies need higher threshold (to avoid noise)
       const normalizedBand = i / 63;
-      const threshold = baseThreshold + (normalizedBand * baseThreshold * 0.5);
+      let threshold = baseThreshold + (normalizedBand * baseThreshold * 0.5);
+
+      // Row layout should show more detail in mid/highs:
+      // nudge lows to require a bit more energy and let highs trigger a bit easier.
+      if (layoutMode === 1) {
+        const tilt = 0.35; // how much we bias towards highs (0..~0.6)
+        threshold *= 1 + tilt * (0.5 - normalizedBand);
+      }
       
       // Only create ripple if:
       // 1. This specific band's level is above its threshold
       // 2. Enough time has passed since last drop for this band (debounce)
-      const minInterval = 100 + (i * 3); // Higher frequencies can drop faster
+      let minInterval = 100 + (i * 3); // default behavior
+
+      // In row layout, allow highs to drop faster and tame the bass.
+      if (layoutMode === 1) {
+        const lowSlow = 260;
+        const highFast = 60;
+        minInterval = lowSlow - (normalizedBand * (lowSlow - highFast));
+      }
       
       if (level > threshold && now - this.lastDropTimes[i] > minInterval) {
         const amplitude = Math.min(level / 255, 1.0);
@@ -508,6 +554,13 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.gridOverlay.geometry.dispose();
       (this.gridOverlay.material as THREE.Material).dispose();
       this.gridOverlay = null;
+    }
+
+    if (this.rowAxisOverlay && this.scene) {
+      this.scene.remove(this.rowAxisOverlay);
+      this.rowAxisOverlay.geometry.dispose();
+      (this.rowAxisOverlay.material as THREE.Material).dispose();
+      this.rowAxisOverlay = null;
     }
 
     // Clean up ripple meshes

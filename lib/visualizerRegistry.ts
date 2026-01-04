@@ -132,12 +132,12 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
 });
 
 VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
-  maxRipples: 32,
-  bassThreshold: 0.55,
+  maxRipples: 64,
+  bassThreshold: 0.10,
   drizzleRate: 0.05,
   planeSize: 40,
-  intensity: 1.0,
-  ringThickness: 0.15,
+  intensity: 0.8,
+  ringThickness: 0.10,
   layoutMode: 0,
   showGridOverlay: 1
 });

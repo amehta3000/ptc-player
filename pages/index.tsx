@@ -113,12 +113,12 @@ export default function Mixes() {
   const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
   
   // Raindrops visualizer controls
-  const [raindropsMaxRipples, setRaindropsMaxRipples] = useState<number>(128);
-  const [raindropsBassThreshold, setRaindropsBassThreshold] = useState<number>(0.3);
-  const [raindropsDrizzleRate, setRaindropsDrizzleRate] = useState<number>(0.1);
-  const [raindropsPlaneSize, setRaindropsPlaneSize] = useState<number>(20);
-  const [raindropsIntensity, setRaindropsIntensity] = useState<number>(1.5);
-  const [raindropsRingThickness, setRaindropsRingThickness] = useState<number>(0.3);
+  const [raindropsMaxRipples, setRaindropsMaxRipples] = useState<number>(64);
+  const [raindropsBassThreshold, setRaindropsBassThreshold] = useState<number>(0.1);
+  const [raindropsDrizzleRate, setRaindropsDrizzleRate] = useState<number>(0.05);
+  const [raindropsPlaneSize, setRaindropsPlaneSize] = useState<number>(40);
+  const [raindropsIntensity, setRaindropsIntensity] = useState<number>(0.8);
+  const [raindropsRingThickness, setRaindropsRingThickness] = useState<number>(0.1);
   const [raindropsLayoutMode, setRaindropsLayoutMode] = useState<number>(0);
   
   // Refs for real-time parameter access in animation loop
@@ -3178,12 +3178,12 @@ export default function Mixes() {
                   
                   <button
                     onClick={() => {
-                      setRaindropsMaxRipples(128);
-                      setRaindropsBassThreshold(0.3);
-                      setRaindropsDrizzleRate(0.1);
-                      setRaindropsPlaneSize(20);
-                      setRaindropsIntensity(1.5);
-                      setRaindropsRingThickness(0.3);
+                      setRaindropsMaxRipples(64);
+                      setRaindropsBassThreshold(0.1);
+                      setRaindropsDrizzleRate(0.05);
+                      setRaindropsPlaneSize(40);
+                      setRaindropsIntensity(0.8);
+                      setRaindropsRingThickness(0.1);
                       setRaindropsLayoutMode(0);
                     }}
                     className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
