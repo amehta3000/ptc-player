@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { Mix, mixes } from "../data/mixes";
 import * as THREE from 'three';
 import { SonicGalaxyVisualizer } from '../lib/visualizers/SonicGalaxyVisualizer';
+import { RaindropsVisualizer } from '@/lib/visualizers/RaindropsVisualizer';
 
 type FilterType = 'all' | 'mix' | 'track';
-type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis' | 'sonicGalaxy';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis' | 'sonicGalaxy' | 'raindrops';
 
 // Declare Clarity type
 declare global {
@@ -41,6 +42,7 @@ export default function Mixes() {
   const terrainCanvasRef = useRef<HTMLDivElement | null>(null);
   const chrysalisCanvasRef = useRef<HTMLDivElement | null>(null);
   const sonicGalaxyCanvasRef = useRef<HTMLDivElement | null>(null);
+  const raindropsCanvasRef = useRef<HTMLDivElement | null>(null);
   const barsContainerRef = useRef<HTMLDivElement | null>(null);
   const threeSceneRef = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; mesh: THREE.Mesh; originalPositions: Float32Array } | null>(null);
   const audioDataRef = useRef<number[]>(Array(64).fill(0));
@@ -109,6 +111,15 @@ export default function Mixes() {
   const [galaxyBoundSize, setGalaxyBoundSize] = useState<number>(10);
   const [galaxyBeatSensitivity, setGalaxyBeatSensitivity] = useState<number>(1.2);
   const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
+  
+  // Raindrops visualizer controls
+  const [raindropsMaxRipples, setRaindropsMaxRipples] = useState<number>(128);
+  const [raindropsBassThreshold, setRaindropsBassThreshold] = useState<number>(0.3);
+  const [raindropsDrizzleRate, setRaindropsDrizzleRate] = useState<number>(0.1);
+  const [raindropsPlaneSize, setRaindropsPlaneSize] = useState<number>(20);
+  const [raindropsIntensity, setRaindropsIntensity] = useState<number>(1.5);
+  const [raindropsRingThickness, setRaindropsRingThickness] = useState<number>(0.3);
+  const [raindropsLayoutMode, setRaindropsLayoutMode] = useState<number>(0);
   
   // Refs for real-time parameter access in animation loop
   const freqMultiplierRef = useRef<number>(3.6);
@@ -1596,6 +1607,73 @@ export default function Mixes() {
       galaxyBassGravity, galaxyMidSpin, galaxyMaxSpeed, galaxyDamping, galaxyParticleSize,
       galaxyCameraSpeed, galaxyBoundSize, galaxyBeatSensitivity, isPlaying]);
 
+  // Raindrops Visualizer
+  useEffect(() => {
+    if (!raindropsCanvasRef.current || visualizerType !== 'raindrops' || !showVisualizer) return;
+
+    const container = raindropsCanvasRef.current;
+    
+    // Create visualizer instance
+    const visualizer = new RaindropsVisualizer(
+      container,
+      {
+        maxRipples: raindropsMaxRipples,
+        bassThreshold: raindropsBassThreshold,
+        drizzleRate: raindropsDrizzleRate,
+        planeSize: raindropsPlaneSize,
+        intensity: raindropsIntensity,
+        ringThickness: raindropsRingThickness,
+        layoutMode: raindropsLayoutMode
+      },
+      {
+        dominant: dominantColorRef.current,
+        accent: accentColorRef.current
+      }
+    );
+    
+    // Start the visualizer (init + animation loop)
+    visualizer.start();
+    
+    // Store visualizer for cleanup
+    (window as any).raindropsVisualizer = visualizer;
+    
+    // Audio data update loop (separate from render loop)
+    let frameId = 0;
+    const updateAudio = () => {
+      frameId = requestAnimationFrame(updateAudio);
+      
+      // Get audio data from existing refs
+      const currentAudioData = audioDataRef.current;
+      
+      // Calculate frequency band averages from audio data
+      const bassAvg = currentAudioData.slice(0, 10).reduce((a, b) => a + b, 0) / 10 * 2.55;
+      const midAvg = currentAudioData.slice(10, 30).reduce((a, b) => a + b, 0) / 20 * 2.55;
+      const highAvg = currentAudioData.slice(30, 64).reduce((a, b) => a + b, 0) / 34 * 2.55;
+      
+      // Feed audio data to visualizer
+      visualizer.setAudioData({
+        frequencyData: new Uint8Array(64),
+        audioData: currentAudioData,
+        bassAvg,
+        midAvg,
+        highAvg,
+        averageFrequency: 0,
+        normalizedFrequency: 0,
+        isPlaying
+      });
+    };
+    
+    updateAudio();
+    
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(frameId);
+      visualizer.destroy();
+      delete (window as any).raindropsVisualizer;
+    };
+  }, [visualizerType, showVisualizer, currentMix, raindropsMaxRipples, raindropsBassThreshold,
+      raindropsDrizzleRate, raindropsPlaneSize, raindropsIntensity, raindropsRingThickness, raindropsLayoutMode, isPlaying]);
+
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -2113,9 +2191,9 @@ export default function Mixes() {
               {showVisualizer && (
                 <>
                   <button
-                    onClick={() => setVisualizerType(v => v === 'bars' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : v === 'chrysalis' ? 'sonicGalaxy' : 'bars')}
+                    onClick={() => setVisualizerType(v => v === 'bars' ? 'orb' : v === 'orb' ? 'web' : v === 'web' ? 'terrain' : v === 'terrain' ? 'chrysalis' : v === 'chrysalis' ? 'sonicGalaxy' : v === 'sonicGalaxy' ? 'raindrops' : 'bars')}
                     className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : visualizerType === 'chrysalis' ? 'Chrysalis' : 'Sonic Galaxy'}`}
+                    title={`Current: ${visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : visualizerType === 'chrysalis' ? 'Chrysalis' : visualizerType === 'sonicGalaxy' ? 'Sonic Galaxy' : 'Raindrops'}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2124,7 +2202,7 @@ export default function Mixes() {
                   <button
                     onClick={() => {
                       // Randomize visualizer type
-                      const types: VisualizerType[] = ['bars', 'orb', 'web', 'terrain', 'chrysalis', 'sonicGalaxy'];
+                      const types: VisualizerType[] = ['bars', 'orb', 'web', 'terrain', 'chrysalis', 'sonicGalaxy', 'raindrops'];
                       const randomType = types[Math.floor(Math.random() * types.length)];
                       setVisualizerType(randomType);
                       
@@ -2182,7 +2260,7 @@ export default function Mixes() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : visualizerType === 'chrysalis' ? 'Chrysalis' : 'Sonic Galaxy'} Controls
+                {visualizerType === 'bars' ? 'Bars' : visualizerType === 'orb' ? 'Orb' : visualizerType === 'web' ? 'Web' : visualizerType === 'terrain' ? 'Terrain' : visualizerType === 'chrysalis' ? 'Chrysalis' : visualizerType === 'sonicGalaxy' ? 'Sonic Galaxy' : 'Raindrops'} Controls
               </div>
               
               {/* Bars Controls */}
@@ -2953,6 +3031,167 @@ export default function Mixes() {
                   </button>
                 </>
               )}
+              
+              {/* Raindrops Controls */}
+              {visualizerType === 'raindrops' && (
+                <>
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Layout Mode</span>
+                      <span className="font-mono">
+                        {raindropsLayoutMode === 0
+                          ? 'Rain'
+                          : raindropsLayoutMode === 1
+                          ? 'Row'
+                          : raindropsLayoutMode === 2
+                          ? 'Grid'
+                          : 'Spiral'}
+                      </span>
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[0, 1, 2, 3].map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setRaindropsLayoutMode(mode)}
+                          className={`px-2 py-2 rounded text-xs font-medium transition-all duration-200 border ${
+                            raindropsLayoutMode === mode
+                              ? 'bg-white/20 text-white border-white/30'
+                              : 'bg-white/5 text-white/70 hover:bg-white/10 border-white/10'
+                          }`}
+                          title={
+                            mode === 0
+                              ? 'Rainfall (random)'
+                              : mode === 1
+                              ? 'Row (low→high)'
+                              : mode === 2
+                              ? 'Grid (8×8)'
+                              : 'Spiral (outward)'
+                          }
+                        >
+                          {mode === 0 ? 'Rain' : mode === 1 ? 'Row' : mode === 2 ? 'Grid' : 'Spiral'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Max Ripples</span>
+                      <span className="font-mono">{raindropsMaxRipples}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="32"
+                      max="256"
+                      step="16"
+                      value={raindropsMaxRipples}
+                      onChange={(e) => setRaindropsMaxRipples(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Bass Threshold</span>
+                      <span className="font-mono">{raindropsBassThreshold.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="0.8"
+                      step="0.05"
+                      value={raindropsBassThreshold}
+                      onChange={(e) => setRaindropsBassThreshold(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Drizzle Rate</span>
+                      <span className="font-mono">{raindropsDrizzleRate.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="0.5"
+                      step="0.05"
+                      value={raindropsDrizzleRate}
+                      onChange={(e) => setRaindropsDrizzleRate(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Plane Size</span>
+                      <span className="font-mono">{raindropsPlaneSize}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="40"
+                      step="2"
+                      value={raindropsPlaneSize}
+                      onChange={(e) => setRaindropsPlaneSize(parseInt(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Intensity</span>
+                      <span className="font-mono">{raindropsIntensity.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={raindropsIntensity}
+                      onChange={(e) => setRaindropsIntensity(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="flex justify-between text-xs text-white/70 mb-1">
+                      <span>Ring Thickness</span>
+                      <span className="font-mono">{raindropsRingThickness.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1"
+                      step="0.05"
+                      value={raindropsRingThickness}
+                      onChange={(e) => setRaindropsRingThickness(parseFloat(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+                      style={{ accentColor: dominantColor }}
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setRaindropsMaxRipples(128);
+                      setRaindropsBassThreshold(0.3);
+                      setRaindropsDrizzleRate(0.1);
+                      setRaindropsPlaneSize(20);
+                      setRaindropsIntensity(1.5);
+                      setRaindropsRingThickness(0.3);
+                      setRaindropsLayoutMode(0);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-all duration-300 text-xs font-medium"
+                  >
+                    Reset to Defaults
+                  </button>
+                </>
+              )}
             </div>
           )}
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6">
@@ -3050,6 +3289,11 @@ export default function Mixes() {
                   </div>
                 )}
               </div>
+            ) : visualizerType === 'raindrops' ? (
+              <div 
+                ref={raindropsCanvasRef}
+                className="w-full max-w-3xl aspect-square max-h-[60vh] flex items-center justify-center"
+              />
             ) : null}
           </div>
           <div className="relative z-10 px-4 py-6 border-t border-neutral-800/50">

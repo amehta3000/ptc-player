@@ -10,8 +10,9 @@ import { OrbVisualizer } from './visualizers/OrbVisualizer';
 import { WebVisualizer } from './visualizers/WebVisualizer';
 import { TerrainVisualizer } from './visualizers/TerrainVisualizer';
 import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
+import { RaindropsVisualizer } from '@/lib/visualizers/RaindropsVisualizer';
 
-export type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain' | 'sonicGalaxy';
+export type VisualizerType = 'bars' | 'radial' | 'orb' | 'web' | 'terrain' | 'sonicGalaxy' | 'raindrops';
 
 type VisualizerConstructor = new (
   container: HTMLDivElement,
@@ -128,4 +129,15 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
   cameraSpeed: 0.004,
   boundSize: 8,
   beatSensitivity: 1.2
+});
+
+VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
+  maxRipples: 32,
+  bassThreshold: 0.55,
+  drizzleRate: 0.05,
+  planeSize: 40,
+  intensity: 1.0,
+  ringThickness: 0.15,
+  layoutMode: 0,
+  showGridOverlay: 1
 });
