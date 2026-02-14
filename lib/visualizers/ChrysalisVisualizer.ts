@@ -4,6 +4,9 @@
  */
 
 import * as THREE from 'three';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
@@ -13,7 +16,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   private renderer: THREE.WebGLRenderer | null = null;
   private chrysalisGroup: THREE.Group | null = null;
   private loops: Array<{
-    loop: THREE.LineLoop;
+    loop: Line2;
     baseY: number;
     baseRadius: number;
     freqIndex: number;
@@ -78,6 +81,15 @@ export class ChrysalisVisualizer extends BaseVisualizer {
         step: 0.5,
         default: 2,
         value: this.config.lineThickness || 2
+      },
+      {
+        name: 'Radius',
+        key: 'radius',
+        min: 1,
+        max: 8,
+        step: 0.5,
+        default: 5,
+        value: this.config.radius ?? 5
       }
     ];
   }
@@ -174,11 +186,13 @@ export class ChrysalisVisualizer extends BaseVisualizer {
     color: THREE.Color,
     noiseScale: number,
     seed: number
-  ): THREE.LineLoop {
-    const points: THREE.Vector3[] = [];
+  ): Line2 {
+    const positions: number[] = [];
 
-    for (let i = 0; i < vertices; i++) {
-      const t = (i / vertices) * Math.PI * 2;
+    // Generate vertices + 1 to close the loop
+    for (let i = 0; i <= vertices; i++) {
+      const idx = i % vertices;
+      const t = (idx / vertices) * Math.PI * 2;
 
       const localY = loopRadius * Math.sin(t);
       const localZ = loopRadius * Math.cos(t);
@@ -191,26 +205,32 @@ export class ChrysalisVisualizer extends BaseVisualizer {
       const z = (distanceFromCenter + noisyZ) * Math.sin(sliceAngle);
       const y = localY;
 
-      points.push(new THREE.Vector3(x, y, z));
+      positions.push(x, y, z);
     }
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({
-      color: color,
+    const geometry = new LineGeometry();
+    geometry.setPositions(positions);
+
+    const material = new LineMaterial({
+      color: color.getHex(),
       transparent: true,
       opacity: 0.7,
-      linewidth: this.config.lineThickness || 2
+      linewidth: this.config.lineThickness || 2,
+      resolution: new THREE.Vector2(
+        this.container.clientWidth,
+        this.container.clientHeight
+      ),
     });
 
-    return new THREE.LineLoop(geometry, material);
+    return new Line2(geometry, material);
   }
 
   private initializeLoops(): void {
     if (!this.chrysalisGroup) return;
 
     const numLoops = this.config.slices || 56;
-    const loopRadius = 5;
-    const maxDistance = 4;
+    const loopRadius = this.config.radius ?? 5;
+    const maxDistance = loopRadius * 0.8;
     const verticesPerLoop = 80;
 
     // Clear existing loops
@@ -255,7 +275,8 @@ export class ChrysalisVisualizer extends BaseVisualizer {
     if (!this.isInitialized || !this.chrysalisGroup) return;
 
     const currentSlices = this.config.slices || 56;
-    if (this.loops.length !== currentSlices) {
+    const currentRadius = this.config.radius ?? 5;
+    if (this.loops.length !== currentSlices || (this.loops.length > 0 && this.loops[0].baseRadius !== currentRadius)) {
       this.initializeLoops();
     }
 
@@ -271,6 +292,8 @@ export class ChrysalisVisualizer extends BaseVisualizer {
     // Update each loop based on frequency data
     const noiseScale = this.config.waviness || 0.05;
     const pulseIntensity = this.config.pulseIntensity || 0.7;
+    const radius = this.config.radius ?? 5;
+    const maxDistance = radius * 0.8;
     const time = Date.now() * 0.001;
 
     this.loops.forEach((loopData, index) => {
@@ -280,14 +303,15 @@ export class ChrysalisVisualizer extends BaseVisualizer {
 
       const sliceAngle = (index / this.loops.length) * Math.PI * 2;
       const ratio = index / (this.loops.length - 1);
-      const maxDistance = 4;
       const distanceFromCenter = maxDistance * Math.sin(ratio * Math.PI);
       const animatedRadius = loopData.baseRadius * (1 + freqValue * pulseIntensity);
 
-      const points: THREE.Vector3[] = [];
+      const positions: number[] = [];
 
-      for (let i = 0; i < loopData.vertices; i++) {
-        const t = (i / loopData.vertices) * Math.PI * 2;
+      // Generate vertices + 1 to close the loop
+      for (let i = 0; i <= loopData.vertices; i++) {
+        const idx = i % loopData.vertices;
+        const t = (idx / loopData.vertices) * Math.PI * 2;
 
         const localY = animatedRadius * Math.sin(t);
         const localZ = animatedRadius * Math.cos(t);
@@ -300,12 +324,12 @@ export class ChrysalisVisualizer extends BaseVisualizer {
         const z = (distanceFromCenter + noisyZ) * Math.sin(sliceAngle);
         const y = localY;
 
-        points.push(new THREE.Vector3(x, y, z));
+        positions.push(x, y, z);
       }
 
-      loopData.loop.geometry.setFromPoints(points);
+      (loopData.loop.geometry as LineGeometry).setPositions(positions);
 
-      const material = loopData.loop.material as THREE.LineBasicMaterial;
+      const material = loopData.loop.material as LineMaterial;
       material.opacity = 0.5 + freqValue * 0.4;
       material.linewidth = this.config.lineThickness || 2;
     });
@@ -321,6 +345,10 @@ export class ChrysalisVisualizer extends BaseVisualizer {
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
+      // Update line material resolutions for proper thickness rendering
+      this.loops.forEach(loopData => {
+        (loopData.loop.material as LineMaterial).resolution.set(width, height);
+      });
     }
   }
 
@@ -348,7 +376,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;
-    
+
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
     }
