@@ -79,8 +79,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 1,
         max: 20,
         step: 1,
-        default: 4,
-        value: this.config.meshDetail ?? 4
+        default: 10,
+        value: this.config.meshDetail ?? 10
       },
       {
         name: 'Wireframe',
@@ -128,7 +128,7 @@ export class OrbVisualizer extends BaseVisualizer {
     
     // Create icosahedron geometry
     const radius = this.config.radius ?? 2.0;
-    const detail = this.config.meshDetail ?? 4;
+    const detail = this.config.meshDetail ?? 10;
     this.geometry = new THREE.IcosahedronGeometry(radius, detail);
     this.originalPositions = new Float32Array(this.geometry.attributes.position.array);
     
@@ -289,7 +289,7 @@ export class OrbVisualizer extends BaseVisualizer {
     if ((key === 'radius' || key === 'meshDetail') && this.mesh && this.scene && this.geometry) {
       // Rebuild geometry with new radius/detail
       const radius = this.config.radius ?? 2.0;
-      const detail = this.config.meshDetail ?? 4;
+      const detail = this.config.meshDetail ?? 10;
 
       this.geometry.dispose();
       this.geometry = new THREE.IcosahedronGeometry(radius, detail);
