@@ -1,4 +1,4 @@
-"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[737],{9477:function(e,n,t){t.d(n,{CP7:function(){return WebGLRenderer}});var r=t(4250);/**
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[737],{9477:function(e,n,t){t.d(n,{CP7:function(){return WebGLRenderer},Vj0:function(){return o},rBU:function(){return i}});var r=t(4250);/**
  * @license
  * Copyright 2010-2025 Three.js Authors
  * SPDX-License-Identifier: MIT
