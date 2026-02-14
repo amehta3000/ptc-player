@@ -29,7 +29,7 @@ export abstract class BaseVisualizer {
   protected config: VisualizerConfig;
   protected colors: ColorScheme;
   protected animationFrameId: number | null = null;
-  protected isInitialized: boolean = false;
+  public isInitialized: boolean = false;
   protected currentAudioAnalysis: AudioAnalysis | null = null;
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {

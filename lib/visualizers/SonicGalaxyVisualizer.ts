@@ -64,6 +64,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private beatThreshold = 0;
   private lastBeatTime = 0;
   private beatCooldown = 300; // ms
+  private beatBoost = 1.0;
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -81,8 +82,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 10000,
         max: 100000,
         step: 10000,
-        default: 10000,
-        value: this.config.particleCount || 10000
+        default: 50000,
+        value: this.config.particleCount || 50000
       },
       {
         name: 'Attractor Count',
@@ -90,8 +91,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 2,
         max: 6,
         step: 1,
-        default: 3,
-        value: this.config.attractorCount || 3
+        default: 4,
+        value: this.config.attractorCount || 4
       },
       {
         name: 'Bass Gravity',
@@ -112,15 +113,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         value: this.config.midSpin || 2.0
       },
       {
-        name: 'High Energy',
-        key: 'highEnergy',
-        min: 0.5,
-        max: 3,
-        step: 0.1,
-        default: 1.5,
-        value: this.config.highEnergy || 1.5
-      },
-      {
         name: 'Max Speed',
         key: 'maxSpeed',
         min: 2,
@@ -136,7 +128,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         max: 0.2,
         step: 0.01,
         default: 0.04,
-        value: this.config.velocityDamping || 0.04
+        value: this.config.velocityDamping ?? 0.04
       },
       {
         name: 'Particle Size',
@@ -154,7 +146,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         max: 0.02,
         step: 0.001,
         default: 0.004,
-        value: this.config.cameraSpeed || 0.004
+        value: this.config.cameraSpeed ?? 0.004
       },
       {
         name: 'Bound Size',
@@ -162,8 +154,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 5,
         max: 20,
         step: 1,
-        default: 8,
-        value: this.config.boundSize || 8
+        default: 10,
+        value: this.config.boundSize || 10
       },
       {
         name: 'Beat Sensitivity',
@@ -345,11 +337,11 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         uniform float highIntensity;
         varying vec3 vColor;
         varying float vFrequencyBand;
-        
+
         void main() {
           float dist = length(gl_PointCoord - vec2(0.5));
           if (dist > 0.5) discard;
-          
+
           // Get intensity based on frequency band
           float intensity = 0.3; // Base intensity
           if (vFrequencyBand < 0.5) {
@@ -359,10 +351,13 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           } else {
             intensity += highIntensity * 1.5;
           }
-          
+
           intensity = clamp(intensity, 0.3, 2.0);
-          
-          float alpha = smoothstep(0.5, 0.2, dist) * intensity;
+
+          // Bass-driven global opacity pulse
+          float bassPulse = 0.3 + bassIntensity * 0.7;
+
+          float alpha = smoothstep(0.5, 0.2, dist) * intensity * bassPulse;
           gl_FragColor = vec4(vColor * intensity, alpha);
         }
       `,
@@ -379,20 +374,23 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     const bassNormalized = audioAnalysis.bassAvg / 255;
     const midNormalized = audioAnalysis.midAvg / 255;
     const highNormalized = audioAnalysis.highAvg / 255;
-    
+
     // Update attractor properties based on audio
     const bassGravityMult = this.config.bassGravity || 2.0;
     const midSpinMult = this.config.midSpin || 2.0;
-    
+
+    // Decay beat boost toward 1
+    this.beatBoost += (1 - this.beatBoost) * 0.08;
+
     this.attractors.forEach((attractor, idx) => {
       // Different attractors react to different frequencies
       const freqMod = (idx % 3) / 3;
-      const audioValue = freqMod < 0.33 ? bassNormalized : 
-                        freqMod < 0.66 ? midNormalized : 
+      const audioValue = freqMod < 0.33 ? bassNormalized :
+                        freqMod < 0.66 ? midNormalized :
                         highNormalized;
-      
+
       // More dramatic mass changes for visible gravity effects
-      attractor.mass = attractor.baseMass * (1 + audioValue * bassGravityMult * 5);
+      attractor.mass = attractor.baseMass * (1 + audioValue * bassGravityMult * 5) * this.beatBoost;
       attractor.spinStrength = 2.0 + midNormalized * midSpinMult * 3;
     });
     
@@ -409,7 +407,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     
     // Update particle physics
     const maxSpeed = this.config.maxSpeed || 8;
-    const damping = 1 - (this.config.velocityDamping || 0.05);
+    const damping = 1 - (this.config.velocityDamping ?? 0.04);
     const boundHalfSize = (this.config.boundSize || 10) / 2;
     
     this.particles.forEach((particle) => {
@@ -464,17 +462,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   }
   
   private onBeat(energy: number): void {
-    // Create a temporary gravity wave effect
-    this.attractors.forEach((attractor) => {
-      attractor.mass *= (1 + energy * 5);
-    });
-    
-    // Reset after short duration
-    setTimeout(() => {
-      this.attractors.forEach((attractor) => {
-        attractor.mass = attractor.baseMass;
-      });
-    }, 150);
+    // Spike the beat boost — decays naturally in updatePhysics
+    this.beatBoost = 1 + energy * 3;
   }
   
   private updateCameraPosition(): void {
@@ -488,51 +477,44 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   }
   
   update(audioAnalysis: AudioAnalysis): void {
-    if (!this.isInitialized || !audioAnalysis.isPlaying) return;
-    
-    // Update physics simulation
-    this.updatePhysics(audioAnalysis);
-    
-    // Update camera rotation
-    const cameraSpeed = this.config.cameraSpeed || 0.005;
+    if (!this.isInitialized) return;
+
+    // Only run physics when audio is playing
+    if (audioAnalysis.isPlaying) {
+      this.updatePhysics(audioAnalysis);
+    }
+
+    // Camera always rotates
+    const cameraSpeed = this.config.cameraSpeed ?? 0.004;
     this.cameraAngle += cameraSpeed;
     this.updateCameraPosition();
-    
-    // Update particle positions in geometry
+
+    // Always sync particle geometry
     if (this.particleMesh) {
       const positions = this.particleMesh.geometry.attributes.position.array as Float32Array;
-      const colors = this.particleMesh.geometry.attributes.color.array as Float32Array;
       const sizes = this.particleMesh.geometry.attributes.size.array as Float32Array;
-      
-      const colorA = new THREE.Color(this.colors.dominant);
-      const colorB = new THREE.Color(this.colors.accent);
-      const maxSpeed = this.config.maxSpeed || 8;
-      
+
       const baseSize = this.config.particleSize || 0.5;
-      
+
       // Update audio intensity uniforms for shader
       const bassNormalized = audioAnalysis.bassAvg / 255;
       const midNormalized = audioAnalysis.midAvg / 255;
       const highNormalized = audioAnalysis.highAvg / 255;
-      
+
       if (this.particleMesh.material instanceof THREE.ShaderMaterial) {
         this.particleMesh.material.uniforms.bassIntensity.value = bassNormalized;
         this.particleMesh.material.uniforms.midIntensity.value = midNormalized;
         this.particleMesh.material.uniforms.highIntensity.value = highNormalized;
       }
-      
+
       this.particles.forEach((particle, i) => {
         positions[i * 3] = particle.position.x;
         positions[i * 3 + 1] = particle.position.y;
         positions[i * 3 + 2] = particle.position.z;
-        
-        // Keep random colors assigned at initialization
-        // Colors don't need updating, they stay constant
-        
-        // Constant size (no bass pulsing)
+
         sizes[i] = (particle.mass / 1e4) * baseSize;
       });
-      
+
       this.particleMesh.geometry.attributes.position.needsUpdate = true;
       this.particleMesh.geometry.attributes.size.needsUpdate = true;
     }

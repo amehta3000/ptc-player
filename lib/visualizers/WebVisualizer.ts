@@ -66,18 +66,28 @@ export class WebVisualizer extends BaseVisualizer {
   
   init(): void {
     // Use container directly
-    const width = this.container.clientWidth || 500;
-    const height = this.container.clientHeight || 500;
-    const size = Math.min(width, height, 500);
-    
+    const width = this.container.clientWidth || 800;
+    const height = this.container.clientHeight || 600;
+
     // Three.js setup
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    
-    this.renderer.setSize(size, size);
+
+    this.renderer.setSize(width, height);
     this.renderer.setClearColor(0x000000, 0);
     this.container.appendChild(this.renderer.domElement);
+
+    // Handle window resize
+    const handleResize = () => {
+      if (!this.camera || !this.renderer) return;
+      const w = this.container.clientWidth || 800;
+      const h = this.container.clientHeight || 600;
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
     
     // Position camera
     this.camera.position.set(0, 5, 5);

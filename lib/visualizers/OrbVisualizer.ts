@@ -62,35 +62,74 @@ export class OrbVisualizer extends BaseVisualizer {
         max: 0.01,
         step: 0.0005,
         default: 0.003,
-        value: this.config.autoRotationSpeed || 0.003
+        value: this.config.autoRotationSpeed ?? 0.003
+      },
+      {
+        name: 'Radius',
+        key: 'radius',
+        min: 1,
+        max: 4,
+        step: 0.1,
+        default: 2.0,
+        value: this.config.radius ?? 2.0
+      },
+      {
+        name: 'Mesh Detail',
+        key: 'meshDetail',
+        min: 1,
+        max: 20,
+        step: 1,
+        default: 4,
+        value: this.config.meshDetail ?? 4
+      },
+      {
+        name: 'Wireframe',
+        key: 'wireframe',
+        min: 0,
+        max: 1,
+        step: 1,
+        default: 1,
+        value: this.config.wireframe ?? 1
       }
     ];
   }
   
   init(): void {
     // Use container directly
-    const width = this.container.clientWidth || 500;
-    const height = this.container.clientHeight || 500;
-    const size = Math.min(width, height, 500);
-    
+    const width = this.container.clientWidth || 800;
+    const height = this.container.clientHeight || 600;
+
     // Three.js setup
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
       75,
-      1, // aspect ratio (square)
+      width / height,
       0.1,
       1000
     );
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    
-    this.renderer.setSize(size, size);
+
+    this.renderer.setSize(width, height);
     this.renderer.setClearColor(0x000000, 0);
     this.container.appendChild(this.renderer.domElement);
     this.container.style.cursor = 'grab';
     this.container.style.touchAction = 'none';
+
+    // Handle window resize
+    const handleResize = () => {
+      if (!this.camera || !this.renderer) return;
+      const w = this.container.clientWidth || 800;
+      const h = this.container.clientHeight || 600;
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
     
     // Create icosahedron geometry
-    this.geometry = new THREE.IcosahedronGeometry(2, 80);
+    const radius = this.config.radius ?? 2.0;
+    const detail = this.config.meshDetail ?? 4;
+    this.geometry = new THREE.IcosahedronGeometry(radius, detail);
     this.originalPositions = new Float32Array(this.geometry.attributes.position.array);
     
     // Create vertex colors
@@ -104,9 +143,10 @@ export class OrbVisualizer extends BaseVisualizer {
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
     // Create material
+    const isWireframe = (this.config.wireframe ?? 1) > 0;
     const material = new THREE.MeshBasicMaterial({
       vertexColors: true,
-      wireframe: true,
+      wireframe: isWireframe,
       transparent: true,
       opacity: 0.8
     });
@@ -164,7 +204,7 @@ export class OrbVisualizer extends BaseVisualizer {
     const freqMultiplier = this.config.freqMultiplier || 3.6;
     const noiseMultiplier = this.config.noiseMultiplier || 0.55;
     const timeSpeed = this.config.timeSpeed || 2.0;
-    const autoRotationSpeed = this.config.autoRotationSpeed || 0.003;
+    const autoRotationSpeed = this.config.autoRotationSpeed ?? 0.003;
     
     // Auto-rotate camera if not dragging
     if (!this.isDragging) {
@@ -237,6 +277,36 @@ export class OrbVisualizer extends BaseVisualizer {
   updateColors(colors: ColorScheme): void {
     super.updateColors(colors);
     // Colors will be updated in next update cycle
+  }
+
+  updateConfig(key: string, value: number): void {
+    super.updateConfig(key, value);
+
+    if (key === 'wireframe' && this.mesh) {
+      (this.mesh.material as THREE.MeshBasicMaterial).wireframe = value > 0;
+    }
+
+    if ((key === 'radius' || key === 'meshDetail') && this.mesh && this.scene && this.geometry) {
+      // Rebuild geometry with new radius/detail
+      const radius = this.config.radius ?? 2.0;
+      const detail = this.config.meshDetail ?? 4;
+
+      this.geometry.dispose();
+      this.geometry = new THREE.IcosahedronGeometry(radius, detail);
+      this.originalPositions = new Float32Array(this.geometry.attributes.position.array);
+
+      // Recreate vertex colors
+      const vertexColors = new Float32Array(this.geometry.attributes.position.count * 3);
+      const dominantRGB = this.parseRGB(this.colors.dominant);
+      for (let i = 0; i < vertexColors.length; i += 3) {
+        vertexColors[i] = dominantRGB.r;
+        vertexColors[i + 1] = dominantRGB.g;
+        vertexColors[i + 2] = dominantRGB.b;
+      }
+      this.geometry.setAttribute('color', new THREE.BufferAttribute(vertexColors, 3));
+
+      this.mesh.geometry = this.geometry;
+    }
   }
   
   destroy(): void {

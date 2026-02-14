@@ -17,7 +17,7 @@ export class TerrainVisualizer extends BaseVisualizer {
   private lastUpdateTime: number = 0;
   private segmentsX: number = 64;
   private segmentsZ: number = 40; // Reduced for better performance
-  private cameraRotation = { x: -0.5, y: 0 };
+  private cameraRotation = { x: 0.7, y: 0 };
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
   private frameCount: number = 0;
@@ -45,10 +45,10 @@ export class TerrainVisualizer extends BaseVisualizer {
         name: 'Wave Speed',
         key: 'speed',
         min: 0.5,
-        max: 5,
-        step: 0.1,
-        default: 1.0,
-        value: this.config.speed || 1.0
+        max: 20,
+        step: 0.5,
+        default: 17.5,
+        value: this.config.speed || 17.5
       },
       {
         name: 'Wave Decay',
@@ -75,7 +75,25 @@ export class TerrainVisualizer extends BaseVisualizer {
         max: 0.01,
         step: 0.0005,
         default: 0.002,
-        value: this.config.autoRotation || 0.002
+        value: this.config.autoRotation ?? 0.002
+      },
+      {
+        name: 'Segments',
+        key: 'segments',
+        min: 32,
+        max: 256,
+        step: 32,
+        default: 64,
+        value: this.config.segments ?? 64
+      },
+      {
+        name: 'Sine Base',
+        key: 'sineAmplitude',
+        min: 0,
+        max: 1.5,
+        step: 0.05,
+        default: 0.3,
+        value: this.config.sineAmplitude ?? 0.3
       }
     ];
   }
@@ -107,8 +125,9 @@ export class TerrainVisualizer extends BaseVisualizer {
     
     // Initial camera position
     this.updateCameraPosition();
-    
+
     // Create plane geometry
+    this.segmentsX = this.config.segments ?? 64;
     const planeWidth = 10;
     const depth = 20;
     this.geometry = new THREE.PlaneGeometry(
@@ -208,7 +227,7 @@ export class TerrainVisualizer extends BaseVisualizer {
     if (!this.camera) return;
     
     const distance = this.config.cameraDistance || 8;
-    const autoRotation = this.config.autoRotation || 0.002;
+    const autoRotation = this.config.autoRotation ?? 0.002;
     
     // Apply auto-rotation if not dragging
     if (!this.isDragging) {
@@ -222,6 +241,71 @@ export class TerrainVisualizer extends BaseVisualizer {
     this.camera.lookAt(0, 0, -5);
   }
   
+  private smoothWave(data: number[], passes: number): number[] {
+    let result = data;
+    for (let p = 0; p < passes; p++) {
+      const smoothed = new Array(result.length);
+      for (let i = 0; i < result.length; i++) {
+        const prev = result[Math.max(0, i - 1)];
+        const curr = result[i];
+        const next = result[Math.min(result.length - 1, i + 1)];
+        smoothed[i] = prev * 0.25 + curr * 0.5 + next * 0.25;
+      }
+      result = smoothed;
+    }
+    return result;
+  }
+
+  private resampleData(data: Uint8Array | number[], targetLength: number): number[] {
+    const result = new Array(targetLength);
+    const ratio = data.length / targetLength;
+    for (let i = 0; i < targetLength; i++) {
+      const srcIndex = i * ratio;
+      const low = Math.floor(srcIndex);
+      const high = Math.min(low + 1, data.length - 1);
+      const frac = srcIndex - low;
+      result[i] = data[low] * (1 - frac) + data[high] * frac;
+    }
+    return result;
+  }
+
+  private rebuildGeometry(): void {
+    if (!this.scene || !this.mesh) return;
+
+    if (this.geometry) {
+      this.geometry.dispose();
+    }
+
+    const planeWidth = 10;
+    const depth = 20;
+    this.geometry = new THREE.PlaneGeometry(
+      planeWidth,
+      depth,
+      this.segmentsX - 1,
+      this.segmentsZ - 1
+    );
+    this.geometry.rotateX(-Math.PI / 2);
+
+    // Reset wave history
+    this.waveHistory = [];
+    for (let i = 0; i < this.segmentsZ; i++) {
+      this.waveHistory.push(new Array(this.segmentsX).fill(0));
+    }
+
+    // Recreate vertex colors
+    const positions = this.geometry.attributes.position;
+    const colors = new Float32Array(positions.count * 3);
+    const dominantRGB = this.parseRGB(this.colors.dominant);
+    for (let i = 0; i < positions.count; i++) {
+      colors[i * 3] = dominantRGB.r;
+      colors[i * 3 + 1] = dominantRGB.g;
+      colors[i * 3 + 2] = dominantRGB.b;
+    }
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    this.mesh.geometry = this.geometry;
+  }
+
   update(audioAnalysis: AudioAnalysis): void {
     if (!this.isInitialized || !this.geometry || !this.camera) return;
     
@@ -241,8 +325,10 @@ export class TerrainVisualizer extends BaseVisualizer {
       // Shift all waves back
       this.waveHistory.pop();
       
-      // Create new wave from audio data
-      const newWave = audioData.map(value => (value / 255) * amplitude);
+      // Create new wave from audio data, smoothed for a cleaner terrain
+      const resampled = this.resampleData(audioData, this.segmentsX);
+      const rawWave = resampled.map(value => (value / 255) * amplitude);
+      const newWave = this.smoothWave(rawWave, 3);
       this.waveHistory.unshift(newWave);
       
       this.lastUpdateTime = currentTime;
@@ -264,26 +350,38 @@ export class TerrainVisualizer extends BaseVisualizer {
       decayFactors[z] = Math.pow(decay, z);
     }
     
+    // Sine wave base parameters
+    const sineAmp = this.config.sineAmplitude ?? 0.3;
+    const time = Date.now() * 0.001;
+
     // Update vertices
     for (let z = 0; z < this.segmentsZ; z++) {
       const decayFactor = decayFactors[z];
-      
+      const zNorm = (z / (this.segmentsZ - 1)) * 2 - 1;
+
       for (let x = 0; x < this.segmentsX; x++) {
         const index = z * this.segmentsX + x;
-        
+        const xNorm = (x / (this.segmentsX - 1)) * 2 - 1;
+
         // Get wave height from history
         let waveHeight = (this.waveHistory[z]?.[x] || 0) * decayFactor;
-        
+
+        // Ambient sine wave base displacement
+        const sineBase = sineAmp * (
+          Math.sin(xNorm * Math.PI * 2 + time * 0.5) * 0.6 +
+          Math.cos(zNorm * Math.PI * 1.5 + time * 0.3) * 0.4
+        );
+
         // Update Y position
-        positions.setY(index, waveHeight);
-        
-        // Update color based on height (only for visible vertices)
+        positions.setY(index, waveHeight + sineBase);
+
+        // Update color based on audio height only (not sine base)
         if (z < this.segmentsZ * 0.7) { // Skip color updates for far vertices
-          const heightIntensity = Math.min(1, waveHeight / amplitude);
+          const heightIntensity = Math.min(1, Math.abs(waveHeight) / amplitude);
           const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
           const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
           const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
-          
+
           colorAttr.setXYZ(index, r, g, b);
         }
       }
@@ -304,6 +402,15 @@ export class TerrainVisualizer extends BaseVisualizer {
     // Colors will be updated in next update cycle
   }
   
+  updateConfig(key: string, value: number): void {
+    super.updateConfig(key, value);
+
+    if (key === 'segments') {
+      this.segmentsX = value;
+      this.rebuildGeometry();
+    }
+  }
+
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;

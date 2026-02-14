@@ -97,8 +97,14 @@ export class ChrysalisVisualizer extends BaseVisualizer {
     });
 
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.renderer.setClearColor(0x000000, 1);
+    this.renderer.setClearColor(0x000000, 0);
     this.container.appendChild(this.renderer.domElement);
+
+    // Handle window resize
+    const handleResize = () => {
+      this.resize(this.container.clientWidth, this.container.clientHeight);
+    };
+    window.addEventListener('resize', handleResize);
 
     // Camera position
     this.camera.position.z = 12;

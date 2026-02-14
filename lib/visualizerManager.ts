@@ -43,6 +43,7 @@ export class VisualizerManager {
     
     if (this.currentVisualizer) {
       this.currentVisualizer.init();
+      this.currentVisualizer.isInitialized = true;
       this.startAnimationLoop();
     }
   }
