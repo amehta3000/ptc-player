@@ -1,11 +1,12 @@
 import React, { useCallback } from 'react';
-import { usePlayerStore, VISUALIZER_NAMES, FONTS } from '../store/usePlayerStore';
+import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl } from '../lib/visualizers/BaseVisualizer';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import { trackEvent } from '../lib/analytics';
 import { Mix } from '../data/mixes';
 import { extractColors } from '../lib/colorExtractor';
+import TrackMenu from './TrackMenu';
 
 interface DetailViewProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -81,6 +82,7 @@ export default function DetailView({
 
   const currentIndex = getCurrentIndex();
   const filteredMixes = getFilteredMixes();
+  const currentDisplayName = showVisualizer ? VISUALIZER_NAMES[visualizerType] : 'Album Art';
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -95,12 +97,20 @@ export default function DetailView({
     trackEvent('progress_scrubbed', currentMix?.title);
   }, [audioRef, currentMix, setProgress, setCurrentTime]);
 
-  const cycleVisualizerType = useCallback(() => {
-    const types = Object.keys(VISUALIZER_NAMES) as Array<keyof typeof VISUALIZER_NAMES>;
-    const idx = types.indexOf(visualizerType);
-    const next = types[(idx + 1) % types.length];
-    setVisualizerType(next);
-  }, [visualizerType, setVisualizerType]);
+  const navigateView = useCallback((direction: 1 | -1) => {
+    const totalCount = VISUALIZER_TYPES.length + 1;
+    const currentIdx = showVisualizer
+      ? VISUALIZER_TYPES.indexOf(visualizerType) + 1
+      : 0;
+    const nextIndex = (currentIdx + direction + totalCount) % totalCount;
+
+    if (nextIndex === 0) {
+      setShowVisualizer(false);
+    } else {
+      setShowVisualizer(true);
+      setVisualizerType(VISUALIZER_TYPES[nextIndex - 1]);
+    }
+  }, [showVisualizer, visualizerType, setShowVisualizer, setVisualizerType]);
 
   const handleMixSelect = useCallback(async (mix: Mix) => {
     setCurrentMix(mix);
@@ -177,34 +187,32 @@ export default function DetailView({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Visualizer / Art toggle */}
-          <button
-            onClick={() => setShowVisualizer(!showVisualizer)}
-            className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-            title={showVisualizer ? 'Show Album Art' : 'Show Visualizer'}
-          >
-            {showVisualizer ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          {/* View navigator: < Name > */}
+          <div className="flex items-center">
+            <button
+              onClick={() => navigateView(-1)}
+              className="px-2 py-1 rounded-l bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+              aria-label="Previous view"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </button>
+            <span className="px-3 py-1 bg-neutral-800/80 text-white text-sm select-none min-w-[5rem] text-center whitespace-nowrap">
+              {currentDisplayName}
+            </span>
+            <button
+              onClick={() => navigateView(1)}
+              className="px-2 py-1 rounded-r bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+              aria-label="Next view"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
-            )}
-          </button>
+            </button>
+          </div>
           {showVisualizer && (
             <>
-              {/* Cycle visualizer */}
-              <button
-                onClick={cycleVisualizerType}
-                className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-                title={`Current: ${VISUALIZER_NAMES[visualizerType]}`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
               {/* Randomize */}
               <button
                 onClick={onRandomize}
@@ -297,6 +305,7 @@ export default function DetailView({
               }`}>
                 {mix.type}
               </span>
+              <TrackMenu mix={mix} position="below" />
             </div>
           ))}
         </div>
@@ -449,6 +458,9 @@ export default function DetailView({
             aria-label="Volume"
           />
         </div>
+
+        {/* Track menu */}
+        <TrackMenu mix={currentMix} position="above" />
       </div>
     </div>
   );

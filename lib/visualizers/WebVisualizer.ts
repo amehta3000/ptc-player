@@ -60,6 +60,15 @@ export class WebVisualizer extends BaseVisualizer {
         step: 0.0005,
         default: 0.002,
         value: this.config.rotationSpeed || 0.002
+      },
+      {
+        name: 'Radius',
+        key: 'radius',
+        min: 1,
+        max: 6,
+        step: 0.1,
+        default: 3,
+        value: this.config.radius ?? 3
       }
     ];
   }
@@ -106,7 +115,7 @@ export class WebVisualizer extends BaseVisualizer {
     const dominantRGB = this.parseRGB(this.colors.dominant);
     
     for (let ring = 0; ring < ringCount; ring++) {
-      const radius = (ring / ringCount) * 3;
+      const radius = (ring / ringCount) * (this.config.radius ?? 3);
       for (let seg = 0; seg <= segmentCount; seg++) {
         const theta = (seg / segmentCount) * Math.PI * 2;
         const x = Math.cos(theta) * radius;
@@ -164,6 +173,7 @@ export class WebVisualizer extends BaseVisualizer {
     const midExtension = this.config.midExtension || 0.5;
     const highShimmer = this.config.highShimmer || 0.1;
     const rotationSpeed = this.config.rotationSpeed || 0.002;
+    const radius = this.config.radius ?? 3;
     
     const positions = this.geometry.attributes.position;
     const colorAttr = this.geometry.attributes.color;
@@ -178,7 +188,7 @@ export class WebVisualizer extends BaseVisualizer {
     
     for (let ring = 0; ring < ringCount; ring++) {
       const ringPercent = ring / (ringCount - 1);
-      const baseRadius = (ring / ringCount) * 3;
+      const baseRadius = (ring / ringCount) * radius;
       
       // Bass affects inner rings more
       const bassInfluence = (1 - ringPercent) * bassAvg * bassPulse;

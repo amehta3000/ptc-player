@@ -15,7 +15,8 @@
     "next": "14.0.0",
     "react": "^18",
     "react-dom": "^18",
-    "three": "^0.181.2"
+    "three": "^0.181.2",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/node": "^20",
