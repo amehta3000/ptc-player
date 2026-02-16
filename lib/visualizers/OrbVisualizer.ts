@@ -11,12 +11,15 @@ export class OrbVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
-  private geometry: THREE.IcosahedronGeometry | null = null;
+  private geometry: THREE.BufferGeometry | null = null;
   private mesh: THREE.Mesh | null = null;
   private originalPositions: Float32Array | null = null;
   private cameraRotation = { x: 0, y: 0 };
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
+  private lights: THREE.Light[] = [];
+  private orbitLights: THREE.PointLight[] = [];
+  private lightTime = 0;
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -28,6 +31,42 @@ export class OrbVisualizer extends BaseVisualizer {
   
   getControls(): VisualizerControl[] {
     return [
+      {
+        name: 'Shape',
+        key: 'shape',
+        min: 0,
+        max: 1,
+        step: 1,
+        default: 0,
+        value: this.config.shape ?? 0
+      },
+      {
+        name: 'Light Intensity',
+        key: 'lightIntensity',
+        min: 0.5,
+        max: 5,
+        step: 0.1,
+        default: 2,
+        value: this.config.lightIntensity ?? 2
+      },
+      {
+        name: 'Light Speed',
+        key: 'lightSpeed',
+        min: 0,
+        max: 2,
+        step: 0.05,
+        default: 0.5,
+        value: this.config.lightSpeed ?? 0.5
+      },
+      {
+        name: 'Ambient',
+        key: 'ambient',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 0.3,
+        value: this.config.ambient ?? 0.3
+      },
       {
         name: 'Audio Intensity',
         key: 'freqMultiplier',
@@ -77,10 +116,10 @@ export class OrbVisualizer extends BaseVisualizer {
         name: 'Mesh Detail',
         key: 'meshDetail',
         min: 1,
-        max: 20,
+        max: 8,
         step: 1,
-        default: 10,
-        value: this.config.meshDetail ?? 10
+        default: 4,
+        value: this.config.meshDetail ?? 4
       },
       {
         name: 'Wireframe',
@@ -125,35 +164,10 @@ export class OrbVisualizer extends BaseVisualizer {
       this.renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
-    
-    // Create icosahedron geometry
-    const radius = this.config.radius ?? 2.0;
-    const detail = this.config.meshDetail ?? 10;
-    this.geometry = new THREE.IcosahedronGeometry(radius, detail);
-    this.originalPositions = new Float32Array(this.geometry.attributes.position.array);
-    
-    // Create vertex colors
-    const colors = new Float32Array(this.geometry.attributes.position.count * 3);
-    const dominantRGB = this.parseRGB(this.colors.dominant);
-    for (let i = 0; i < colors.length; i += 3) {
-      colors[i] = dominantRGB.r;
-      colors[i + 1] = dominantRGB.g;
-      colors[i + 2] = dominantRGB.b;
-    }
-    this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    
-    // Create material
-    const isWireframe = (this.config.wireframe ?? 1) > 0;
-    const material = new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      wireframe: isWireframe,
-      transparent: true,
-      opacity: 0.8
-    });
-    
-    this.mesh = new THREE.Mesh(this.geometry, material);
-    this.scene.add(this.mesh);
-    
+
+    // Build geometry, material, and mesh
+    this.buildMesh();
+
     // Position camera
     this.camera.position.set(0, 0, 6);
     this.camera.lookAt(0, 0, 0);
@@ -164,6 +178,113 @@ export class OrbVisualizer extends BaseVisualizer {
     // Animation loop handled by base class start() method
   }
   
+  private buildMesh(): void {
+    if (!this.scene) return;
+
+    // Dispose old mesh
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+      if (this.mesh.material instanceof THREE.Material) {
+        this.mesh.material.dispose();
+      }
+    }
+    if (this.geometry) {
+      this.geometry.dispose();
+    }
+
+    // Remove old lights
+    this.lights.forEach((light) => {
+      this.scene!.remove(light);
+      light.dispose();
+    });
+    this.lights = [];
+    this.orbitLights = [];
+
+    const radius = this.config.radius ?? 2.0;
+    const detail = Math.min(Math.round(this.config.meshDetail ?? 4), 8);
+    const shape = this.config.shape ?? 0;
+    const isWireframe = (this.config.wireframe ?? 1) > 0;
+
+    let material: THREE.Material;
+
+    if (shape === 1) {
+      // Disco Ball: SphereGeometry with flat shading for faceted look
+      const segments = detail * 3 + 4;
+      this.geometry = new THREE.SphereGeometry(radius, segments, segments);
+
+      const lightIntensity = this.config.lightIntensity ?? 2;
+      const ambientLevel = this.config.ambient ?? 0.3;
+
+      // Silver/mirror material — lower shininess for wider highlights
+      material = new THREE.MeshPhongMaterial({
+        color: 0xcccccc,
+        flatShading: true,
+        shininess: 150,
+        specular: new THREE.Color(0xffffff),
+        wireframe: isWireframe,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      // 3 orbiting point lights — positions animated in update()
+      for (let i = 0; i < 3; i++) {
+        const light = new THREE.PointLight(0xffffff, lightIntensity, 0);
+        light.position.set(8, 0, 0); // initial; overridden in update
+        this.scene.add(light);
+        this.lights.push(light);
+        this.orbitLights.push(light);
+      }
+
+      // Backlight for rim glow
+      const backlight = new THREE.PointLight(0xffffff, lightIntensity * 0.5, 0);
+      backlight.position.set(0, 0, -8);
+      this.scene.add(backlight);
+      this.lights.push(backlight);
+
+      // Ambient for base visibility
+      const ambientVal = Math.round(ambientLevel * 255);
+      const ambient = new THREE.AmbientLight(
+        new THREE.Color(ambientVal / 255, ambientVal / 255, ambientVal / 255)
+      );
+      this.scene.add(ambient);
+      this.lights.push(ambient);
+    } else {
+      // Orb: IcosahedronGeometry
+      this.geometry = new THREE.IcosahedronGeometry(radius, detail);
+
+      material = new THREE.MeshBasicMaterial({
+        vertexColors: true,
+        wireframe: isWireframe,
+        transparent: true,
+        opacity: 0.8
+      });
+    }
+
+    this.originalPositions = new Float32Array(this.geometry.attributes.position.array);
+
+    // Set up vertex colors
+    const vertexColors = new Float32Array(this.geometry.attributes.position.count * 3);
+    const dominantRGB = this.parseRGB(this.colors.dominant);
+    if (shape === 1) {
+      // Disco ball: silver base tinted slightly with dominant color
+      for (let i = 0; i < vertexColors.length; i += 3) {
+        vertexColors[i] = 0.7 + dominantRGB.r * 0.3;
+        vertexColors[i + 1] = 0.7 + dominantRGB.g * 0.3;
+        vertexColors[i + 2] = 0.7 + dominantRGB.b * 0.3;
+      }
+    } else {
+      for (let i = 0; i < vertexColors.length; i += 3) {
+        vertexColors[i] = dominantRGB.r;
+        vertexColors[i + 1] = dominantRGB.g;
+        vertexColors[i + 2] = dominantRGB.b;
+      }
+    }
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(vertexColors, 3));
+
+    this.mesh = new THREE.Mesh(this.geometry, material);
+    this.scene.add(this.mesh);
+  }
+
   private setupMouseControls(element: HTMLDivElement): void {
     const onMouseDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
@@ -217,6 +338,28 @@ export class OrbVisualizer extends BaseVisualizer {
     this.camera.position.y = radius * Math.sin(this.cameraRotation.x);
     this.camera.position.z = radius * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
     this.camera.lookAt(0, 0, 0);
+
+    // For disco ball: orbit lights around the ball at different speeds/planes
+    if ((this.config.shape ?? 0) === 1) {
+      const lightSpeed = this.config.lightSpeed ?? 0.5;
+      this.lightTime += lightSpeed * 0.02;
+
+      // Each light orbits on a different plane at a different speed
+      const orbitRadius = 8;
+      this.orbitLights.forEach((light, i) => {
+        const speed = (1 + i * 0.7) * this.lightTime;
+        const tilt = (i * Math.PI) / 3; // different orbital planes
+        light.position.x = orbitRadius * Math.cos(speed) * Math.cos(tilt);
+        light.position.y = orbitRadius * Math.sin(speed * 0.7 + i);
+        light.position.z = orbitRadius * Math.sin(speed) * Math.cos(tilt);
+      });
+
+      // Also rotate mesh for extra facet variation
+      if (this.mesh) {
+        this.mesh.rotation.y += autoRotationSpeed * 2;
+        this.mesh.rotation.x += autoRotationSpeed * 0.3;
+      }
+    }
     
     // Update vertices
     const positions = this.geometry.attributes.position;
@@ -283,36 +426,33 @@ export class OrbVisualizer extends BaseVisualizer {
     super.updateConfig(key, value);
 
     if (key === 'wireframe' && this.mesh) {
-      (this.mesh.material as THREE.MeshBasicMaterial).wireframe = value > 0;
+      (this.mesh.material as any).wireframe = value > 0;
     }
 
-    if ((key === 'radius' || key === 'meshDetail') && this.mesh && this.scene && this.geometry) {
-      // Rebuild geometry with new radius/detail
-      const radius = this.config.radius ?? 2.0;
-      const detail = this.config.meshDetail ?? 10;
+    if (key === 'lightIntensity') {
+      this.orbitLights.forEach((light) => {
+        light.intensity = value;
+      });
+    }
 
-      this.geometry.dispose();
-      this.geometry = new THREE.IcosahedronGeometry(radius, detail);
-      this.originalPositions = new Float32Array(this.geometry.attributes.position.array);
+    if (key === 'ambient') {
+      // Find the ambient light and update it
+      this.lights.forEach((light) => {
+        if (light instanceof THREE.AmbientLight) {
+          light.color.setRGB(value, value, value);
+        }
+      });
+    }
 
-      // Recreate vertex colors
-      const vertexColors = new Float32Array(this.geometry.attributes.position.count * 3);
-      const dominantRGB = this.parseRGB(this.colors.dominant);
-      for (let i = 0; i < vertexColors.length; i += 3) {
-        vertexColors[i] = dominantRGB.r;
-        vertexColors[i + 1] = dominantRGB.g;
-        vertexColors[i + 2] = dominantRGB.b;
-      }
-      this.geometry.setAttribute('color', new THREE.BufferAttribute(vertexColors, 3));
-
-      this.mesh.geometry = this.geometry;
+    if ((key === 'radius' || key === 'meshDetail' || key === 'shape') && this.scene) {
+      this.buildMesh();
     }
   }
   
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;
-    
+
     if (this.renderer) {
       this.renderer.dispose();
     }
@@ -322,14 +462,16 @@ export class OrbVisualizer extends BaseVisualizer {
     if (this.mesh && this.mesh.material) {
       (this.mesh.material as THREE.Material).dispose();
     }
-    
+    this.lights.forEach((light) => light.dispose());
+    this.lights = [];
+
     this.scene = null;
     this.camera = null;
     this.renderer = null;
     this.geometry = null;
     this.mesh = null;
     this.originalPositions = null;
-    
+
     this.container.innerHTML = '';
   }
 }

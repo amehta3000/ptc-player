@@ -138,8 +138,15 @@ export function useVisualizer({
 
     Object.entries(defaults).forEach(([key, defaultVal]) => {
       // Randomize within a reasonable range around the default
-      const variance = defaultVal * 0.8;
-      randomConfig[key] = defaultVal + (Math.random() - 0.5) * 2 * variance;
+      const variance = Math.abs(defaultVal) * 0.8;
+      let val = defaultVal + (Math.random() - 0.5) * 2 * variance;
+      // Keep values non-negative
+      val = Math.max(0, val);
+      // Round to integer if default is an integer
+      if (Number.isInteger(defaultVal) && defaultVal !== 0) {
+        val = Math.max(1, Math.round(val));
+      }
+      randomConfig[key] = val;
     });
 
     setCurrentConfig(randomConfig);

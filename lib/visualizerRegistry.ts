@@ -74,6 +74,8 @@ VisualizerRegistry.register('bars', 'Bars', BarsVisualizer, {
   scale: 0.5,
   smoothness: 1.0,
   width: 4,
+  mode: 0,
+  palette: 0,
 });
 
 VisualizerRegistry.register('orb', 'Orb', OrbVisualizer, {
@@ -84,6 +86,10 @@ VisualizerRegistry.register('orb', 'Orb', OrbVisualizer, {
   radius: 2.0,
   meshDetail: 4,
   wireframe: 1,
+  shape: 0,
+  lightIntensity: 2,
+  lightSpeed: 0.5,
+  ambient: 0.3,
 });
 
 VisualizerRegistry.register('web', 'Web', WebVisualizer, {
@@ -110,15 +116,15 @@ VisualizerRegistry.register('chrysalis', 'Chrysalis', ChrysalisVisualizer, {
 });
 
 VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer, {
-  particleCount: 50000,
+  particleCount: 30000,
   attractorCount: 4,
   bassGravity: 2.0,
   midSpin: 2.0,
   maxSpeed: 8,
   velocityDamping: 0.04,
-  particleSize: 0.5,
+  particleSize: 1.0,
   cameraSpeed: 0.004,
-  boundSize: 10,
+  trail: 0,
   beatSensitivity: 1.2,
 });
 
