@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { AudioEngine } from './audioEngine';
 import { VisualizerManager } from './visualizerManager';
 import { VisualizerRegistry } from './visualizerRegistry';
-import { ColorScheme, VisualizerControl } from './visualizers/BaseVisualizer';
+import { ColorScheme, VisualizerControl, VisualizerPreset } from './visualizers/BaseVisualizer';
 import { VisualizerType, VISUALIZER_TYPES } from '../store/usePlayerStore';
 
 interface UseVisualizerProps {
@@ -33,6 +33,7 @@ export function useVisualizer({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceCreatedRef = useRef<boolean>(false);
   const [controls, setControls] = useState<VisualizerControl[]>([]);
+  const [presets, setPresets] = useState<VisualizerPreset[]>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, number>>({});
 
   // Initialize audio engine
@@ -83,6 +84,9 @@ export function useVisualizer({
 
     const newControls = visualizerManagerRef.current.getCurrentControls();
     setControls(newControls);
+
+    const newPresets = visualizerManagerRef.current.getCurrentPresets();
+    setPresets(newPresets);
   }, [visualizerType, enabled]);
 
   // Update colors
@@ -153,12 +157,54 @@ export function useVisualizer({
     return randomType;
   }, []);
 
+  // Apply a preset config (batch-update all keys)
+  const applyPreset = useCallback((presetConfig: Record<string, number>) => {
+    if (!visualizerManagerRef.current) return;
+
+    setCurrentConfig(presetConfig);
+    Object.entries(presetConfig).forEach(([key, value]) => {
+      visualizerManagerRef.current!.updateConfig(key, value);
+    });
+    if (visualizerManagerRef.current) {
+      setControls(visualizerManagerRef.current.getCurrentControls());
+    }
+  }, []);
+
+  // Randomize controls within their min/max ranges (current visualizer only)
+  const randomizeControls = useCallback(() => {
+    if (!visualizerManagerRef.current) return;
+
+    const currentControls = visualizerManagerRef.current.getCurrentControls();
+    const randomConfig: Record<string, number> = {};
+
+    currentControls.forEach((control) => {
+      const range = control.max - control.min;
+      let val = control.min + Math.random() * range;
+      // Snap to step
+      val = Math.round(val / control.step) * control.step;
+      // Clamp
+      val = Math.max(control.min, Math.min(control.max, val));
+      randomConfig[control.key] = val;
+    });
+
+    setCurrentConfig(randomConfig);
+    Object.entries(randomConfig).forEach(([key, value]) => {
+      visualizerManagerRef.current!.updateConfig(key, value);
+    });
+    if (visualizerManagerRef.current) {
+      setControls(visualizerManagerRef.current.getCurrentControls());
+    }
+  }, []);
+
   return {
     controls,
+    presets,
     currentConfig,
     updateConfig,
     resetToDefaults,
     randomize,
+    applyPreset,
+    randomizeControls,
     visualizerName: VisualizerRegistry.getName(visualizerType),
     audioContextRef,
   };

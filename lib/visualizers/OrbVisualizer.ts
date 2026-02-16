@@ -38,7 +38,8 @@ export class OrbVisualizer extends BaseVisualizer {
         max: 1,
         step: 1,
         default: 0,
-        value: this.config.shape ?? 0
+        value: this.config.shape ?? 0,
+        labels: ['Orb', 'Disco Ball']
       },
       {
         name: 'Light Intensity',
@@ -128,7 +129,8 @@ export class OrbVisualizer extends BaseVisualizer {
         max: 1,
         step: 1,
         default: 1,
-        value: this.config.wireframe ?? 1
+        value: this.config.wireframe ?? 1,
+        labels: ['Solid', 'Wire']
       }
     ];
   }

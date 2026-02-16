@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
-import { VisualizerControl } from '../lib/visualizers/BaseVisualizer';
+import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import { trackEvent } from '../lib/analytics';
@@ -15,9 +15,12 @@ interface DetailViewProps {
   onPlayNext: () => void;
   onPlayPrevious: () => void;
   visualizerControls: VisualizerControl[];
+  visualizerPresets: VisualizerPreset[];
   onUpdateConfig: (key: string, value: number) => void;
   onResetConfig: () => void;
   onRandomize: () => void;
+  onApplyPreset: (config: Record<string, number>) => void;
+  onRandomizeControls: () => void;
   visualizerName: string;
 }
 
@@ -38,9 +41,12 @@ export default function DetailView({
   onPlayNext,
   onPlayPrevious,
   visualizerControls,
+  visualizerPresets,
   onUpdateConfig,
   onResetConfig,
   onRandomize,
+  onApplyPreset,
+  onRandomizeControls,
   visualizerName,
 }: DetailViewProps) {
   const currentMix = usePlayerStore((s) => s.currentMix);
@@ -253,6 +259,16 @@ export default function DetailView({
         </div>
 
         <div className="flex items-center gap-2 flex-1 sm:flex-none justify-center sm:justify-end">
+          {/* Randomize */}
+          <button
+            onClick={onRandomize}
+            className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+            title="Randomize Visualizer"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </button>
           {/* View navigator: < Name > */}
           <div className="flex items-center">
             <button
@@ -277,16 +293,6 @@ export default function DetailView({
               </svg>
             </button>
           </div>
-          {/* Randomize */}
-          <button
-            onClick={onRandomize}
-            className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
-            title="Randomize Visualizer"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
-          </button>
           {/* Toggle controls */}
           <button
             onClick={() => showVisualizer && setShowControls(!showControls)}
@@ -305,8 +311,11 @@ export default function DetailView({
       {showControls && showVisualizer && (
         <VisualizerControls
           controls={visualizerControls}
+          presets={visualizerPresets}
           onUpdateConfig={onUpdateConfig}
           onReset={onResetConfig}
+          onApplyPreset={onApplyPreset}
+          onRandomizeControls={onRandomizeControls}
           visualizerName={visualizerName}
         />
       )}

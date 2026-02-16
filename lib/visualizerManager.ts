@@ -79,7 +79,14 @@ export class VisualizerManager {
   getCurrentControls() {
     return this.currentVisualizer?.getControls() || [];
   }
-  
+
+  /**
+   * Get current visualizer presets
+   */
+  getCurrentPresets() {
+    return this.currentVisualizer?.getPresets() || [];
+  }
+
   /**
    * Get current visualizer name
    */

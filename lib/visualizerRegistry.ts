@@ -116,16 +116,14 @@ VisualizerRegistry.register('chrysalis', 'Chrysalis', ChrysalisVisualizer, {
 });
 
 VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer, {
-  particleCount: 30000,
-  attractorCount: 4,
-  bassGravity: 2.0,
-  midSpin: 2.0,
-  maxSpeed: 8,
-  velocityDamping: 0.04,
-  particleSize: 1.0,
-  cameraSpeed: 0.004,
+  particleCount: 4000,
+  attractorCount: 3,
+  gravity: 7.0,
+  midSpin: 1.0,
+  maxSpeed: 0.5,
+  particleSize: 0.5,
+  cameraSpeed: 0.001,
   trail: 0,
-  beatSensitivity: 1.2,
 });
 
 VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {

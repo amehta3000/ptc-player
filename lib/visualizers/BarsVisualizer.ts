@@ -11,6 +11,7 @@ export class BarsVisualizer extends BaseVisualizer {
   private ctx: CanvasRenderingContext2D | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private smoothedData: number[] = new Array(64).fill(0);
+  private smoothedBass = 0;
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -29,7 +30,8 @@ export class BarsVisualizer extends BaseVisualizer {
         max: 3,
         step: 1,
         default: 0,
-        value: this.config.mode ?? 0
+        value: this.config.mode ?? 0,
+        labels: ['Line', 'Circle', 'Sine', 'Dots']
       },
       {
         name: 'Palette',
@@ -96,9 +98,13 @@ export class BarsVisualizer extends BaseVisualizer {
   update(audioAnalysis: AudioAnalysis): void {
     if (!this.isInitialized) return;
 
-    const { audioData, isPlaying } = audioAnalysis;
+    const { audioData, isPlaying, bassAvg } = audioAnalysis;
     const smoothness = this.config.smoothness ?? 1.0;
     const lerpFactor = 1 / (smoothness * 10);
+
+    // Smooth bass for circle pulsation
+    const bassTarget = isPlaying ? bassAvg / 255 : 0;
+    this.smoothedBass += (bassTarget - this.smoothedBass) * lerpFactor;
 
     if (this.smoothedData.length !== audioData.length) {
       this.smoothedData = new Array(audioData.length).fill(0);
@@ -181,7 +187,8 @@ export class BarsVisualizer extends BaseVisualizer {
 
     const centerX = w / 2;
     const centerY = h / 2;
-    const innerRadius = Math.min(w, h) * 0.12;
+    const baseRadius = Math.min(w, h) * 0.12;
+    const innerRadius = baseRadius + baseRadius * this.smoothedBass * 0.5;
     const maxBarLength = Math.min(w, h) * 0.25;
 
     for (let i = 0; i < barCount; i++) {

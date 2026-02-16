@@ -39,9 +39,12 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   // Visualizer hook
   const {
     controls: visualizerControls,
+    presets: visualizerPresets,
     updateConfig,
     resetToDefaults,
     randomize,
+    applyPreset,
+    randomizeControls,
     visualizerName,
     audioContextRef,
   } = useVisualizer({
@@ -256,9 +259,12 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onPlayNext={playNext}
         onPlayPrevious={playPrevious}
         visualizerControls={visualizerControls}
+        visualizerPresets={visualizerPresets}
         onUpdateConfig={updateConfig}
         onResetConfig={resetToDefaults}
         onRandomize={handleRandomize}
+        onApplyPreset={applyPreset}
+        onRandomizeControls={randomizeControls}
         visualizerName={visualizerName}
       />
     </div>

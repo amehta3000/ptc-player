@@ -19,7 +19,7 @@
 
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme, VisualizerPreset } from './BaseVisualizer';
 
 interface Attractor {
   position: THREE.Vector3;
@@ -44,7 +44,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private attractors: Attractor[] = [];
   private particles: Particle[] = [];
   private particleMesh: THREE.Points | null = null;
-  private particleCount: number = 30000;
+  private particleCount: number = 4000;
 
   // Trail / fade overlay
   private fadeScene: THREE.Scene | null = null;
@@ -56,9 +56,14 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private readonly DELTA_TIME = 1 / 60;
 
   // Camera controls
-  private cameraAngle = 0;
-  private cameraHeight = 3;
+  private cameraRotation = { x: 0.35, y: 0 }; // x = pitch, y = yaw
   private cameraDistance = 8;
+  private isDragging = false;
+  private lastMousePos = { x: 0, y: 0 };
+
+  // Spectrum texture for 64-bin frequency data
+  private spectrumTexture: THREE.DataTexture | null = null;
+  private spectrumDataArray: Float32Array = new Float32Array(64);
 
   // Beat detection
   private beatThreshold = 0;
@@ -84,11 +89,11 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       {
         name: 'Particle Count',
         key: 'particleCount',
-        min: 1000,
-        max: 100000,
-        step: 5000,
-        default: 30000,
-        value: this.config.particleCount || 30000
+        min: 400,
+        max: 46000,
+        step: 400,
+        default: 4000,
+        value: this.config.particleCount || 4000
       },
       {
         name: 'Attractor Count',
@@ -96,17 +101,17 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 2,
         max: 6,
         step: 1,
-        default: 4,
-        value: this.config.attractorCount || 4
+        default: 3,
+        value: this.config.attractorCount || 3
       },
       {
-        name: 'Bass Gravity',
-        key: 'bassGravity',
-        min: 0.5,
+        name: 'Gravity',
+        key: 'gravity',
+        min: 0,
         max: 10,
         step: 0.5,
-        default: 2.0,
-        value: this.config.bassGravity || 2.0
+        default: 7.0,
+        value: this.config.gravity ?? 7.0
       },
       {
         name: 'Mid Spin',
@@ -114,26 +119,17 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 0.5,
         max: 10,
         step: 0.5,
-        default: 2.0,
-        value: this.config.midSpin || 2.0
+        default: 1.0,
+        value: this.config.midSpin || 1.0
       },
       {
         name: 'Max Speed',
         key: 'maxSpeed',
-        min: 2,
-        max: 15,
-        step: 0.5,
-        default: 8,
-        value: this.config.maxSpeed || 8
-      },
-      {
-        name: 'Velocity Damping',
-        key: 'velocityDamping',
         min: 0,
-        max: 0.2,
-        step: 0.01,
-        default: 0.04,
-        value: this.config.velocityDamping ?? 0.04
+        max: 10,
+        step: 0.5,
+        default: 0.5,
+        value: this.config.maxSpeed ?? 0.5
       },
       {
         name: 'Particle Size',
@@ -141,8 +137,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 0.5,
         max: 5,
         step: 0.5,
-        default: 1.0,
-        value: this.config.particleSize || 1.0
+        default: 0.5,
+        value: this.config.particleSize || 0.5
       },
       {
         name: 'Camera Speed',
@@ -150,8 +146,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         min: 0,
         max: 0.02,
         step: 0.001,
-        default: 0.004,
-        value: this.config.cameraSpeed ?? 0.004
+        default: 0.001,
+        value: this.config.cameraSpeed ?? 0.001
       },
       {
         name: 'Trail',
@@ -161,15 +157,63 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         step: 0.01,
         default: 0,
         value: this.config.trail ?? 0
+      }
+    ];
+  }
+
+  getPresets(): VisualizerPreset[] {
+    return [
+      {
+        name: '1',
+        config: {
+          particleCount: 1000,
+          attractorCount: 2,
+          gravity: 10.0,
+          midSpin: 0.5,
+          maxSpeed: 0,
+          particleSize: 0.5,
+          cameraSpeed: 0.01,
+          trail: 0.40
+        }
       },
       {
-        name: 'Beat Sensitivity',
-        key: 'beatSensitivity',
-        min: 0.5,
-        max: 2,
-        step: 0.1,
-        default: 1.2,
-        value: this.config.beatSensitivity || 1.2
+        name: '2',
+        config: {
+          particleCount: 4000,
+          attractorCount: 6,
+          gravity: 9.0,
+          midSpin: 1.0,
+          maxSpeed: 0.5,
+          particleSize: 0.5,
+          cameraSpeed: 0.002,
+          trail: 0.14
+        }
+      },
+      {
+        name: '3',
+        config: {
+          particleCount: 4000,
+          attractorCount: 4,
+          gravity: 7.0,
+          midSpin: 4.5,
+          maxSpeed: 4.0,
+          particleSize: 0.5,
+          cameraSpeed: 0.001,
+          trail: 0.03
+        }
+      },
+      {
+        name: '4',
+        config: {
+          particleCount: 4000,
+          attractorCount: 3,
+          gravity: 7.0,
+          midSpin: 1.0,
+          maxSpeed: 0.5,
+          particleSize: 0.5,
+          cameraSpeed: 0.001,
+          trail: 0.08
+        }
       }
     ];
   }
@@ -201,6 +245,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     this.renderer.autoClear = false;
 
     this.container.appendChild(this.renderer.domElement);
+    this.container.style.cursor = 'grab';
+    this.container.style.touchAction = 'none';
 
     // Trail: fade overlay (semi-transparent black plane to create persistence)
     this.fadeScene = new THREE.Scene();
@@ -231,6 +277,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     // Set initial camera position
     this.updateCameraPosition();
 
+    // Add mouse/touch drag controls
+    this.setupMouseControls(this.container);
+
     // Handle window resize
     const handleResize = () => {
       if (!this.camera || !this.renderer || !this.container) return;
@@ -246,7 +295,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   }
 
   private initializeAttractors(): void {
-    const count = this.config.attractorCount || 4;
+    const count = this.config.attractorCount || 3;
     this.attractors = [];
 
     // Position attractors in a spherical formation
@@ -279,12 +328,18 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   }
 
   private initializeParticles(): void {
+    // Dispose existing spectrum texture on reinit (e.g. particleCount change)
+    if (this.spectrumTexture) {
+      this.spectrumTexture.dispose();
+    }
+
     const count = this.config.particleCount || this.particleCount;
     this.particles = [];
 
     const positions: number[] = [];
     const colors: number[] = [];
     const sizes: number[] = [];
+    const frequencyBins: number[] = [];
 
     for (let i = 0; i < count; i++) {
       // Random spherical distribution
@@ -309,7 +364,11 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
 
       this.particles.push({ position, velocity, mass });
 
-      // Generate random color for each particle
+      // Frequency bin based on spawn radius: inner=bass, outer=treble
+      // radius ranges from 1.0 to 4.0 → bin 0 to 63
+      const frequencyBin = Math.floor(Math.min(63, Math.max(0, (radius - 1) / 3 * 63)));
+
+      // Random HSL color per particle
       const hue = Math.random() * 360;
       const saturation = 60 + Math.random() * 40; // 60-100%
       const lightness = 50 + Math.random() * 30; // 50-80%
@@ -318,13 +377,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       // Add to geometry arrays
       positions.push(position.x, position.y, position.z);
       colors.push(color.r, color.g, color.b);
-      sizes.push((mass / 1e4) * (this.config.particleSize || 1.0));
-    }
-
-    // Assign each particle to a frequency band (bass, mid, or high)
-    const frequencyBands: number[] = [];
-    for (let i = 0; i < count; i++) {
-      frequencyBands.push(i % 3); // 0=bass, 1=mid, 2=high
+      sizes.push((mass / 1e4) * (this.config.particleSize || 0.5));
+      frequencyBins.push(frequencyBin);
     }
 
     // Create particle geometry
@@ -332,13 +386,24 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-    geometry.setAttribute('frequencyBand', new THREE.Float32BufferAttribute(frequencyBands, 1));
+    geometry.setAttribute('frequencyBand', new THREE.Float32BufferAttribute(frequencyBins, 1));
 
-    // Create particle material with audio-reactive shaders
+    // Create 64x1 DataTexture for per-frame spectrum data
+    this.spectrumDataArray = new Float32Array(64);
+    this.spectrumTexture = new THREE.DataTexture(
+      this.spectrumDataArray, 64, 1,
+      THREE.RedFormat, THREE.FloatType
+    );
+    this.spectrumTexture.minFilter = THREE.LinearFilter;
+    this.spectrumTexture.magFilter = THREE.LinearFilter;
+    this.spectrumTexture.needsUpdate = true;
+
+    // Create particle material with 64-bin spectrum shaders
     const material = new THREE.ShaderMaterial({
       uniforms: {
         colorA: { value: new THREE.Color(this.colors.dominant) },
         colorB: { value: new THREE.Color(this.colors.accent) },
+        spectrumData: { value: this.spectrumTexture },
         bassIntensity: { value: 0.0 },
         midIntensity: { value: 0.0 },
         highIntensity: { value: 0.0 },
@@ -348,26 +413,21 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         attribute float size;
         attribute vec3 color;
         attribute float frequencyBand;
-        uniform float bassIntensity;
-        uniform float midIntensity;
-        uniform float highIntensity;
+        uniform sampler2D spectrumData;
         uniform float beatBoost;
         varying vec3 vColor;
-        varying float vFrequencyBand;
+        varying float vAmplitude;
 
         void main() {
           vColor = color;
-          vFrequencyBand = frequencyBand;
 
-          // Audio-reactive size modulation per frequency band
-          float audioBoost = 1.0;
-          if (frequencyBand < 0.5) {
-            audioBoost += bassIntensity * 3.0;
-          } else if (frequencyBand < 1.5) {
-            audioBoost += midIntensity * 2.0;
-          } else {
-            audioBoost += highIntensity * 1.5;
-          }
+          // Sample per-particle amplitude from 64-bin spectrum texture
+          float amplitude = texture2D(spectrumData, vec2((frequencyBand + 0.5) / 64.0, 0.5)).r;
+          vAmplitude = amplitude;
+
+          // Continuous size boost: bass particles (bin 0) get 3x, treble (bin 63) get 1.5x
+          float shellScale = 3.0 - (frequencyBand / 63.0) * 1.5;
+          float audioBoost = 1.0 + amplitude * shellScale;
           audioBoost *= beatBoost;
 
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -377,10 +437,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       `,
       fragmentShader: `
         uniform float bassIntensity;
-        uniform float midIntensity;
-        uniform float highIntensity;
         varying vec3 vColor;
-        varying float vFrequencyBand;
+        varying float vAmplitude;
 
         void main() {
           float dist = length(gl_PointCoord - vec2(0.5));
@@ -388,23 +446,15 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           // Gaussian falloff for smoky, nebula-like appearance
           float gaussian = exp(-dist * dist * 6.0);
 
-          // Get intensity based on frequency band
-          float bandIntensity = 0.2;
-          if (vFrequencyBand < 0.5) {
-            bandIntensity += bassIntensity * 2.0;
-          } else if (vFrequencyBand < 1.5) {
-            bandIntensity += midIntensity * 2.0;
-          } else {
-            bandIntensity += highIntensity * 2.0;
-          }
-
-          bandIntensity = clamp(bandIntensity, 0.2, 3.0);
+          // Brightness from per-bin amplitude
+          float brightness = 0.2 + vAmplitude * 2.0;
+          brightness = clamp(brightness, 0.2, 3.0);
 
           // Bass-driven global opacity pulse
           float bassPulse = 0.2 + bassIntensity * 0.8;
 
-          float alpha = gaussian * bandIntensity * bassPulse;
-          gl_FragColor = vec4(vColor * bandIntensity, alpha);
+          float alpha = gaussian * brightness * bassPulse;
+          gl_FragColor = vec4(vColor * brightness, alpha);
         }
       `,
       transparent: true,
@@ -417,9 +467,10 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   }
 
   private updatePhysics(audioAnalysis: AudioAnalysis): void {
-    const bassNormalized = audioAnalysis.bassAvg / 255;
-    const midNormalized = audioAnalysis.midAvg / 255;
-    const highNormalized = audioAnalysis.highAvg / 255;
+    // bassAvg/midAvg/highAvg are already normalized 0-1 from audioEngine
+    const bassNormalized = audioAnalysis.bassAvg;
+    const midNormalized = audioAnalysis.midAvg;
+    const highNormalized = audioAnalysis.highAvg;
 
     // Smooth audio values for sustained, visible reactivity
     const smoothing = 0.3;
@@ -433,8 +484,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     const high = Math.max(highNormalized, this.smoothHigh);
 
     // Update attractor properties based on audio
-    const bassGravityMult = this.config.bassGravity || 2.0;
-    const midSpinMult = this.config.midSpin || 2.0;
+    const gravityMult = this.config.gravity ?? 7.0;
+    const midSpinMult = this.config.midSpin ?? 1.0;
 
     // Decay beat boost toward 1
     this.beatBoost += (1 - this.beatBoost) * 0.06;
@@ -446,14 +497,14 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
                         freqMod < 0.66 ? mid :
                         high;
 
-      // Stronger audio-driven mass changes for dramatic gravity swings
-      attractor.mass = attractor.baseMass * (1 + audioValue * bassGravityMult * 12) * this.beatBoost;
-      attractor.spinStrength = 2.0 + mid * midSpinMult * 10;
+      // Audio-driven mass: gravity control scales audio influence on all attractors
+      attractor.mass = attractor.baseMass * (1 + audioValue * gravityMult) * this.beatBoost;
+      attractor.spinStrength = 2.0 + mid * midSpinMult;
     });
 
     // Detect beats — weighted toward bass
     const currentEnergy = bass * 0.5 + mid * 0.3 + high * 0.2;
-    if (currentEnergy > this.beatThreshold * (this.config.beatSensitivity || 1.2)) {
+    if (currentEnergy > this.beatThreshold * 1.9) {
       const now = Date.now();
       if (now - this.lastBeatTime > this.beatCooldown) {
         this.onBeat(currentEnergy);
@@ -463,8 +514,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     this.beatThreshold = this.beatThreshold * 0.93 + currentEnergy * 0.07;
 
     // Update particle physics
-    const maxSpeed = this.config.maxSpeed || 8;
-    const damping = 1 - (this.config.velocityDamping ?? 0.04);
+    const maxSpeed = this.config.maxSpeed ?? 0.5;
+    const damping = 1 - 0.04;
 
     this.particles.forEach((particle) => {
       const force = new THREE.Vector3(0, 0, 0);
@@ -532,13 +583,46 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     });
   }
 
+  private setupMouseControls(element: HTMLDivElement): void {
+    const onMouseDown = (e: MouseEvent | TouchEvent) => {
+      this.isDragging = true;
+      const pos = 'touches' in e ? e.touches[0] : e;
+      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
+    };
+
+    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!this.isDragging) return;
+      const pos = 'touches' in e ? e.touches[0] : e;
+      const deltaX = pos.clientX - this.lastMousePos.x;
+      const deltaY = pos.clientY - this.lastMousePos.y;
+
+      this.cameraRotation.y += deltaX * 0.005;
+      this.cameraRotation.x += deltaY * 0.005;
+      this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
+
+      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
+    };
+
+    const onMouseUp = () => {
+      this.isDragging = false;
+    };
+
+    element.addEventListener('mousedown', onMouseDown);
+    element.addEventListener('mousemove', onMouseMove);
+    element.addEventListener('mouseup', onMouseUp);
+    element.addEventListener('mouseleave', onMouseUp);
+    element.addEventListener('touchstart', onMouseDown);
+    element.addEventListener('touchmove', onMouseMove);
+    element.addEventListener('touchend', onMouseUp);
+  }
+
   private updateCameraPosition(): void {
     if (!this.camera) return;
 
     const distance = this.config.cameraDistance || this.cameraDistance;
-    this.camera.position.x = Math.cos(this.cameraAngle) * distance;
-    this.camera.position.z = Math.sin(this.cameraAngle) * distance;
-    this.camera.position.y = this.cameraHeight;
+    this.camera.position.x = distance * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+    this.camera.position.y = distance * Math.sin(this.cameraRotation.x);
+    this.camera.position.z = distance * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
     this.camera.lookAt(0, 0, 0);
   }
 
@@ -550,23 +634,34 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       this.updatePhysics(audioAnalysis);
     }
 
-    // Camera always rotates
-    const cameraSpeed = this.config.cameraSpeed ?? 0.004;
-    this.cameraAngle += cameraSpeed;
+    // Auto-rotate camera when not dragging
+    if (!this.isDragging) {
+      const cameraSpeed = this.config.cameraSpeed ?? 0.001;
+      this.cameraRotation.y += cameraSpeed;
+    }
     this.updateCameraPosition();
+
+    // Populate 64-bin spectrum texture from audio data
+    if (this.spectrumTexture) {
+      const audioData = audioAnalysis.audioData;
+      for (let i = 0; i < 64; i++) {
+        this.spectrumDataArray[i] = (audioData[i] || 0) / 255;
+      }
+      this.spectrumTexture.needsUpdate = true;
+    }
 
     // Always sync particle geometry
     if (this.particleMesh) {
       const positions = this.particleMesh.geometry.attributes.position.array as Float32Array;
       const sizes = this.particleMesh.geometry.attributes.size.array as Float32Array;
 
-      const baseSize = this.config.particleSize || 1.0;
+      const baseSize = this.config.particleSize || 0.5;
 
-      // Pass smoothed audio intensities to shader uniforms
+      // Pass smoothed audio intensities to shader uniforms (already 0-1)
       if (this.particleMesh.material instanceof THREE.ShaderMaterial) {
-        this.particleMesh.material.uniforms.bassIntensity.value = Math.max(audioAnalysis.bassAvg / 255, this.smoothBass);
-        this.particleMesh.material.uniforms.midIntensity.value = Math.max(audioAnalysis.midAvg / 255, this.smoothMid);
-        this.particleMesh.material.uniforms.highIntensity.value = Math.max(audioAnalysis.highAvg / 255, this.smoothHigh);
+        this.particleMesh.material.uniforms.bassIntensity.value = Math.max(audioAnalysis.bassAvg, this.smoothBass);
+        this.particleMesh.material.uniforms.midIntensity.value = Math.max(audioAnalysis.midAvg, this.smoothMid);
+        this.particleMesh.material.uniforms.highIntensity.value = Math.max(audioAnalysis.highAvg, this.smoothHigh);
         this.particleMesh.material.uniforms.beatBoost.value = this.beatBoost;
       }
 
@@ -614,6 +709,11 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       if (this.particleMesh.material instanceof THREE.Material) {
         this.particleMesh.material.dispose();
       }
+    }
+
+    if (this.spectrumTexture) {
+      this.spectrumTexture.dispose();
+      this.spectrumTexture = null;
     }
 
     if (this.fadeMaterial) {

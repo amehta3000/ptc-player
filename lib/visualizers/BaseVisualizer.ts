@@ -17,11 +17,17 @@ export interface VisualizerControl {
   step: number;
   default: number;
   value: number;
+  labels?: string[];
 }
 
 export interface ColorScheme {
   dominant: string;
   accent: string;
+}
+
+export interface VisualizerPreset {
+  name: string;
+  config: Record<string, number>;
 }
 
 export abstract class BaseVisualizer {
@@ -125,6 +131,13 @@ export abstract class BaseVisualizer {
    * Get visualizer name
    */
   abstract getName(): string;
+
+  /**
+   * Get visualizer presets (optional, returns empty array by default)
+   */
+  getPresets(): VisualizerPreset[] {
+    return [];
+  }
   
   /**
    * Start animation loop
