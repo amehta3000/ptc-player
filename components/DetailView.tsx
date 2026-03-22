@@ -22,6 +22,8 @@ interface DetailViewProps {
   onApplyPreset: (config: Record<string, number>) => void;
   onRandomizeControls: () => void;
   visualizerName: string;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -48,6 +50,8 @@ export default function DetailView({
   onApplyPreset,
   onRandomizeControls,
   visualizerName,
+  darkMode,
+  onToggleDarkMode,
 }: DetailViewProps) {
   const currentMix = usePlayerStore((s) => s.currentMix);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -164,10 +168,10 @@ export default function DetailView({
       </div>
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-neutral-800/50">
+      <div className="relative z-10 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowPlaylist(!showPlaylist)}>
-          <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className="h-10 w-10" />
-          <span className="text-lg font-bold hidden sm:inline">Part Time Chiller</span>
+          <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
+          <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>Part Time Chiller</span>
           {showDebug && (
             <select
               value={currentFont}
@@ -187,20 +191,20 @@ export default function DetailView({
         {/* Social media icons — desktop */}
         <div className="hidden sm:flex items-center gap-2">
           <a href="https://instagram.com/parttimechiller" target="_blank" rel="noopener noreferrer"
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all bg-neutral-800 hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-500 hover:scale-110" title="Instagram">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="Instagram">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
             </svg>
           </a>
           <a href="https://youtube.com/@parttimechiller" target="_blank" rel="noopener noreferrer"
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all bg-neutral-800 hover:bg-red-600 hover:scale-110" title="YouTube">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-red-600 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="YouTube">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
           </a>
           <a href="https://open.spotify.com/user/ameet3000?si=833fb8c8623241a1" target="_blank" rel="noopener noreferrer"
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all bg-neutral-800 hover:bg-green-500 hover:scale-110" title="Spotify">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-green-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="Spotify">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
             </svg>
           </a>
@@ -210,7 +214,7 @@ export default function DetailView({
         <div className="relative sm:hidden order-last" ref={socialMenuRef}>
           <button
             onClick={() => setSocialMenuOpen(!socialMenuOpen)}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-neutral-800 hover:bg-neutral-700"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
             aria-label="Social links"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -258,11 +262,27 @@ export default function DetailView({
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-1 sm:flex-none justify-center sm:justify-end">
+        <div className="flex items-center gap-2.5 flex-1 sm:flex-none justify-center sm:justify-end">
+          {/* Dark/Light mode toggle */}
+          <button
+            onClick={onToggleDarkMode}
+            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {darkMode ? (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 00-1.41 0 .996.996 0 000 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 00-1.41 0 .996.996 0 000 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 000-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 000-1.41.996.996 0 00-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 000-1.41.996.996 0 00-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" />
+              </svg>
+            )}
+          </button>
           {/* Randomize */}
           <button
             onClick={onRandomize}
-            className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
             title="Randomize Visualizer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -273,19 +293,22 @@ export default function DetailView({
           <div className="flex items-center">
             <button
               onClick={() => navigateView(-1)}
-              className="px-2 py-1 rounded-l bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+              className={`h-9 px-2.5 rounded-l-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
               aria-label="Previous view"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span className="px-3 py-1 bg-neutral-800/80 text-white text-sm select-none min-w-[5rem] text-center whitespace-nowrap">
+            <span
+              onClick={() => showVisualizer && setShowControls(!showControls)}
+              className={`h-9 px-3 text-sm select-none min-w-[5rem] text-center whitespace-nowrap transition-all duration-300 flex items-center justify-center ${showVisualizer ? 'cursor-pointer' : ''} ${darkMode ? 'bg-neutral-800/80 text-white' : 'bg-neutral-200/80 text-neutral-800'}`}
+            >
               {currentDisplayName}
             </span>
             <button
               onClick={() => navigateView(1)}
-              className="px-2 py-1 rounded-r bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+              className={`h-9 px-2.5 rounded-r-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
               aria-label="Next view"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
@@ -297,7 +320,7 @@ export default function DetailView({
           <button
             onClick={() => showVisualizer && setShowControls(!showControls)}
             disabled={!showVisualizer}
-            className={`px-3 py-1 rounded text-sm transition-colors ${showVisualizer ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-800/50 text-neutral-600 cursor-not-allowed'}`}
+            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${!showVisualizer ? (darkMode ? 'bg-neutral-800/50 text-neutral-600' : 'bg-neutral-300/50 text-neutral-400') + ' cursor-not-allowed' : darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
             title={!showVisualizer ? 'Controls unavailable for Album Art' : showControls ? 'Hide Controls' : 'Show Controls'}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -317,6 +340,7 @@ export default function DetailView({
           onApplyPreset={onApplyPreset}
           onRandomizeControls={onRandomizeControls}
           visualizerName={visualizerName}
+          onChangeVisualizer={(type) => setVisualizerType(type)}
         />
       )}
 
@@ -334,7 +358,7 @@ export default function DetailView({
 
       {/* Playlist Drawer */}
       <div
-        className={`absolute bottom-[72px] left-4 right-4 z-20 rounded-lg backdrop-blur-xl bg-black/60 border border-white/10 max-h-[60vh] overflow-y-auto transition-all duration-300 ${
+        className={`absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 w-[90%] max-w-[60%] rounded-t-lg backdrop-blur-xl bg-black/60 border border-b-0 border-white/10 max-h-[60vh] overflow-y-auto transition-all duration-300 ${
           showPlaylist ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
         }`}
       >

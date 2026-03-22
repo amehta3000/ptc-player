@@ -26,6 +26,7 @@ interface PlayerState {
   showControls: boolean;
   showPlaylist: boolean;
   showDebug: boolean;
+  darkMode: boolean;
   visualizerType: VisualizerType;
   currentFont: string;
 
@@ -56,6 +57,7 @@ interface PlayerActions {
   setShowControls: (show: boolean) => void;
   setShowPlaylist: (show: boolean) => void;
   setShowDebug: (show: boolean) => void;
+  toggleDarkMode: () => void;
   setVisualizerType: (type: VisualizerType) => void;
   setCurrentFont: (font: string) => void;
 
@@ -117,6 +119,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   showControls: false,
   showPlaylist: false,
   showDebug: false,
+  darkMode: true,
   visualizerType: 'terrain',
   currentFont: 'Stint Ultra Expanded',
 
@@ -146,6 +149,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   setShowControls: (show) => set({ showControls: show }),
   setShowPlaylist: (show) => set({ showPlaylist: show }),
   setShowDebug: (show) => set({ showDebug: show }),
+  toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
   setVisualizerType: (type) => set({ visualizerType: type }),
   setCurrentFont: (font) => set({ currentFont: font }),
 

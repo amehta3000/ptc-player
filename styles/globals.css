@@ -25,3 +25,57 @@ body {
     )
     rgb(var(--background-start-rgb));
 }
+
+/* Visualizer control sliders — tall rectangular thumbs for mobile */
+input[type='range'].viz-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 28px;
+  padding: 0;
+}
+
+input[type='range'].viz-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+input[type='range'].viz-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 22px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.7);
+  border: none;
+  margin-top: -9px;
+  transition: background 0.15s;
+}
+
+input[type='range'].viz-slider::-webkit-slider-thumb:hover,
+input[type='range'].viz-slider::-webkit-slider-thumb:active {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+input[type='range'].viz-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+}
+
+input[type='range'].viz-slider::-moz-range-thumb {
+  width: 10px;
+  height: 22px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.7);
+  border: none;
+  cursor: pointer;
+}
+
+input[type='range'].viz-slider::-moz-range-thumb:hover,
+input[type='range'].viz-slider::-moz-range-thumb:active {
+  background: rgba(255, 255, 255, 0.95);
+}

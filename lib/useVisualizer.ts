@@ -17,6 +17,7 @@ interface UseVisualizerProps {
   colors: ColorScheme;
   isPlaying: boolean;
   enabled: boolean;
+  darkMode: boolean;
 }
 
 export function useVisualizer({
@@ -26,6 +27,7 @@ export function useVisualizer({
   colors,
   isPlaying,
   enabled,
+  darkMode,
 }: UseVisualizerProps) {
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const visualizerManagerRef = useRef<VisualizerManager | null>(null);
@@ -100,6 +102,12 @@ export function useVisualizer({
     if (!visualizerManagerRef.current || !enabled) return;
     visualizerManagerRef.current.setPlaybackState(isPlaying);
   }, [isPlaying, enabled]);
+
+  // Update dark mode
+  useEffect(() => {
+    if (!visualizerManagerRef.current || !enabled) return;
+    visualizerManagerRef.current.setDarkMode(darkMode);
+  }, [darkMode, enabled]);
 
   // Resume audio context on play
   useEffect(() => {

@@ -35,6 +35,8 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const setVisualizerType = usePlayerStore((s) => s.setVisualizerType);
   const currentFont = usePlayerStore((s) => s.currentFont);
   const setShowDebug = usePlayerStore((s) => s.setShowDebug);
+  const darkMode = usePlayerStore((s) => s.darkMode);
+  const toggleDarkMode = usePlayerStore((s) => s.toggleDarkMode);
 
   // Visualizer hook
   const {
@@ -54,6 +56,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     colors: { dominant: dominantColor, accent: accentColor },
     isPlaying,
     enabled: showVisualizer && !!currentMix,
+    darkMode,
   });
 
   // Sync volume to audio element
@@ -266,6 +269,8 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onApplyPreset={applyPreset}
         onRandomizeControls={randomizeControls}
         visualizerName={visualizerName}
+        darkMode={darkMode}
+        onToggleDarkMode={toggleDarkMode}
       />
     </div>
   );

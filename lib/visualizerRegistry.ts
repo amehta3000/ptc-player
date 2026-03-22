@@ -73,7 +73,7 @@ export class VisualizerRegistry {
 VisualizerRegistry.register('bars', 'Bars', BarsVisualizer, {
   scale: 0.5,
   smoothness: 1.0,
-  width: 4,
+  width: 20,
   mode: 0,
   palette: 0,
 });

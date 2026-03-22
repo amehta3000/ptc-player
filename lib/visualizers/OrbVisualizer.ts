@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
 export class OrbVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -134,7 +134,48 @@ export class OrbVisualizer extends BaseVisualizer {
       }
     ];
   }
-  
+
+  getPresets(): VisualizerPreset[] {
+    return [
+      {
+        name: '1',
+        config: {
+          shape: 0, lightIntensity: 2, lightSpeed: 0.5,
+          ambient: 0.3, freqMultiplier: 3.6, noiseMultiplier: 0.55,
+          timeSpeed: 2.0, autoRotationSpeed: 0.003, radius: 2.0,
+          meshDetail: 4, wireframe: 1
+        }
+      },
+      {
+        name: '2',
+        config: {
+          shape: 0, lightIntensity: 3.5, lightSpeed: 0.5,
+          ambient: 0.6, freqMultiplier: 7.9, noiseMultiplier: 1.45,
+          timeSpeed: 2.1, autoRotationSpeed: 0, radius: 2.7,
+          meshDetail: 8, wireframe: 0
+        }
+      },
+      {
+        name: '3',
+        config: {
+          shape: 1, lightIntensity: 4.0, lightSpeed: 1.2,
+          ambient: 0.15, freqMultiplier: 5.0, noiseMultiplier: 0.8,
+          timeSpeed: 1.5, autoRotationSpeed: 0.005, radius: 2.0,
+          meshDetail: 6, wireframe: 0
+        }
+      },
+      {
+        name: '4',
+        config: {
+          shape: 1, lightIntensity: 2.5, lightSpeed: 0.3,
+          ambient: 0.5, freqMultiplier: 4.0, noiseMultiplier: 0.3,
+          timeSpeed: 3.0, autoRotationSpeed: 0.001, radius: 3.0,
+          meshDetail: 5, wireframe: 1
+        }
+      }
+    ];
+  }
+
   init(): void {
     // Use container directly
     const width = this.container.clientWidth || 800;
@@ -422,6 +463,13 @@ export class OrbVisualizer extends BaseVisualizer {
   updateColors(colors: ColorScheme): void {
     super.updateColors(colors);
     // Colors will be updated in next update cycle
+  }
+
+  setDarkMode(isDark: boolean): void {
+    super.setDarkMode(isDark);
+    if (this.renderer) {
+      this.renderer.setClearColor(isDark ? 0x000000 : 0xe8ebed, 1);
+    }
   }
 
   updateConfig(key: string, value: number): void {

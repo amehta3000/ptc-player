@@ -11,7 +11,7 @@ export default function TrackPage({ track }: TrackPageProps) {
   return (
     <>
       <Head>
-        <title>{track.title} — Part Time Chiller</title>
+        <title>{`${track.title} — Part Time Chiller`}</title>
         <meta property="og:title" content={`${track.title} — Part Time Chiller`} />
         <meta property="og:description" content={`${track.description} | ${track.artist}`} />
         <meta property="og:image" content={track.cover} />

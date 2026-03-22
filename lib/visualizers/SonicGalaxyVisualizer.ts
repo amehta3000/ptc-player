@@ -739,6 +739,16 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     this.attractors = [];
   }
 
+  setDarkMode(isDark: boolean): void {
+    super.setDarkMode(isDark);
+    if (this.renderer) {
+      this.renderer.setClearColor(isDark ? 0x000000 : 0xe8ebed, 1);
+    }
+    if (this.fadeMaterial) {
+      this.fadeMaterial.color.set(isDark ? 0x000000 : 0xe8ebed);
+    }
+  }
+
   updateConfig(key: string, value: number): void {
     super.updateConfig(key, value);
 

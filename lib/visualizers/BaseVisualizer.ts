@@ -34,6 +34,7 @@ export abstract class BaseVisualizer {
   protected container: HTMLDivElement;
   protected config: VisualizerConfig;
   protected colors: ColorScheme;
+  protected darkMode: boolean = true;
   protected animationFrameId: number | null = null;
   public isInitialized: boolean = false;
   protected currentAudioAnalysis: AudioAnalysis | null = null;
@@ -120,6 +121,14 @@ export abstract class BaseVisualizer {
    */
   updateColors(colors: ColorScheme) {
     this.colors = colors;
+  }
+
+  /**
+   * Set dark/light mode background
+   */
+  setDarkMode(isDark: boolean) {
+    this.darkMode = isDark;
+    this.container.style.backgroundColor = isDark ? '#000000' : '#e8ebed';
   }
   
   /**

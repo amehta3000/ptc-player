@@ -1,6 +1,6 @@
 import React from 'react';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
-import { usePlayerStore } from '../store/usePlayerStore';
+import { usePlayerStore, VISUALIZER_TYPES, VISUALIZER_NAMES, VisualizerType } from '../store/usePlayerStore';
 
 interface VisualizerControlsProps {
   controls: VisualizerControl[];
@@ -10,6 +10,7 @@ interface VisualizerControlsProps {
   onApplyPreset: (config: Record<string, number>) => void;
   onRandomizeControls: () => void;
   visualizerName: string;
+  onChangeVisualizer: (type: VisualizerType) => void;
 }
 
 export default function VisualizerControls({
@@ -20,16 +21,29 @@ export default function VisualizerControls({
   onApplyPreset,
   onRandomizeControls,
   visualizerName,
+  onChangeVisualizer,
 }: VisualizerControlsProps) {
   const dominantColor = usePlayerStore((s) => s.dominantColor);
+  const visualizerType = usePlayerStore((s) => s.visualizerType);
 
   return (
-    <div className="absolute top-20 right-4 w-72 max-h-[70vh] overflow-y-auto p-4 rounded-lg backdrop-blur-xl bg-black/60 border border-white/10 z-20 space-y-3">
+    <div className="absolute top-20 right-6 w-72 max-h-[70vh] overflow-y-auto p-4 rounded-lg backdrop-blur-xl bg-black/60 border border-white/10 z-20 space-y-3">
       <div className="text-sm font-medium text-white/90 mb-3 flex items-center gap-2">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
         </svg>
-        {visualizerName} Controls
+        <select
+          value={visualizerType}
+          onChange={(e) => onChangeVisualizer(e.target.value as VisualizerType)}
+          className="flex-1 bg-white/10 text-white/90 text-sm font-medium rounded px-2 py-1 border border-white/10 hover:border-white/30 cursor-pointer focus:outline-none focus:border-white/40 appearance-none"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
+        >
+          {VISUALIZER_TYPES.map((type) => (
+            <option key={type} value={type} className="bg-neutral-900 text-white">
+              {VISUALIZER_NAMES[type]}
+            </option>
+          ))}
+        </select>
       </div>
 
       {presets.length > 0 && (
@@ -97,8 +111,7 @@ export default function VisualizerControls({
               step={control.step}
               value={control.value}
               onChange={(e) => onUpdateConfig(control.key, parseFloat(e.target.value))}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
-              style={{ accentColor: dominantColor }}
+              className="w-full viz-slider"
             />
           )}
         </div>

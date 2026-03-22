@@ -4,7 +4,7 @@
  */
 
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
 export class BarsVisualizer extends BaseVisualizer {
   private canvas: HTMLCanvasElement | null = null;
@@ -66,8 +66,29 @@ export class BarsVisualizer extends BaseVisualizer {
         min: 2,
         max: 60,
         step: 1,
-        default: 4,
-        value: this.config.width ?? 4
+        default: 20,
+        value: this.config.width ?? 20
+      }
+    ];
+  }
+
+  getPresets(): VisualizerPreset[] {
+    return [
+      {
+        name: '1',
+        config: { mode: 3, palette: 2, scale: 1.0, smoothness: 1.5, width: 20 }
+      },
+      {
+        name: '2',
+        config: { mode: 2, palette: 3, scale: 1.0, smoothness: 1.5, width: 20 }
+      },
+      {
+        name: '3',
+        config: { mode: 1, palette: 4, scale: 1.2, smoothness: 0.5, width: 8 }
+      },
+      {
+        name: '4',
+        config: { mode: 0, palette: 5, scale: 1.0, smoothness: 1.0, width: 20 }
       }
     ];
   }
@@ -153,8 +174,9 @@ export class BarsVisualizer extends BaseVisualizer {
     const ctx = this.ctx!;
     const barCount = this.smoothedData.length;
     const scale = this.config.scale ?? 0.5;
-    const barWidth = this.config.width ?? 4;
+    const rawBarWidth = this.config.width ?? 20;
     const gap = 2;
+    const barWidth = Math.max(1, Math.min(rawBarWidth, (w + gap) / barCount - gap));
 
     const maxBarHeight = h * 0.6;
     const floorY = h * 0.85;
@@ -183,7 +205,7 @@ export class BarsVisualizer extends BaseVisualizer {
     const ctx = this.ctx!;
     const barCount = this.smoothedData.length;
     const scale = this.config.scale ?? 0.5;
-    const barWidth = this.config.width ?? 4;
+    const barWidth = this.config.width ?? 20;
 
     const centerX = w / 2;
     const centerY = h / 2;
@@ -217,8 +239,9 @@ export class BarsVisualizer extends BaseVisualizer {
     const ctx = this.ctx!;
     const barCount = this.smoothedData.length;
     const scale = this.config.scale ?? 0.5;
-    const barWidth = this.config.width ?? 4;
+    const rawBarWidth = this.config.width ?? 20;
     const gap = 2;
+    const barWidth = Math.max(1, Math.min(rawBarWidth, (w + gap) / barCount - gap));
 
     const maxBarHeight = h * 0.45;
     const baseline = h * 0.65;
@@ -254,10 +277,11 @@ export class BarsVisualizer extends BaseVisualizer {
     const ctx = this.ctx!;
     const barCount = this.smoothedData.length;
     const scale = this.config.scale ?? 0.5;
-    const barWidth = this.config.width ?? 4;
+    const rawBarWidth = this.config.width ?? 20;
+    const gap = 2;
+    const barWidth = Math.max(1, Math.min(rawBarWidth, (w + gap) / barCount - gap));
     const dotRadius = Math.max(1, barWidth / 2);
     const dotSpacing = dotRadius * 2.5;
-    const gap = 2;
 
     const maxDots = 20;
     const floorY = h * 0.85;

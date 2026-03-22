@@ -14,6 +14,7 @@ export class VisualizerManager {
   private container: HTMLDivElement;
   private animationFrameId: number | null = null;
   private isPlaying: boolean = false;
+  private darkMode: boolean = true;
   
   constructor(audioEngine: AudioEngine, container: HTMLDivElement) {
     this.audioEngine = audioEngine;
@@ -44,6 +45,7 @@ export class VisualizerManager {
     if (this.currentVisualizer) {
       this.currentVisualizer.init();
       this.currentVisualizer.isInitialized = true;
+      this.currentVisualizer.setDarkMode(this.darkMode);
       this.startAnimationLoop();
     }
   }
@@ -63,6 +65,16 @@ export class VisualizerManager {
   updateColors(colors: ColorScheme): void {
     if (this.currentVisualizer) {
       this.currentVisualizer.updateColors(colors);
+    }
+  }
+
+  /**
+   * Set dark/light mode
+   */
+  setDarkMode(isDark: boolean): void {
+    this.darkMode = isDark;
+    if (this.currentVisualizer) {
+      this.currentVisualizer.setDarkMode(isDark);
     }
   }
   
