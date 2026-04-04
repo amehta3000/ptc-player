@@ -3,7 +3,7 @@ import { Mix, mixes } from '../data/mixes';
 
 type FilterType = 'all' | 'mix' | 'track';
 type RepeatMode = 'off' | 'all' | 'one';
-type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis' | 'sonicGalaxy' | 'raindrops';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | 'chrysalis' | 'sonicGalaxy' | 'raindrops' | 'cassette';
 
 export type { FilterType, RepeatMode, VisualizerType };
 
@@ -77,7 +77,7 @@ interface PlayerActions {
   playPrevious: () => { action: 'restart' } | { action: 'previous'; mix: Mix } | null;
 }
 
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'sonicGalaxy', 'orb', 'bars', 'web', 'chrysalis', 'raindrops'];
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'sonicGalaxy', 'orb', 'bars', 'web', 'chrysalis', 'raindrops', 'cassette'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',
@@ -87,6 +87,7 @@ export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   chrysalis: 'Chrysalis',
   sonicGalaxy: 'Sonic Galaxy',
   raindrops: 'Raindrops',
+  cassette: 'Cassette',
 };
 
 export const FONTS = [

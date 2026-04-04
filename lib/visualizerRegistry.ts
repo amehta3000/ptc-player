@@ -11,6 +11,7 @@ import { TerrainVisualizer } from './visualizers/TerrainVisualizer';
 import { ChrysalisVisualizer } from './visualizers/ChrysalisVisualizer';
 import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
 import { RaindropsVisualizer } from './visualizers/RaindropsVisualizer';
+import { CassetteVisualizer } from './visualizers/CassetteVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -134,4 +135,14 @@ VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
   intensity: 0.8,
   ringThickness: 0.10,
   layoutMode: 0,
+});
+
+VisualizerRegistry.register('cassette', 'Cassette', CassetteVisualizer, {
+  reelSpeed: 1.0,
+  bassWobble: 0.3,
+  lightOrbit: 0.5,
+  lightIntensity: 3,
+  bounce: 0.2,
+  autoRotate: 0.003,
+  tiltReact: 0.1,
 });
