@@ -49,6 +49,9 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     randomizeControls,
     visualizerName,
     audioContextRef,
+    takeScreenshot,
+    toggleRecording,
+    recordingState,
   } = useVisualizer({
     audioRef,
     containerRef: visualizerContainerRef,
@@ -271,6 +274,9 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         visualizerName={visualizerName}
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
+        onScreenshot={takeScreenshot}
+        onToggleRecording={toggleRecording}
+        recordingState={recordingState}
       />
     </div>
   );

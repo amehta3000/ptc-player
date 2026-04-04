@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
+import { RecordingState, AspectRatio, ASPECT_RATIO_LABELS } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import { trackEvent } from '../lib/analytics';
@@ -24,6 +25,9 @@ interface DetailViewProps {
   visualizerName: string;
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  onScreenshot: (ratio: AspectRatio) => void;
+  onToggleRecording: (ratio: AspectRatio) => void;
+  recordingState: RecordingState;
 }
 
 function formatTime(seconds: number) {
@@ -52,6 +56,9 @@ export default function DetailView({
   visualizerName,
   darkMode,
   onToggleDarkMode,
+  onScreenshot,
+  onToggleRecording,
+  recordingState,
 }: DetailViewProps) {
   const currentMix = usePlayerStore((s) => s.currentMix);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -96,6 +103,7 @@ export default function DetailView({
 
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const socialMenuRef = useRef<HTMLDivElement>(null);
+  const [exportRatio, setExportRatio] = useState<AspectRatio>('browser');
 
   useEffect(() => {
     if (!socialMenuOpen) return;
@@ -289,6 +297,54 @@ export default function DetailView({
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
           </button>
+          {/* Export: Aspect Ratio + Screenshot + Record */}
+          {showVisualizer && (
+            <div className="flex items-center">
+              <select
+                value={exportRatio}
+                onChange={(e) => setExportRatio(e.target.value as AspectRatio)}
+                disabled={recordingState.isRecording}
+                className={`h-9 px-1.5 rounded-l-md text-xs border-none outline-none cursor-pointer transition-all duration-300 ${darkMode ? 'bg-neutral-800 text-white/70' : 'bg-neutral-200 text-neutral-600'} ${recordingState.isRecording ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="Export aspect ratio"
+              >
+                {(Object.keys(ASPECT_RATIO_LABELS) as AspectRatio[]).map((r) => (
+                  <option key={r} value={r} className="bg-neutral-900 text-white">
+                    {ASPECT_RATIO_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => onScreenshot(exportRatio)}
+                className={`h-9 px-2.5 text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
+                title={`Screenshot (${ASPECT_RATIO_LABELS[exportRatio]})`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => onToggleRecording(exportRatio)}
+                className={`h-9 px-2.5 rounded-r-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                  recordingState.isRecording
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'
+                }`}
+                title={recordingState.isRecording ? 'Stop Recording' : `Record Video (${ASPECT_RATIO_LABELS[exportRatio]})`}
+              >
+                {recordingState.isRecording ? (
+                  <>
+                    <span className="w-2.5 h-2.5 rounded-sm bg-white animate-pulse" />
+                    <span className="text-xs font-mono tabular-nums">{Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')}</span>
+                  </>
+                ) : (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="6" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          )}
           {/* View navigator: < Name > */}
           <div className="flex items-center">
             <button

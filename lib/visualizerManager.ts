@@ -136,6 +136,13 @@ export class VisualizerManager {
   }
   
   /**
+   * Get the current canvas element for export purposes
+   */
+  getCanvas(): HTMLCanvasElement | null {
+    return this.container.querySelector('canvas');
+  }
+
+  /**
    * Clean up resources
    */
   destroy(): void {

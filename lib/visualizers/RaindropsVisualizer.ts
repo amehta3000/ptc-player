@@ -160,7 +160,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true
+      alpha: true,
+      preserveDrawingBuffer: true
     });
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

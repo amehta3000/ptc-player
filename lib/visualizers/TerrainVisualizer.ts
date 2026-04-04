@@ -114,7 +114,8 @@ export class TerrainVisualizer extends BaseVisualizer {
     this.renderer = new THREE.WebGLRenderer({ 
       antialias: false, // Disable for performance
       alpha: true,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
     });
     
     this.renderer.setSize(containerWidth, containerHeight);

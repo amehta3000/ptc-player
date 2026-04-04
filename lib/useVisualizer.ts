@@ -9,6 +9,7 @@ import { VisualizerManager } from './visualizerManager';
 import { VisualizerRegistry } from './visualizerRegistry';
 import { ColorScheme, VisualizerControl, VisualizerPreset } from './visualizers/BaseVisualizer';
 import { VisualizerType, VISUALIZER_TYPES } from '../store/usePlayerStore';
+import { captureScreenshot, VideoRecorder, RecordingState, AspectRatio } from './exportManager';
 
 interface UseVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -37,6 +38,8 @@ export function useVisualizer({
   const [controls, setControls] = useState<VisualizerControl[]>([]);
   const [presets, setPresets] = useState<VisualizerPreset[]>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, number>>({});
+  const [recordingState, setRecordingState] = useState<RecordingState>({ isRecording: false, duration: 0 });
+  const videoRecorderRef = useRef<VideoRecorder | null>(null);
 
   // Initialize audio engine
   useEffect(() => {
@@ -204,6 +207,36 @@ export function useVisualizer({
     }
   }, []);
 
+  // Screenshot
+  const takeScreenshot = useCallback((ratio: AspectRatio = 'browser') => {
+    const canvas = visualizerManagerRef.current?.getCanvas();
+    if (!canvas) return;
+    const name = VisualizerRegistry.getName(visualizerType);
+    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio);
+  }, [visualizerType]);
+
+  // Video recording
+  const toggleRecording = useCallback((ratio: AspectRatio = 'browser') => {
+    if (!videoRecorderRef.current) {
+      videoRecorderRef.current = new VideoRecorder(setRecordingState);
+    }
+
+    if (videoRecorderRef.current.isRecording) {
+      videoRecorderRef.current.stop();
+    } else {
+      const canvas = visualizerManagerRef.current?.getCanvas();
+      if (!canvas || !audioContextRef.current || !analyserRef.current) return;
+      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio);
+    }
+  }, []);
+
+  // Cleanup recorder on unmount
+  useEffect(() => {
+    return () => {
+      videoRecorderRef.current?.destroy();
+    };
+  }, []);
+
   return {
     controls,
     presets,
@@ -215,5 +248,8 @@ export function useVisualizer({
     randomizeControls,
     visualizerName: VisualizerRegistry.getName(visualizerType),
     audioContextRef,
+    takeScreenshot,
+    toggleRecording,
+    recordingState,
   };
 }
