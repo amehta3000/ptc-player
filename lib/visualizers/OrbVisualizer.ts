@@ -189,10 +189,10 @@ export class OrbVisualizer extends BaseVisualizer {
       0.1,
       1000
     );
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
 
     this.renderer.setSize(width, height);
-    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.setClearColor(this.darkMode ? 0x000000 : 0xe8ebed, 1);
     this.container.appendChild(this.renderer.domElement);
     this.container.style.cursor = 'grab';
     this.container.style.touchAction = 'none';

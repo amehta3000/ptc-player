@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
-import { RecordingState, AspectRatio, ASPECT_RATIO_LABELS } from '../lib/exportManager';
+import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS, MAX_RECORDING_SECONDS } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import { trackEvent } from '../lib/analytics';
@@ -26,7 +26,8 @@ interface DetailViewProps {
   darkMode: boolean;
   onToggleDarkMode: () => void;
   onScreenshot: (ratio: AspectRatio) => void;
-  onToggleRecording: (ratio: AspectRatio) => void;
+  onToggleRecording: (ratio: AspectRatio, format: ExportFormat) => void;
+  onCancelConversion: () => void;
   recordingState: RecordingState;
 }
 
@@ -58,6 +59,7 @@ export default function DetailView({
   onToggleDarkMode,
   onScreenshot,
   onToggleRecording,
+  onCancelConversion,
   recordingState,
 }: DetailViewProps) {
   const currentMix = usePlayerStore((s) => s.currentMix);
@@ -104,6 +106,7 @@ export default function DetailView({
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const socialMenuRef = useRef<HTMLDivElement>(null);
   const [exportRatio, setExportRatio] = useState<AspectRatio>('browser');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('webm');
 
   useEffect(() => {
     if (!socialMenuOpen) return;
@@ -297,14 +300,24 @@ export default function DetailView({
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
           </button>
-          {/* Export: Aspect Ratio + Screenshot + Record */}
+          {/* Export: Format + Aspect Ratio + Screenshot + Record */}
           {showVisualizer && (
             <div className="flex items-center">
               <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                disabled={recordingState.isRecording || recordingState.isConverting}
+                className={`h-9 px-1.5 rounded-l-md text-xs border-none outline-none cursor-pointer transition-all duration-300 ${darkMode ? 'bg-neutral-800 text-white/70' : 'bg-neutral-200 text-neutral-600'} ${recordingState.isRecording || recordingState.isConverting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title="Video format"
+              >
+                <option value="webm" className="bg-neutral-900 text-white">WebM</option>
+                <option value="mp4" className="bg-neutral-900 text-white">MP4</option>
+              </select>
+              <select
                 value={exportRatio}
                 onChange={(e) => setExportRatio(e.target.value as AspectRatio)}
-                disabled={recordingState.isRecording}
-                className={`h-9 px-1.5 rounded-l-md text-xs border-none outline-none cursor-pointer transition-all duration-300 ${darkMode ? 'bg-neutral-800 text-white/70' : 'bg-neutral-200 text-neutral-600'} ${recordingState.isRecording ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={recordingState.isRecording || recordingState.isConverting}
+                className={`h-9 px-1.5 text-xs border-none outline-none cursor-pointer transition-all duration-300 ${darkMode ? 'bg-neutral-800 text-white/70' : 'bg-neutral-200 text-neutral-600'} ${recordingState.isRecording || recordingState.isConverting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Export aspect ratio"
               >
                 {(Object.keys(ASPECT_RATIO_LABELS) as AspectRatio[]).map((r) => (
@@ -324,19 +337,24 @@ export default function DetailView({
                 </svg>
               </button>
               <button
-                onClick={() => onToggleRecording(exportRatio)}
+                onClick={() => onToggleRecording(exportRatio, exportFormat)}
+                disabled={recordingState.isConverting}
                 className={`h-9 px-2.5 rounded-r-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${
                   recordingState.isRecording
                     ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : recordingState.isConverting
+                    ? 'bg-amber-600 text-white cursor-wait'
                     : darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'
                 }`}
-                title={recordingState.isRecording ? 'Stop Recording' : `Record Video (${ASPECT_RATIO_LABELS[exportRatio]})`}
+                title={recordingState.isRecording ? 'Stop Recording' : recordingState.isConverting ? 'Converting to MP4…' : `Record ${exportFormat === 'mp4' ? 'MP4' : 'WebM'} (${ASPECT_RATIO_LABELS[exportRatio]}) — max ${MAX_RECORDING_SECONDS}s`}
               >
                 {recordingState.isRecording ? (
                   <>
                     <span className="w-2.5 h-2.5 rounded-sm bg-white animate-pulse" />
                     <span className="text-xs font-mono tabular-nums">{Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')}</span>
                   </>
+                ) : recordingState.isConverting ? (
+                  <span className="text-xs font-medium animate-pulse">MP4…</span>
                 ) : (
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="6" />
@@ -404,6 +422,21 @@ export default function DetailView({
       {showVisualizer && (
         <div className="absolute inset-0 z-[5] p-4">
           <VisualizerContainer containerRef={containerRef} />
+          {/* MP4 conversion overlay */}
+          {recordingState.isConverting && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-lg">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="text-sm text-white/80">Converting to MP4…</span>
+                <button
+                  onClick={onCancelConversion}
+                  className="px-4 py-1.5 rounded-md text-sm bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

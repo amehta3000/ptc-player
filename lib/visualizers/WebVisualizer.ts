@@ -81,10 +81,10 @@ export class WebVisualizer extends BaseVisualizer {
     // Three.js setup
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
 
     this.renderer.setSize(width, height);
-    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.setClearColor(this.darkMode ? 0x000000 : 0xe8ebed, 1);
     this.container.appendChild(this.renderer.domElement);
 
     // Handle window resize
@@ -242,6 +242,13 @@ export class WebVisualizer extends BaseVisualizer {
     // Colors will be updated in next update cycle
   }
   
+  setDarkMode(isDark: boolean): void {
+    super.setDarkMode(isDark);
+    if (this.renderer) {
+      this.renderer.setClearColor(isDark ? 0x000000 : 0xe8ebed, 1);
+    }
+  }
+
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;

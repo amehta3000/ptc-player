@@ -113,13 +113,13 @@ export class TerrainVisualizer extends BaseVisualizer {
     );
     this.renderer = new THREE.WebGLRenderer({ 
       antialias: false, // Disable for performance
-      alpha: true,
+      alpha: false,
       powerPreference: 'high-performance',
       preserveDrawingBuffer: true
     });
     
     this.renderer.setSize(containerWidth, containerHeight);
-    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.setClearColor(this.darkMode ? 0x000000 : 0xe8ebed, 1);
     this.container.appendChild(this.renderer.domElement);
     this.container.style.cursor = 'grab';
     this.container.style.touchAction = 'none';
@@ -409,6 +409,13 @@ export class TerrainVisualizer extends BaseVisualizer {
     if (key === 'segments') {
       this.segmentsX = value;
       this.rebuildGeometry();
+    }
+  }
+
+  setDarkMode(isDark: boolean): void {
+    super.setDarkMode(isDark);
+    if (this.renderer) {
+      this.renderer.setClearColor(isDark ? 0x000000 : 0xe8ebed, 1);
     }
   }
 

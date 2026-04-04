@@ -235,7 +235,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
+      alpha: false,
       powerPreference: 'high-performance',
       preserveDrawingBuffer: true
     });

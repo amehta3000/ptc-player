@@ -144,7 +144,9 @@ export class BarsVisualizer extends BaseVisualizer {
     const w = this.canvas.width / dpr;
     const h = this.canvas.height / dpr;
 
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // Paint opaque background (instead of clearRect) so exports are never transparent
+    this.ctx.fillStyle = this.darkMode ? '#000000' : '#e8ebed';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.save();
     this.ctx.scale(dpr, dpr);
 

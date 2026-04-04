@@ -9,7 +9,7 @@ import { VisualizerManager } from './visualizerManager';
 import { VisualizerRegistry } from './visualizerRegistry';
 import { ColorScheme, VisualizerControl, VisualizerPreset } from './visualizers/BaseVisualizer';
 import { VisualizerType, VISUALIZER_TYPES } from '../store/usePlayerStore';
-import { captureScreenshot, VideoRecorder, RecordingState, AspectRatio } from './exportManager';
+import { captureScreenshot, VideoRecorder, RecordingState, AspectRatio, ExportFormat } from './exportManager';
 
 interface UseVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -38,7 +38,7 @@ export function useVisualizer({
   const [controls, setControls] = useState<VisualizerControl[]>([]);
   const [presets, setPresets] = useState<VisualizerPreset[]>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, number>>({});
-  const [recordingState, setRecordingState] = useState<RecordingState>({ isRecording: false, duration: 0 });
+  const [recordingState, setRecordingState] = useState<RecordingState>({ isRecording: false, isConverting: false, duration: 0 });
   const videoRecorderRef = useRef<VideoRecorder | null>(null);
 
   // Initialize audio engine
@@ -212,11 +212,11 @@ export function useVisualizer({
     const canvas = visualizerManagerRef.current?.getCanvas();
     if (!canvas) return;
     const name = VisualizerRegistry.getName(visualizerType);
-    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio);
-  }, [visualizerType]);
+    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio, darkMode);
+  }, [visualizerType, darkMode]);
 
   // Video recording
-  const toggleRecording = useCallback((ratio: AspectRatio = 'browser') => {
+  const toggleRecording = useCallback((ratio: AspectRatio = 'browser', format: ExportFormat = 'webm') => {
     if (!videoRecorderRef.current) {
       videoRecorderRef.current = new VideoRecorder(setRecordingState);
     }
@@ -226,8 +226,13 @@ export function useVisualizer({
     } else {
       const canvas = visualizerManagerRef.current?.getCanvas();
       if (!canvas || !audioContextRef.current || !analyserRef.current) return;
-      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio);
+      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio, darkMode, format);
     }
+  }, [darkMode]);
+
+  // Cancel MP4 conversion
+  const cancelConversion = useCallback(() => {
+    videoRecorderRef.current?.cancelConversion();
   }, []);
 
   // Cleanup recorder on unmount
@@ -250,6 +255,7 @@ export function useVisualizer({
     audioContextRef,
     takeScreenshot,
     toggleRecording,
+    cancelConversion,
     recordingState,
   };
 }

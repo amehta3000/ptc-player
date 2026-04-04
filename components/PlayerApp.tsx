@@ -51,6 +51,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     audioContextRef,
     takeScreenshot,
     toggleRecording,
+    cancelConversion,
     recordingState,
   } = useVisualizer({
     audioRef,
@@ -276,6 +277,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onToggleDarkMode={toggleDarkMode}
         onScreenshot={takeScreenshot}
         onToggleRecording={toggleRecording}
+        onCancelConversion={cancelConversion}
         recordingState={recordingState}
       />
     </div>
