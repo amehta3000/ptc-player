@@ -88,7 +88,7 @@ export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   sonicGalaxy: 'Sonic Galaxy',
   raindrops: 'Raindrops',
   sacredGeometry: 'Sacred Geometry',
-  // cassette: 'Cassette', // disabled
+  cassette: 'Cassette',
 };
 
 export const FONTS = [
