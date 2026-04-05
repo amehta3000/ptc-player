@@ -107,6 +107,8 @@ export default function DetailView({
   const socialMenuRef = useRef<HTMLDivElement>(null);
   const [exportRatio, setExportRatio] = useState<AspectRatio>('browser');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('webm');
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!socialMenuOpen) return;
@@ -118,6 +120,17 @@ export default function DetailView({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [socialMenuOpen]);
+
+  useEffect(() => {
+    if (!toolsMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
+        setToolsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [toolsMenuOpen]);
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -300,69 +313,6 @@ export default function DetailView({
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
           </button>
-          {/* Export: Format + Aspect Ratio + Screenshot + Record */}
-          {showVisualizer && (
-            <div className="flex items-center">
-              <select
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-                disabled={recordingState.isRecording || recordingState.isConverting}
-                className={`h-9 px-1.5 rounded-l-md text-xs border-none outline-none cursor-pointer transition-all duration-300 ${darkMode ? 'bg-neutral-800 text-white/70' : 'bg-neutral-200 text-neutral-600'} ${recordingState.isRecording || recordingState.isConverting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Video format"
-              >
-                <option value="webm" className="bg-neutral-900 text-white">WebM</option>
-                <option value="mp4" className="bg-neutral-900 text-white">MP4</option>
-              </select>
-              <select
-                value={exportRatio}
-                onChange={(e) => setExportRatio(e.target.value as AspectRatio)}
-                disabled={recordingState.isRecording || recordingState.isConverting}
-                className={`h-9 px-1.5 text-xs border-none outline-none cursor-pointer transition-all duration-300 ${darkMode ? 'bg-neutral-800 text-white/70' : 'bg-neutral-200 text-neutral-600'} ${recordingState.isRecording || recordingState.isConverting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Export aspect ratio"
-              >
-                {(Object.keys(ASPECT_RATIO_LABELS) as AspectRatio[]).map((r) => (
-                  <option key={r} value={r} className="bg-neutral-900 text-white">
-                    {ASPECT_RATIO_LABELS[r]}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => onScreenshot(exportRatio)}
-                className={`h-9 px-2.5 text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
-                title={`Screenshot (${ASPECT_RATIO_LABELS[exportRatio]})`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => onToggleRecording(exportRatio, exportFormat)}
-                disabled={recordingState.isConverting}
-                className={`h-9 px-2.5 rounded-r-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                  recordingState.isRecording
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : recordingState.isConverting
-                    ? 'bg-amber-600 text-white cursor-wait'
-                    : darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'
-                }`}
-                title={recordingState.isRecording ? 'Stop Recording' : recordingState.isConverting ? 'Converting to MP4…' : `Record ${exportFormat === 'mp4' ? 'MP4' : 'WebM'} (${ASPECT_RATIO_LABELS[exportRatio]}) — max ${MAX_RECORDING_SECONDS}s`}
-              >
-                {recordingState.isRecording ? (
-                  <>
-                    <span className="w-2.5 h-2.5 rounded-sm bg-white animate-pulse" />
-                    <span className="text-xs font-mono tabular-nums">{Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')}</span>
-                  </>
-                ) : recordingState.isConverting ? (
-                  <span className="text-xs font-medium animate-pulse">MP4…</span>
-                ) : (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="6" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          )}
           {/* View navigator: < Name > */}
           <div className="flex items-center">
             <button
@@ -390,17 +340,117 @@ export default function DetailView({
               </svg>
             </button>
           </div>
-          {/* Toggle controls */}
-          <button
-            onClick={() => showVisualizer && setShowControls(!showControls)}
-            disabled={!showVisualizer}
-            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${!showVisualizer ? (darkMode ? 'bg-neutral-800/50 text-neutral-600' : 'bg-neutral-300/50 text-neutral-400') + ' cursor-not-allowed' : darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
-            title={!showVisualizer ? 'Controls unavailable for Album Art' : showControls ? 'Hide Controls' : 'Show Controls'}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-          </button>
+          {/* Tools menu (⋯) — controls, export, screenshot */}
+          <div className="relative" ref={toolsMenuRef}>
+            <button
+              onClick={() => setToolsMenuOpen(!toolsMenuOpen)}
+              className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
+              aria-label="Tools menu"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
+            {toolsMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-lg backdrop-blur-xl bg-black/85 border border-white/15 shadow-xl overflow-hidden">
+                {/* Toggle Controls */}
+                {showVisualizer && (
+                  <button
+                    onClick={() => { setShowControls(!showControls); setToolsMenuOpen(false); }}
+                    className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    {showControls ? 'Hide Controls' : 'Show Controls'}
+                  </button>
+                )}
+                {/* Screenshot */}
+                {showVisualizer && (
+                  <>
+                    <div className="border-t border-white/10" />
+                    <button
+                      onClick={() => { onScreenshot(exportRatio); setToolsMenuOpen(false); }}
+                      className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Take Snapshot
+                    </button>
+                  </>
+                )}
+                {/* Record Video */}
+                {showVisualizer && (
+                  <>
+                    <div className="border-t border-white/10" />
+                    <button
+                      onClick={() => { onToggleRecording(exportRatio, exportFormat); if (!recordingState.isRecording) setToolsMenuOpen(false); }}
+                      disabled={recordingState.isConverting}
+                      className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center gap-3 ${
+                        recordingState.isRecording
+                          ? 'text-red-400 hover:bg-red-500/15'
+                          : recordingState.isConverting
+                          ? 'text-amber-400 cursor-wait'
+                          : 'text-white/90 hover:bg-white/10'
+                      }`}
+                    >
+                      {recordingState.isRecording ? (
+                        <>
+                          <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                            <span className="w-2.5 h-2.5 rounded-sm bg-red-400 animate-pulse" />
+                          </span>
+                          Stop Recording ({Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')})
+                        </>
+                      ) : recordingState.isConverting ? (
+                        <>
+                          <span className="w-4 h-4 flex-shrink-0 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                          Converting MP4…
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="6" />
+                          </svg>
+                          Record Video
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+                {/* Export options: format + aspect ratio */}
+                {showVisualizer && !recordingState.isRecording && !recordingState.isConverting && (
+                  <>
+                    <div className="border-t border-white/10" />
+                    <div className="px-3 py-2 flex items-center gap-2">
+                      <select
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                        className="flex-1 bg-white/10 text-white/80 text-xs rounded px-2 py-1.5 border border-white/10 cursor-pointer focus:outline-none"
+                      >
+                        <option value="webm" className="bg-neutral-900 text-white">WebM</option>
+                        <option value="mp4" className="bg-neutral-900 text-white">MP4</option>
+                      </select>
+                      <select
+                        value={exportRatio}
+                        onChange={(e) => setExportRatio(e.target.value as AspectRatio)}
+                        className="flex-1 bg-white/10 text-white/80 text-xs rounded px-2 py-1.5 border border-white/10 cursor-pointer focus:outline-none"
+                      >
+                        {(Object.keys(ASPECT_RATIO_LABELS) as AspectRatio[]).map((r) => (
+                          <option key={r} value={r} className="bg-neutral-900 text-white">
+                            {ASPECT_RATIO_LABELS[r]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
