@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 // @ts-ignore — three.js addons have no type declarations in this version
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
@@ -15,12 +15,15 @@ export class CassetteVisualizer extends BaseVisualizer {
   private camera: THREE.PerspectiveCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
   private cassetteModel: THREE.Group | null = null;
+  private modelPivot: THREE.Group | null = null;
   private reelMeshes: THREE.Object3D[] = [];
+  private reelAxis: THREE.Vector3 = new THREE.Vector3(0, 0, 1);
   private lights: THREE.Light[] = [];
   private orbitLight: THREE.PointLight | null = null;
+  private baseScale: number = 1;
 
   // Camera drag
-  private cameraAngle = { theta: 0.3, phi: 0.8 };
+  private cameraAngle = { theta: 0.3, phi: 1.2 };
   private cameraDistance = 5;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
@@ -201,40 +204,33 @@ export class CassetteVisualizer extends BaseVisualizer {
     loader.load(
       modelPath,
       (gltf: any) => {
-        console.log('[Cassette] Model loaded successfully, scene:', gltf.scene);
-        this.cassetteModel = gltf.scene;
-        if (!this.cassetteModel) return;
+        console.log('[Cassette] Model loaded successfully');
+        const model = gltf.scene as THREE.Group;
 
-        // Log all mesh names for debugging
-        this.cassetteModel.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            console.log('[Cassette] Mesh found:', child.name);
-          }
+        // Log all mesh/object names for debugging
+        model.traverse((child) => {
+          console.log('[Cassette] Node:', child.name, child.type);
         });
 
-        // Center and scale the model
-        const box = new THREE.Box3().setFromObject(this.cassetteModel);
+        // Calculate bounding box BEFORE any transforms
+        const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 3 / maxDim;
-        this.cassetteModel.scale.setScalar(scale);
-        this.cassetteModel.position.sub(center.multiplyScalar(scale));
+        this.baseScale = 3 / maxDim;
 
-        // Find reel meshes (heuristic: look for cylindrical/circular parts)
-        this.findReels(this.cassetteModel);
+        // Create a pivot group: center the model, then scale the pivot
+        this.modelPivot = new THREE.Group();
+        model.position.set(-center.x, -center.y, -center.z);
+        this.modelPivot.add(model);
+        this.modelPivot.scale.setScalar(this.baseScale);
 
-        // Slightly metallic materials for visual appeal
-        this.cassetteModel.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            const mesh = child as THREE.Mesh;
-            if (mesh.material instanceof THREE.MeshStandardMaterial) {
-              mesh.material.envMapIntensity = 1.5;
-            }
-          }
-        });
+        this.cassetteModel = model;
 
-        this.scene!.add(this.cassetteModel);
+        // Find reel meshes
+        this.findReels(model);
+
+        this.scene!.add(this.modelPivot);
       },
       (progress: any) => {
         console.log('[Cassette] Loading progress:', progress?.loaded, '/', progress?.total);
@@ -246,32 +242,23 @@ export class CassetteVisualizer extends BaseVisualizer {
   }
 
   private findReels(model: THREE.Group): void {
-    // Look for objects that are likely reels by name or geometry
-    // Common names in cassette models: "reel", "spool", "hub", "wheel"
-    const reelKeywords = ['reel', 'spool', 'hub', 'wheel', 'roller', 'spindle', 'cylinder'];
+    // Look for objects that are likely reels by name
+    const reelKeywords = ['reel', 'spool', 'hub', 'wheel', 'roller', 'spindle', 'cylinder', 'gear', 'sprocket'];
     model.traverse((child) => {
       const name = child.name.toLowerCase();
       if (reelKeywords.some((kw) => name.includes(kw))) {
         this.reelMeshes.push(child);
+        console.log('[Cassette] Found reel by name:', child.name);
       }
     });
 
-    // If no named reels found, pick the two most likely cylindrical meshes
-    if (this.reelMeshes.length === 0) {
-      const candidates: { obj: THREE.Object3D; x: number }[] = [];
-      model.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const pos = new THREE.Vector3();
-          child.getWorldPosition(pos);
-          candidates.push({ obj: child, x: pos.x });
-        }
-      });
-      // Sort by x position, pick the leftmost and rightmost as the two reels
-      if (candidates.length >= 2) {
-        candidates.sort((a, b) => a.x - b.x);
-        this.reelMeshes.push(candidates[0].obj);
-        this.reelMeshes.push(candidates[candidates.length - 1].obj);
-      }
+    // If no named reels found, don't guess — just skip reel spinning
+    if (this.reelMeshes.length > 0) {
+      // Detect the rotation axis from the first reel's local orientation
+      // For a cassette viewed from front, reels typically spin around Z or Y
+      console.log('[Cassette] Found', this.reelMeshes.length, 'reel meshes');
+    } else {
+      console.log('[Cassette] No reel meshes found by name — reel spinning disabled');
     }
   }
 
@@ -363,25 +350,26 @@ export class CassetteVisualizer extends BaseVisualizer {
       this.updateCameraPosition();
     }
 
-    // Spin reels — faster with bass
+    // Spin reels — faster with bass (rotate around local Y axis)
     const spinSpeed = reelSpeed * (0.5 + this.smoothedBass * 2);
     this.reelAngle += spinSpeed * 0.05;
     for (const reel of this.reelMeshes) {
-      reel.rotation.z = this.reelAngle;
+      reel.rotation.y = this.reelAngle;
     }
 
-    // Bass wobble: slight scale pulse on the whole model
-    if (this.cassetteModel) {
+    // Apply effects to the pivot group (not the model itself)
+    if (this.modelPivot) {
+      // Bass wobble: slight scale pulse
       const wobbleScale = 1 + this.smoothedBass * bassWobble * 0.15;
-      this.cassetteModel.scale.setScalar(wobbleScale * 3 / this.getModelMaxDim());
+      this.modelPivot.scale.setScalar(this.baseScale * wobbleScale);
 
       // Bounce: vertical displacement
       const bounceY = Math.sin(this.time * 3) * this.smoothedBass * bounce * 0.3;
-      this.cassetteModel.position.y = bounceY;
+      this.modelPivot.position.y = bounceY;
 
       // Tilt react: model tilts based on mid frequencies
-      this.cassetteModel.rotation.x = this.smoothedMid * tiltReact * 0.5;
-      this.cassetteModel.rotation.z = Math.sin(this.time * 2) * this.smoothedHigh * tiltReact * 0.3;
+      this.modelPivot.rotation.x = this.smoothedMid * tiltReact * 0.5;
+      this.modelPivot.rotation.z = Math.sin(this.time * 2) * this.smoothedHigh * tiltReact * 0.3;
     }
 
     // Orbit light — moves around the cassette, color shifts with audio
@@ -405,13 +393,6 @@ export class CassetteVisualizer extends BaseVisualizer {
     }
 
     this.renderer.render(this.scene, this.camera);
-  }
-
-  private getModelMaxDim(): number {
-    if (!this.cassetteModel) return 1;
-    const box = new THREE.Box3().setFromObject(this.cassetteModel);
-    const size = box.getSize(new THREE.Vector3());
-    return Math.max(size.x, size.y, size.z) || 1;
   }
 
   private parseHexOrRGBToColor(color: string): { r: number; g: number; b: number } {
@@ -464,6 +445,7 @@ export class CassetteVisualizer extends BaseVisualizer {
     this.camera = null;
     this.renderer = null;
     this.cassetteModel = null;
+    this.modelPivot = null;
     this.reelMeshes = [];
     this.lights = [];
     this.orbitLight = null;

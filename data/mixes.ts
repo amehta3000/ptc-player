@@ -54,16 +54,6 @@ export const mixes: Mix[] = [
     type: "track",
     artist: "Part-Time Chiller"
   },
-  {
-    title: "Synthcopated",
-    slug: "synthcopated",
-    cover: "https://media.parttimechiller.com/Synthcopated_PTC.png",
-    audio: "https://media.parttimechiller.com/Synthcopated_PTC.mp3",
-    duration: "3:17",
-    description: "A little bounce for an ounce.",
-    type: "track",
-    artist: "Part-Time Chiller"
-  },
    {
     title: "Midnight interlude",
     slug: "midnight-interlude",
@@ -115,6 +105,36 @@ export const mixes: Mix[] = [
     artist: "Part-Time Chiller DJ Set"
   },
   {
+    title: "Stranger Events",
+    slug: "stranger-events",
+    cover: "https://media.parttimechiller.com/StrangerEvents_PTC.png",
+    audio: "https://media.parttimechiller.com/StrangerEvents_PTC.mp3",
+    duration: "3:16",
+    description: "Things are strange out there",
+    type: "track",
+    artist: "Part-Time Chiller"
+  },
+  {
+    title: "Loose Grooves",
+    slug: "loose-grooves",
+    cover: "https://media.parttimechiller.com/LooseGrooves_PTC.png",
+    audio: "https://media.parttimechiller.com/LooseGrooves_PTC.mp3",
+    duration: "4:16",
+    description: "So loose, so groovy",
+    type: "track",
+    artist: "Part-Time Chiller"
+  },
+  {
+    title: "Synthcopated",
+    slug: "synthcopated",
+    cover: "https://media.parttimechiller.com/Synthcopated_PTC.png",
+    audio: "https://media.parttimechiller.com/Synthcopated_PTC.mp3",
+    duration: "3:17",
+    description: "A little bounce for an ounce.",
+    type: "track",
+    artist: "Part-Time Chiller"
+  },  
+  {
     title: "Rise Up",
     slug: "rise-up",
     cover: "https://media.parttimechiller.com/RiseUp_PTC.png",
@@ -123,5 +143,15 @@ export const mixes: Mix[] = [
     description: "Time to get up and get down",
     type: "track",
     artist: "Part-Time Chiller"
-  }
+  },
+  {
+    title: "Aw Yeah",
+    slug: "aw-yeah",
+    cover: "https://media.parttimechiller.com/AwYeah_PTC.png",
+    audio: "https://media.parttimechiller.com/AwYeah_PTC.mp3",
+    duration: "7:20",
+    description: "Aw yeah, aw yeah, aw yeah",
+    type: "track",
+    artist: "Part-Time Chiller"
+  }          
 ];

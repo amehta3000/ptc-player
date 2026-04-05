@@ -26,6 +26,9 @@ jobs:
         
       - name: Build with Next.js
         run: npm run build
+        env:
+          NEXT_PUBLIC_CLARITY_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_CLARITY_PROJECT_ID }}
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

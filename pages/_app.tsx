@@ -3,12 +3,12 @@ import Head from 'next/head'
 import '../styles/globals.css'
 
 export default function App({ Component, pageProps }: AppProps) {
-  // const clarityId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   
   return (
     <>
-      {/* Microsoft Clarity - Temporarily disabled to avoid CSP errors */}
-      {/* <Head>
+      <Head>
         {clarityId && (
           <script
             type="text/javascript"
@@ -23,7 +23,22 @@ export default function App({ Component, pageProps }: AppProps) {
             }}
           />
         )}
-      </Head> */}
+        {gaId && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}');
+                `,
+              }}
+            />
+          </>
+        )}
+      </Head>
       <main>
         <Component {...pageProps} />
       </main>
