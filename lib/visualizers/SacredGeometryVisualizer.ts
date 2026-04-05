@@ -220,10 +220,10 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     main.add(line);
     mainRefs.push(mat);
 
-    // 4-pass additive glow halo
-    const passes = 4;
+    // Multi-pass additive glow halo — wide enough to be visible
+    const passes = 5;
     for (let g = 1; g <= passes; g++) {
-      const baseOp = opacity * 0.18 / g;
+      const baseOp = opacity * 0.35 / g;
       const glowMat = new THREE.LineBasicMaterial({
         color,
         transparent: true,
@@ -233,7 +233,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       });
       const glowLine = new THREE.Line(geometry.clone(), glowMat);
       if (position) glowLine.position.copy(position);
-      glowLine.scale.setScalar(1 + g * 0.015);
+      glowLine.scale.setScalar(1 + g * 0.04);
       glow.add(glowLine);
       glowRefs.push({ material: glowMat, baseOpacity: baseOp });
     }
@@ -253,8 +253,8 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     main.add(new THREE.LineSegments(geometry, mat));
     mainRefs.push(mat);
 
-    for (let g = 1; g <= 3; g++) {
-      const baseOp = opacity * 0.15 / g;
+    for (let g = 1; g <= 4; g++) {
+      const baseOp = opacity * 0.3 / g;
       const glowMat = new THREE.LineBasicMaterial({
         color,
         transparent: true,
@@ -263,7 +263,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
         depthWrite: false,
       });
       const gl = new THREE.LineSegments(geometry.clone(), glowMat);
-      gl.scale.setScalar(1 + g * 0.012);
+      gl.scale.setScalar(1 + g * 0.035);
       glow.add(gl);
       glowRefs.push({ material: glowMat, baseOpacity: baseOp });
     }
@@ -481,11 +481,10 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       layer.rotation.z += rotDelta;
       glowLayer.rotation.z += rotDelta;
 
-      // ── Scale pulse: strong bass kick + breathing ──
+      // ── Scale pulse: bass kick + per-layer band expansion ──
       const breath = 1 + Math.sin(this.time * 1.8 + i * 0.9) * 0.02;
-      const kick = 1 + this.smoothedBass * pulseStrength * 0.6;
-      // Per-layer expansion: outer layers expand more on their frequency band
-      const expand = 1 + layerAudio * pulseStrength * 0.35 * (0.5 + t);
+      const kick = 1 + this.smoothedBass * pulseStrength * 1.5;
+      const expand = 1 + layerAudio * pulseStrength * 0.8 * (0.5 + t);
       const s = breath * kick * expand;
       layer.scale.setScalar(s);
       glowLayer.scale.setScalar(s);
@@ -511,10 +510,11 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
         }
       }
 
-      // Update glow materials — pump hard on audio
+      // Update glow materials — scale directly with glowIntensity
       const glows = this.glowMaterials[i];
       if (glows) {
-        const glowMult = glowIntensity * (0.3 + this.smoothedNorm * 3 + this.smoothedBass * 2);
+        // glowIntensity 0→1 maps to multiplier 0→6, with audio adding up to 4x more
+        const glowMult = glowIntensity * 6 * (0.3 + this.smoothedNorm * 2.5 + this.smoothedBass * 1.5);
         for (const ref of glows) {
           ref.material.color.lerp(targetColor, 0.12);
           ref.material.opacity = Math.min(1, ref.baseOpacity * glowMult);
