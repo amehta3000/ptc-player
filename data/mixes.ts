@@ -75,36 +75,6 @@ export const mixes: Mix[] = [
     artist: "Part-Time Chiller"
   },
   {
-    title: "Live at Oldfields mix",
-    slug: "live-at-oldfields",
-    cover: "https://media.parttimechiller.com/OldfieldsMix_PTC.png",
-    audio: "https://media.parttimechiller.com/OldfieldsMix_PTC.mp3",
-    duration: "3:00:00",
-    description: "Midtempo vibes for Friday evening soirée",
-    type: "mix",
-    artist: "Part-Time Chiller DJ Set"
-  },
-  {
-    title: "Live at Tamarak Ventures",
-    slug: "live-at-tamarak-ventures",
-    cover: "https://media.parttimechiller.com/TamarakMix_PTC.png",
-    audio: "https://media.parttimechiller.com/TamarakMix_PTC.mp3",
-    duration: "3:00:00",
-    description: "Perfect early summertime evening vibes recorded at Tamarak Ventures 2025",
-    type: "mix",
-    artist: "Part-Time Chiller DJ Set"
-  },
-  {
-    title: "Mixing at Margot",
-    slug: "mixing-at-margot",
-    cover: "https://media.parttimechiller.com/MixAtMargot_PTC.png",
-    audio: "https://media.parttimechiller.com/MixAtMargot_PTC.mp3",
-    duration: "2:38:29",
-    description: "Sophisticated sexy vibes recorded live at Margot in Los Angeles",
-    type: "mix",
-    artist: "Part-Time Chiller DJ Set"
-  },
-  {
     title: "Stranger Events",
     slug: "stranger-events",
     cover: "https://media.parttimechiller.com/StrangerEvents_PTC.png",
@@ -154,4 +124,35 @@ export const mixes: Mix[] = [
     type: "track",
     artist: "Part-Time Chiller"
   }          
+  ,
+  {
+    title: "Live at Oldfields mix",
+    slug: "live-at-oldfields",
+    cover: "https://media.parttimechiller.com/OldfieldsMix_PTC.png",
+    audio: "https://media.parttimechiller.com/OldfieldsMix_PTC.mp3",
+    duration: "3:00:00",
+    description: "Midtempo vibes for Friday evening soirée",
+    type: "mix",
+    artist: "Part-Time Chiller DJ Set"
+  },
+  {
+    title: "Live at Tamarak Ventures",
+    slug: "live-at-tamarak-ventures",
+    cover: "https://media.parttimechiller.com/TamarakMix_PTC.png",
+    audio: "https://media.parttimechiller.com/TamarakMix_PTC.mp3",
+    duration: "3:00:00",
+    description: "Perfect early summertime evening vibes recorded at Tamarak Ventures 2025",
+    type: "mix",
+    artist: "Part-Time Chiller DJ Set"
+  },
+  {
+    title: "Mixing at Margot",
+    slug: "mixing-at-margot",
+    cover: "https://media.parttimechiller.com/MixAtMargot_PTC.png",
+    audio: "https://media.parttimechiller.com/MixAtMargot_PTC.mp3",
+    duration: "2:38:29",
+    description: "Sophisticated sexy vibes recorded live at Margot in Los Angeles",
+    type: "mix",
+    artist: "Part-Time Chiller DJ Set"
+  }
 ];
