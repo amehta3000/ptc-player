@@ -13,6 +13,7 @@ import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
 import { RaindropsVisualizer } from './visualizers/RaindropsVisualizer';
 import { CassetteVisualizer } from './visualizers/CassetteVisualizer';
 import { SacredGeometryVisualizer } from './visualizers/SacredGeometryVisualizer';
+import { JoyDivisionVisualizer } from './visualizers/JoyDivisionVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -121,7 +122,6 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
   particleCount: 4000,
   attractorCount: 3,
   gravity: 7.0,
-  midSpin: 1.0,
   maxSpeed: 0.5,
   particleSize: 0.5,
   cameraSpeed: 0.001,
@@ -157,4 +157,14 @@ VisualizerRegistry.register('cassette', 'Cassette', CassetteVisualizer, {
   bounce: 0.2,
   autoRotate: 0.003,
   tiltReact: 0.1,
+});
+
+VisualizerRegistry.register('joyDivision', 'Joy Division', JoyDivisionVisualizer, {
+  lineCount: 40,
+  pointsPerLine: 128,
+  amplitude: 2.0,
+  lineSpacing: 0.12,
+  cameraTilt: 45,
+  rotationSpeed: 0,
+  smoothing: 0.15,
 });

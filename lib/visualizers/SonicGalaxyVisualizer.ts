@@ -114,15 +114,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         value: this.config.gravity ?? 7.0
       },
       {
-        name: 'Mid Spin',
-        key: 'midSpin',
-        min: 0.5,
-        max: 10,
-        step: 0.5,
-        default: 1.0,
-        value: this.config.midSpin || 1.0
-      },
-      {
         name: 'Max Speed',
         key: 'maxSpeed',
         min: 0,
@@ -169,7 +160,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleCount: 1000,
           attractorCount: 2,
           gravity: 10.0,
-          midSpin: 0.5,
           maxSpeed: 0,
           particleSize: 0.5,
           cameraSpeed: 0.01,
@@ -182,7 +172,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleCount: 4000,
           attractorCount: 6,
           gravity: 9.0,
-          midSpin: 1.0,
           maxSpeed: 0.5,
           particleSize: 0.5,
           cameraSpeed: 0.002,
@@ -195,7 +184,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleCount: 4000,
           attractorCount: 4,
           gravity: 7.0,
-          midSpin: 4.5,
           maxSpeed: 4.0,
           particleSize: 0.5,
           cameraSpeed: 0.001,
@@ -208,7 +196,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleCount: 4000,
           attractorCount: 3,
           gravity: 7.0,
-          midSpin: 1.0,
           maxSpeed: 0.5,
           particleSize: 0.5,
           cameraSpeed: 0.001,
@@ -485,7 +472,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
 
     // Update attractor properties based on audio
     const gravityMult = this.config.gravity ?? 7.0;
-    const midSpinMult = this.config.midSpin ?? 1.0;
+    const midSpinMult = 1.0;
 
     // Decay beat boost toward 1
     this.beatBoost += (1 - this.beatBoost) * 0.06;
