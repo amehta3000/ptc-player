@@ -85,16 +85,6 @@ export const mixes: Mix[] = [
     artist: "Part-Time Chiller"
   },
   {
-    title: "Loose Grooves",
-    slug: "loose-grooves",
-    cover: "https://media.parttimechiller.com/LooseGrooves_PTC.png",
-    audio: "https://media.parttimechiller.com/LooseGrooves_PTC.mp3",
-    duration: "4:16",
-    description: "So loose, so groovy",
-    type: "track",
-    artist: "Part-Time Chiller"
-  },
-  {
     title: "Synthcopated",
     slug: "synthcopated",
     cover: "https://media.parttimechiller.com/Synthcopated_PTC.png",
@@ -123,8 +113,17 @@ export const mixes: Mix[] = [
     description: "Aw yeah, aw yeah, aw yeah",
     type: "track",
     artist: "Part-Time Chiller"
-  }          
-  ,
+  },
+  {
+    title: "Loose Grooves",
+    slug: "loose-grooves",
+    cover: "https://media.parttimechiller.com/LooseGrooves_PTC.png",
+    audio: "https://media.parttimechiller.com/LooseGrooves_PTC.mp3",
+    duration: "4:16",
+    description: "So loose, so groovy",
+    type: "track",
+    artist: "Part-Time Chiller"
+  },  
   {
     title: "Live at Oldfields mix",
     slug: "live-at-oldfields",

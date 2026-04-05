@@ -481,20 +481,26 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       layer.rotation.z += rotDelta;
       glowLayer.rotation.z += rotDelta;
 
-      // ── Scale pulse: bass kick + per-layer band expansion ──
-      const breath = 1 + Math.sin(this.time * 1.8 + i * 0.9) * 0.02;
-      const kick = 1 + this.smoothedBass * pulseStrength * 1.5;
-      const expand = 1 + layerAudio * pulseStrength * 0.8 * (0.5 + t);
+      // ── Scale pulse: visible breathing + bass kick + per-layer expansion ──
+      // pulseStrength directly controls a breathing amplitude so you SEE it even without audio
+      const breathAmp = 0.02 + pulseStrength * 0.12; // 0.02 at min, 0.14 at max
+      const breathSpeed = 1.5 + pulseStrength * 2; // faster pulse at higher strength
+      const breath = 1 + Math.sin(this.time * breathSpeed + i * 0.9) * breathAmp;
+      const kick = 1 + this.smoothedBass * (0.3 + pulseStrength * 2.0);
+      const expand = 1 + layerAudio * (0.2 + pulseStrength * 1.2) * (0.5 + t);
       const s = breath * kick * expand;
       layer.scale.setScalar(s);
       glowLayer.scale.setScalar(s);
 
-      // ── Color: shift between dominant & accent based on audio + time ──
+      // ── Color: colorShift controls how much layers differ in color ──
+      // At colorShift=0: all layers use dominant. At colorShift=1: layers spread fully across dominant→accent
+      const layerBase = layerCount > 1 ? i / (layerCount - 1) : 0.5; // 0..1 per layer
       const wave = Math.sin(this.time * 0.6 + i * 1.1) * 0.5 + 0.5;
-      const audioColorPush = this.smoothedNorm * colorShift;
-      const mix = wave * colorShift + audioColorPush + (1 - colorShift) * (i % 2 === 0 ? 0.15 : 0.85);
-      const clampedMix = Math.max(0, Math.min(1, mix));
-      const targetColor = new THREE.Color().lerpColors(dominant, accent, clampedMix);
+      const colorSpread = layerBase * colorShift; // how far this layer shifts toward accent
+      const audioColorPush = this.smoothedNorm * colorShift * 0.4;
+      const timeWobble = wave * colorShift * 0.3;
+      const mix = Math.max(0, Math.min(1, colorSpread + audioColorPush + timeWobble));
+      const targetColor = new THREE.Color().lerpColors(dominant, accent, mix);
 
       // Brighten strongly with audio energy
       const brighten = 1 + this.smoothedHigh * 1.5 + layerAudio * 0.8;
