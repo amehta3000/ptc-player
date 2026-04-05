@@ -481,14 +481,14 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       layer.rotation.z += rotDelta;
       glowLayer.rotation.z += rotDelta;
 
-      // ── Scale pulse: visible breathing + bass kick + per-layer expansion ──
-      // pulseStrength directly controls a breathing amplitude so you SEE it even without audio
-      const breathAmp = 0.02 + pulseStrength * 0.12; // 0.02 at min, 0.14 at max
-      const breathSpeed = 1.5 + pulseStrength * 2; // faster pulse at higher strength
+      // ── Scale pulse: same audio analysis as glow for consistent reactivity ──
+      const breathAmp = 0.02 + pulseStrength * 0.12;
+      const breathSpeed = 1.5 + pulseStrength * 2;
       const breath = 1 + Math.sin(this.time * breathSpeed + i * 0.9) * breathAmp;
-      const kick = 1 + this.smoothedBass * (0.3 + pulseStrength * 2.0);
-      const expand = 1 + layerAudio * (0.2 + pulseStrength * 1.2) * (0.5 + t);
-      const s = breath * kick * expand;
+      // Mirror glow's audio formula: smoothedNorm * 2.5 + smoothedBass * 1.5
+      const audioPulse = 0.3 + this.smoothedNorm * 2.5 + this.smoothedBass * 1.5;
+      const scaleMult = 1 + pulseStrength * 0.5 * audioPulse;
+      const s = breath * scaleMult;
       layer.scale.setScalar(s);
       glowLayer.scale.setScalar(s);
 
