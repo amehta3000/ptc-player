@@ -87,12 +87,12 @@ export default function VisualizerControls({
             )}
           </label>
           {control.labels ? (
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {control.labels.map((label, i) => (
                 <button
                   key={i}
                   onClick={() => onUpdateConfig(control.key, i)}
-                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+                  className={`px-2 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
                     Math.round(control.value) === i
                       ? 'bg-white/20 text-white border border-white/30'
                       : 'bg-white/5 text-white/50 border border-white/5 hover:bg-white/10 hover:text-white/70'

@@ -484,21 +484,6 @@ export default function DetailView({
       {showVisualizer && (
         <div className="absolute inset-0 z-[5] p-4">
           <VisualizerContainer containerRef={containerRef} />
-          {/* MP4 conversion overlay */}
-          {recordingState.isConverting && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-lg">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span className="text-sm text-white/80">Converting to MP4…</span>
-                <button
-                  onClick={onCancelConversion}
-                  className="px-4 py-1.5 rounded-md text-sm bg-white/10 hover:bg-white/20 text-white transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -509,7 +494,7 @@ export default function DetailView({
 
       {/* Playlist Drawer */}
       <div
-        className={`absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 w-[90%] max-w-[60%] rounded-t-lg backdrop-blur-xl bg-black/60 border border-b-0 border-white/10 max-h-[60vh] overflow-y-auto transition-all duration-300 ${
+        className={`absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 w-[calc(100vw-1rem)] sm:w-[90%] sm:max-w-[60%] rounded-t-lg backdrop-blur-xl bg-black/60 border border-b-0 border-white/10 max-h-[60vh] overflow-y-auto transition-all duration-300 ${
           showPlaylist ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
         }`}
       >
