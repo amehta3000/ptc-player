@@ -58,10 +58,10 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
 
   getPresets(): VisualizerPreset[] {
     return [
-      { name: 'Flower of Life', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, layerCount: 6, complexity: 2, colorShift: 0.2, symmetry: 6 } },
-      { name: 'Metatron', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, layerCount: 8, complexity: 3, colorShift: 0.5, symmetry: 6 } },
-      { name: 'Minimal', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, layerCount: 3, complexity: 1, colorShift: 0.1, symmetry: 4 } },
-      { name: 'Hypnotic', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, colorShift: 0.8, symmetry: 8 } },
+      { name: '1', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, layerCount: 6, complexity: 2, colorShift: 0.2, symmetry: 6 } },
+      { name: '2', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, layerCount: 8, complexity: 3, colorShift: 0.5, symmetry: 6 } },
+      { name: '3', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, layerCount: 3, complexity: 1, colorShift: 0.1, symmetry: 4 } },
+      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, colorShift: 0.8, symmetry: 8 } },
     ];
   }
 
