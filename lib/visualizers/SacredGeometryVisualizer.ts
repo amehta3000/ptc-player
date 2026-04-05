@@ -30,6 +30,9 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
   private smoothedNorm = 0;
   private time = 0;
 
+  // Structural params that require geometry rebuild
+  private static STRUCTURAL_KEYS = new Set(['layerCount', 'complexity', 'symmetry']);
+
   // Zoom
   private cameraZoom = 1;
 
@@ -117,9 +120,27 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
   private buildGeometry(): void {
     if (!this.scene) return;
 
-    // Tear down previous
-    for (const l of this.layers) this.scene.remove(l);
-    for (const l of this.glowLayers) this.scene.remove(l);
+    // Tear down & dispose previous
+    for (const l of this.layers) {
+      l.traverse((child) => {
+        if ((child as THREE.Line).isLine) {
+          const line = child as THREE.Line;
+          line.geometry?.dispose();
+          (line.material as THREE.Material)?.dispose();
+        }
+      });
+      this.scene.remove(l);
+    }
+    for (const l of this.glowLayers) {
+      l.traverse((child) => {
+        if ((child as THREE.Line).isLine) {
+          const line = child as THREE.Line;
+          line.geometry?.dispose();
+          (line.material as THREE.Material)?.dispose();
+        }
+      });
+      this.scene.remove(l);
+    }
     this.layers = [];
     this.glowLayers = [];
     this.glowMaterials = [];
@@ -385,25 +406,35 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     return new THREE.Color(color);
   }
 
+  // ── Config override: rebuild geometry on structural changes ────────
+
+  updateConfig(key: string, value: number): void {
+    super.updateConfig(key, value);
+    if (SacredGeometryVisualizer.STRUCTURAL_KEYS.has(key)) {
+      this.buildGeometry();
+    }
+  }
+
   // ── Animation loop hooks ───────────────────────────────────────────
 
   update(audioAnalysis: AudioAnalysis): void {
     if (!this.isInitialized) return;
 
-    const { bassAvg, midAvg, highAvg, normalizedFrequency, isPlaying } = audioAnalysis;
-    const lerp = 0.08;
+    const { bassAvg, midAvg, highAvg, normalizedFrequency } = audioAnalysis;
 
-    if (isPlaying) {
-      this.smoothedBass += ((bassAvg / 255) - this.smoothedBass) * lerp;
-      this.smoothedMid += ((midAvg / 255) - this.smoothedMid) * lerp;
-      this.smoothedHigh += ((highAvg / 255) - this.smoothedHigh) * lerp;
-      this.smoothedNorm += (normalizedFrequency - this.smoothedNorm) * lerp;
-    } else {
-      this.smoothedBass *= 0.95;
-      this.smoothedMid *= 0.95;
-      this.smoothedHigh *= 0.95;
-      this.smoothedNorm *= 0.95;
-    }
+    // Always read raw audio data — analyser returns zeros when silent
+    const rawBass = bassAvg / 255;
+    const rawMid = midAvg / 255;
+    const rawHigh = highAvg / 255;
+
+    // Fast attack, slower release for punchy reactivity
+    const attack = 0.4;
+    const release = 0.06;
+
+    this.smoothedBass += (rawBass - this.smoothedBass) * (rawBass > this.smoothedBass ? attack : release);
+    this.smoothedMid += (rawMid - this.smoothedMid) * (rawMid > this.smoothedMid ? attack : release);
+    this.smoothedHigh += (rawHigh - this.smoothedHigh) * (rawHigh > this.smoothedHigh ? attack : release);
+    this.smoothedNorm += (normalizedFrequency - this.smoothedNorm) * (normalizedFrequency > this.smoothedNorm ? attack : release);
 
     this.time += 0.016;
   }
@@ -430,48 +461,62 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     const dominant = this.getDominant();
     const accent = this.getAccent();
 
-    for (let i = 0; i < this.layers.length; i++) {
+    const layerCount = this.layers.length;
+
+    for (let i = 0; i < layerCount; i++) {
       const layer = this.layers[i];
       const glowLayer = this.glowLayers[i];
+      const t = layerCount > 1 ? i / (layerCount - 1) : 0; // 0..1 normalized layer index
 
-      // ── Rotation: alternating dirs, audio-boosted ──
+      // ── Pick frequency band per layer: inner=bass, mid=mid, outer=high ──
+      const layerAudio = t < 0.33 ? this.smoothedBass
+        : t < 0.66 ? this.smoothedMid
+        : this.smoothedHigh;
+
+      // ── Rotation: alternating dirs, heavily audio-boosted ──
       const dir = i % 2 === 0 ? 1 : -1;
-      const speedMult = 0.6 + i * 0.25;
-      const audioBoost = 1 + this.smoothedMid * 2.5;
+      const speedMult = 0.5 + i * 0.3;
+      const audioBoost = 1 + layerAudio * 8;
       const rotDelta = dir * rotationSpeed * speedMult * audioBoost;
       layer.rotation.z += rotDelta;
       glowLayer.rotation.z += rotDelta;
 
-      // ── Scale pulse: gentle breathing + bass kick ──
-      const breath = 1 + Math.sin(this.time * 1.8 + i * 0.9) * 0.015;
-      const kick = 1 + this.smoothedBass * pulseStrength * 0.2;
-      const s = breath * kick;
+      // ── Scale pulse: strong bass kick + breathing ──
+      const breath = 1 + Math.sin(this.time * 1.8 + i * 0.9) * 0.02;
+      const kick = 1 + this.smoothedBass * pulseStrength * 0.6;
+      // Per-layer expansion: outer layers expand more on their frequency band
+      const expand = 1 + layerAudio * pulseStrength * 0.35 * (0.5 + t);
+      const s = breath * kick * expand;
       layer.scale.setScalar(s);
       glowLayer.scale.setScalar(s);
 
       // ── Color: shift between dominant & accent based on audio + time ──
-      const wave = Math.sin(this.time * 0.4 + i * 1.1) * 0.5 + 0.5;
-      const mix = wave * colorShift + (1 - colorShift) * (i % 2 === 0 ? 0.15 : 0.85);
-      const targetColor = new THREE.Color().lerpColors(dominant, accent, mix);
+      const wave = Math.sin(this.time * 0.6 + i * 1.1) * 0.5 + 0.5;
+      const audioColorPush = this.smoothedNorm * colorShift;
+      const mix = wave * colorShift + audioColorPush + (1 - colorShift) * (i % 2 === 0 ? 0.15 : 0.85);
+      const clampedMix = Math.max(0, Math.min(1, mix));
+      const targetColor = new THREE.Color().lerpColors(dominant, accent, clampedMix);
 
-      // Brighten with high frequencies
-      const brighten = 1 + this.smoothedHigh * 0.6;
-      targetColor.multiplyScalar(brighten);
+      // Brighten strongly with audio energy
+      const brighten = 1 + this.smoothedHigh * 1.5 + layerAudio * 0.8;
+      targetColor.multiplyScalar(Math.min(brighten, 3));
 
-      // Update main materials
+      // Update main materials — opacity also reacts to audio
       const mains = this.mainMaterials[i];
       if (mains) {
+        const mainOpacityBoost = 0.6 + layerAudio * 0.4 + this.smoothedNorm * 0.3;
         for (const mat of mains) {
-          mat.color.lerp(targetColor, 0.06);
+          mat.color.lerp(targetColor, 0.12);
+          mat.opacity = Math.min(1, mainOpacityBoost);
         }
       }
 
-      // Update glow materials (color + intensity)
+      // Update glow materials — pump hard on audio
       const glows = this.glowMaterials[i];
       if (glows) {
-        const glowMult = glowIntensity * (0.4 + this.smoothedNorm * 1.2);
+        const glowMult = glowIntensity * (0.3 + this.smoothedNorm * 3 + this.smoothedBass * 2);
         for (const ref of glows) {
-          ref.material.color.lerp(targetColor, 0.06);
+          ref.material.color.lerp(targetColor, 0.12);
           ref.material.opacity = Math.min(1, ref.baseOpacity * glowMult);
         }
       }
