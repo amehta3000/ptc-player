@@ -482,7 +482,10 @@ export default function DetailView({
 
       {/* Full-viewport visualizer layer (behind UI) */}
       {showVisualizer && (
-        <div className="absolute inset-0 z-[5] p-4">
+        <div
+          className="absolute inset-0 z-[5] p-0 sm:p-4"
+          onClick={() => { if (showControls && window.innerWidth < 640) setShowControls(false); }}
+        >
           <VisualizerContainer containerRef={containerRef} />
         </div>
       )}
