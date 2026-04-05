@@ -144,7 +144,8 @@ VisualizerRegistry.register('sacredGeometry', 'Sacred Geometry', SacredGeometryV
   pulseStrength: 0.4,
   layerCount: 6,
   complexity: 2,
-  colorShift: 0.4,
+  baseHue: 0,
+  harmonyMode: 1,
   symmetry: 6,
 });
 

@@ -51,17 +51,18 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       { name: 'Pulse Strength', key: 'pulseStrength', min: 0, max: 1, step: 0.05, default: 0.4, value: this.config.pulseStrength ?? 0.4 },
       { name: 'Layer Count', key: 'layerCount', min: 3, max: 8, step: 1, default: 6, value: this.config.layerCount ?? 6 },
       { name: 'Complexity', key: 'complexity', min: 1, max: 3, step: 1, default: 2, value: this.config.complexity ?? 2, labels: ['Simple', 'Medium', 'Complex'] },
-      { name: 'Color Shift', key: 'colorShift', min: 0, max: 1, step: 0.05, default: 0.4, value: this.config.colorShift ?? 0.4 },
+      { name: 'Base Hue', key: 'baseHue', min: 0, max: 360, step: 1, default: 0, value: this.config.baseHue ?? 0 },
+      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 4, step: 1, default: 1, value: this.config.harmonyMode ?? 1, labels: ['Mono', 'Analogous', 'Complement', 'Triadic', 'Tetradic'] },
       { name: 'Symmetry', key: 'symmetry', min: 3, max: 12, step: 1, default: 6, value: this.config.symmetry ?? 6 },
     ];
   }
 
   getPresets(): VisualizerPreset[] {
     return [
-      { name: '1', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, layerCount: 6, complexity: 2, colorShift: 0.2, symmetry: 6 } },
-      { name: '2', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, layerCount: 8, complexity: 3, colorShift: 0.5, symmetry: 6 } },
-      { name: '3', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, layerCount: 3, complexity: 1, colorShift: 0.1, symmetry: 4 } },
-      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, colorShift: 0.8, symmetry: 8 } },
+      { name: '1', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, layerCount: 6, complexity: 2, baseHue: 220, harmonyMode: 1, symmetry: 6 } },
+      { name: '2', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, layerCount: 8, complexity: 3, baseHue: 30, harmonyMode: 2, symmetry: 6 } },
+      { name: '3', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, layerCount: 3, complexity: 1, baseHue: 280, harmonyMode: 0, symmetry: 4 } },
+      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, baseHue: 160, harmonyMode: 3, symmetry: 8 } },
     ];
   }
 
@@ -388,6 +389,51 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
 
   // ── Color helpers ──────────────────────────────────────────────────
 
+  /** Generate an array of THREE.Color from baseHue + harmony mode for N layers */
+  private getHarmonyColors(baseHue: number, mode: number, count: number): THREE.Color[] {
+    const hues: number[] = [];
+    switch (mode) {
+      case 0: // Monochromatic — same hue, vary saturation/lightness
+        for (let i = 0; i < count; i++) hues.push(baseHue);
+        break;
+      case 1: // Analogous — spread ±30°
+        for (let i = 0; i < count; i++) {
+          const spread = count > 1 ? (i / (count - 1) - 0.5) * 60 : 0;
+          hues.push((baseHue + spread + 360) % 360);
+        }
+        break;
+      case 2: { // Complementary — base and base+180
+        const palette = [baseHue, (baseHue + 180) % 360];
+        for (let i = 0; i < count; i++) hues.push(palette[i % palette.length]);
+        break;
+      }
+      case 3: { // Triadic — base, +120, +240
+        const palette = [baseHue, (baseHue + 120) % 360, (baseHue + 240) % 360];
+        for (let i = 0; i < count; i++) hues.push(palette[i % palette.length]);
+        break;
+      }
+      case 4: { // Tetradic — base, +90, +180, +270
+        const palette = [baseHue, (baseHue + 90) % 360, (baseHue + 180) % 360, (baseHue + 270) % 360];
+        for (let i = 0; i < count; i++) hues.push(palette[i % palette.length]);
+        break;
+      }
+      default:
+        for (let i = 0; i < count; i++) hues.push(baseHue);
+    }
+
+    return hues.map((h, i) => {
+      const t = count > 1 ? i / (count - 1) : 0.5;
+      // Monochromatic: vary saturation & lightness; others: slight variation
+      const sat = mode === 0
+        ? 0.55 + t * 0.45 // 0.55→1.0
+        : 0.7 + t * 0.3;  // 0.7→1.0
+      const lit = mode === 0
+        ? 0.35 + (1 - t) * 0.35 // 0.70→0.35
+        : 0.45 + t * 0.15;      // 0.45→0.60
+      return new THREE.Color().setHSL(h / 360, sat, lit);
+    });
+  }
+
   private getDominant(): THREE.Color {
     return this.parseColor(this.colors.dominant);
   }
@@ -445,7 +491,8 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     const rotationSpeed = this.config.rotationSpeed ?? 0.003;
     const glowIntensity = this.config.glowIntensity ?? 0.6;
     const pulseStrength = this.config.pulseStrength ?? 0.4;
-    const colorShift = this.config.colorShift ?? 0.4;
+    const baseHue = this.config.baseHue ?? 0;
+    const harmonyMode = this.config.harmonyMode ?? 1;
 
     // Zoom
     const w = this.container.clientWidth || 800;
@@ -458,10 +505,8 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     this.camera.bottom = -frustumSize / 2;
     this.camera.updateProjectionMatrix();
 
-    const dominant = this.getDominant();
-    const accent = this.getAccent();
-
     const layerCount = this.layers.length;
+    const harmonyColors = this.getHarmonyColors(baseHue, harmonyMode, layerCount);
 
     for (let i = 0; i < layerCount; i++) {
       const layer = this.layers[i];
@@ -492,15 +537,14 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       layer.scale.setScalar(s);
       glowLayer.scale.setScalar(s);
 
-      // ── Color: colorShift controls how much layers differ in color ──
-      // At colorShift=0: all layers use dominant. At colorShift=1: layers spread fully across dominant→accent
-      const layerBase = layerCount > 1 ? i / (layerCount - 1) : 0.5; // 0..1 per layer
+      // ── Color: harmony-based per-layer coloring ──
+      const targetColor = harmonyColors[i].clone();
+      // Subtle hue wobble from audio + time
       const wave = Math.sin(this.time * 0.6 + i * 1.1) * 0.5 + 0.5;
-      const colorSpread = layerBase * colorShift; // how far this layer shifts toward accent
-      const audioColorPush = this.smoothedNorm * colorShift * 0.4;
-      const timeWobble = wave * colorShift * 0.3;
-      const mix = Math.max(0, Math.min(1, colorSpread + audioColorPush + timeWobble));
-      const targetColor = new THREE.Color().lerpColors(dominant, accent, mix);
+      const hsl = { h: 0, s: 0, l: 0 };
+      targetColor.getHSL(hsl);
+      const hueShift = (this.smoothedNorm * 0.03 + wave * 0.02);
+      targetColor.setHSL((hsl.h + hueShift) % 1, hsl.s, hsl.l);
 
       // Brighten strongly with audio energy
       const brighten = 1 + this.smoothedHigh * 1.5 + layerAudio * 0.8;
