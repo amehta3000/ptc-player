@@ -15,10 +15,18 @@ export class VisualizerManager {
   private animationFrameId: number | null = null;
   private isPlaying: boolean = false;
   private darkMode: boolean = true;
+  private resizeObserver: ResizeObserver | null = null;
   
   constructor(audioEngine: AudioEngine, container: HTMLDivElement) {
     this.audioEngine = audioEngine;
     this.container = container;
+
+    // Observe container size changes and dispatch window resize
+    // so all visualizers (which listen on window resize) get notified
+    this.resizeObserver = new ResizeObserver(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    this.resizeObserver.observe(this.container);
   }
   
   /**
@@ -147,6 +155,10 @@ export class VisualizerManager {
    */
   destroy(): void {
     this.stopAnimationLoop();
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
     if (this.currentVisualizer) {
       this.currentVisualizer.destroy();
       this.currentVisualizer = null;

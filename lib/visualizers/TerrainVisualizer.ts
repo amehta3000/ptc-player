@@ -186,6 +186,17 @@ export class TerrainVisualizer extends BaseVisualizer {
     
     // Add mouse/touch controls
     this.setupCameraControls(this.container);
+
+    // Handle resize
+    const handleResize = () => {
+      if (!this.camera || !this.renderer) return;
+      const w = this.container.clientWidth || 800;
+      const h = this.container.clientHeight || 600;
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
     
     // Animation loop handled by base class start() method
   }
