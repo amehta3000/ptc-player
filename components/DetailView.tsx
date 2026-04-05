@@ -324,6 +324,30 @@ export default function DetailView({
               </svg>
             </button>
           </div>
+          {/* Recording indicator — visible in header when recording/converting */}
+          {(recordingState.isRecording || recordingState.isConverting) && (
+            <button
+              onClick={() => recordingState.isRecording ? onToggleRecording(exportRatio, exportFormat) : onCancelConversion()}
+              className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                recordingState.isRecording
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-amber-600 hover:bg-amber-700 text-white'
+              }`}
+              title={recordingState.isRecording ? 'Stop Recording' : 'Cancel Conversion'}
+            >
+              {recordingState.isRecording ? (
+                <>
+                  <span className="w-2 h-2 rounded-sm bg-white animate-pulse" />
+                  <span className="text-xs font-mono tabular-nums">{Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')}</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="text-xs">MP4…</span>
+                </>
+              )}
+            </button>
+          )}
           {/* Tools menu (⋯) — controls, export, screenshot */}
           <div className="relative" ref={toolsMenuRef}>
             <button
