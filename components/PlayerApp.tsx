@@ -78,7 +78,6 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     setCurrentTime(0);
     setDuration(0);
     setShowDetail(true);
-    setShowVisualizer(true);
 
     if (mix.slug) {
       window.history.replaceState({}, '', `/ptc-player/track/${mix.slug}`);
@@ -89,7 +88,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     setAccentColor(colors.accent);
 
     trackEvent('song_selected', mix.title);
-  }, [setCurrentMix, setProgress, setCurrentTime, setDuration, setShowDetail, setShowVisualizer, setDominantColor, setAccentColor]);
+  }, [setCurrentMix, setProgress, setCurrentTime, setDuration, setShowDetail, setDominantColor, setAccentColor]);
 
   // Audio event listeners
   useEffect(() => {
