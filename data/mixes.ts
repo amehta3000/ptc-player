@@ -85,6 +85,16 @@ export const mixes: Mix[] = [
     artist: "Part-Time Chiller"
   },
   {
+    title: "Blastin",
+    slug: "blastin",
+    cover: "https://media.parttimechiller.com/Blastin_PTC.png",
+    audio: "https://media.parttimechiller.com/Blastin_PTC.mp3",
+    duration: "1:38",
+    description: "Who is blastin out my window at 2am? Oh wait, it's me.",
+    type: "track",
+    artist: "Part-Time Chiller"
+  },  
+  {
     title: "Synthcopated",
     slug: "synthcopated",
     cover: "https://media.parttimechiller.com/Synthcopated_PTC.png",
@@ -104,6 +114,27 @@ export const mixes: Mix[] = [
     type: "track",
     artist: "Part-Time Chiller"
   },
+  
+  // {
+  //   title: "Glide",
+  //   slug: "glide",
+  //   cover: "https://media.parttimechiller.com/Glide_PTC.png",
+  //   audio: "https://media.parttimechiller.com/Glide_PTC.mp3",
+  //   duration: "2:54",
+  //   description: "Frictionless cruising vibes",
+  //   type: "track",
+  //   artist: "Part-Time Chiller"
+  // },  
+  // {
+  //   title: "Loose Grooves",
+  //   slug: "loose-grooves",
+  //   cover: "https://media.parttimechiller.com/LooseGrooves_PTC.png",
+  //   audio: "https://media.parttimechiller.com/LooseGrooves_PTC.mp3",
+  //   duration: "4:16",
+  //   description: "So loose, so groovy",
+  //   type: "track",
+  //   artist: "Part-Time Chiller"
+  // },  
   {
     title: "Aw Yeah",
     slug: "aw-yeah",
@@ -111,16 +142,6 @@ export const mixes: Mix[] = [
     audio: "https://media.parttimechiller.com/AwYeah_PTC.mp3",
     duration: "7:20",
     description: "Aw yeah, aw yeah, aw yeah",
-    type: "track",
-    artist: "Part-Time Chiller"
-  },
-  {
-    title: "Loose Grooves",
-    slug: "loose-grooves",
-    cover: "https://media.parttimechiller.com/LooseGrooves_PTC.png",
-    audio: "https://media.parttimechiller.com/LooseGrooves_PTC.mp3",
-    duration: "4:16",
-    description: "So loose, so groovy",
     type: "track",
     artist: "Part-Time Chiller"
   },  
