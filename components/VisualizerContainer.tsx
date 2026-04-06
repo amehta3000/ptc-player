@@ -17,7 +17,7 @@ export default function VisualizerContainer({ containerRef }: VisualizerContaine
       <img
         src={currentMix.cover}
         alt={currentMix.title}
-        className="w-[80vw] max-w-md aspect-square object-cover rounded shadow-xl"
+        className="max-h-[90%] max-w-[90%] aspect-square object-cover rounded shadow-xl"
         style={{ boxShadow: `0 0 0 3px ${accentColor}40` }}
       />
     );

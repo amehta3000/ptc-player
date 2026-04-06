@@ -491,7 +491,7 @@ export default function DetailView({
       )}
 
       {/* Middle area — album art when not visualizing, spacer when visualizing */}
-      <div className={`relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}>
+      <div className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}>
         {!showVisualizer && <VisualizerContainer containerRef={containerRef} />}
       </div>
 
