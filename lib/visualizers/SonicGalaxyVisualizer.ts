@@ -148,6 +148,25 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         step: 0.01,
         default: 0,
         value: this.config.trail ?? 0
+      },
+      {
+        name: 'Base Hue',
+        key: 'baseHue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.baseHue ?? 0
+      },
+      {
+        name: 'Harmony',
+        key: 'harmonyMode',
+        min: 0,
+        max: 4,
+        step: 1,
+        default: 0,
+        value: this.config.harmonyMode ?? 0,
+        labels: ['Mono', 'Analogous', 'Complement', 'Triadic', 'Tetradic']
       }
     ];
   }
@@ -163,7 +182,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           maxSpeed: 0,
           particleSize: 0.5,
           cameraSpeed: 0.01,
-          trail: 0.40
+          trail: 0.40,
+          baseHue: 0,
+          harmonyMode: 0
         }
       },
       {
@@ -175,7 +196,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           maxSpeed: 0.5,
           particleSize: 0.5,
           cameraSpeed: 0.002,
-          trail: 0.14
+          trail: 0.14,
+          baseHue: 200,
+          harmonyMode: 1
         }
       },
       {
@@ -187,7 +210,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           maxSpeed: 4.0,
           particleSize: 0.5,
           cameraSpeed: 0.001,
-          trail: 0.03
+          trail: 0.03,
+          baseHue: 30,
+          harmonyMode: 2
         }
       },
       {
@@ -199,7 +224,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           maxSpeed: 0.5,
           particleSize: 0.5,
           cameraSpeed: 0.001,
-          trail: 0.08
+          trail: 0.08,
+          baseHue: 280,
+          harmonyMode: 3
         }
       }
     ];
@@ -355,11 +382,13 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       // radius ranges from 1.0 to 4.0 → bin 0 to 63
       const frequencyBin = Math.floor(Math.min(63, Math.max(0, (radius - 1) / 3 * 63)));
 
-      // Random HSL color per particle
-      const hue = Math.random() * 360;
+      // Random HSL color per particle — use harmony palette
+      const harmonyHues = this.getHarmonyHues(this.config.baseHue ?? 0, this.config.harmonyMode ?? 0);
+      const pickHue = harmonyHues[Math.floor(Math.random() * harmonyHues.length)];
+      const hue = pickHue + (Math.random() - 0.5) * 15; // slight jitter
       const saturation = 60 + Math.random() * 40; // 60-100%
       const lightness = 50 + Math.random() * 30; // 50-80%
-      const color = new THREE.Color().setHSL(hue / 360, saturation / 100, lightness / 100);
+      const color = new THREE.Color().setHSL(((hue % 360 + 360) % 360) / 360, saturation / 100, lightness / 100);
 
       // Add to geometry arrays
       positions.push(position.x, position.y, position.z);
@@ -775,14 +804,47 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       }
       this.renderer.domElement.style.filter = value > 0 ? `blur(${value * 2}px)` : 'none';
     }
+
+    if ((key === 'baseHue' || key === 'harmonyMode') && this.particleMesh) {
+      this.recolorParticles();
+    }
   }
 
   updateColors(colors: ColorScheme): void {
-    super.updateColors(colors);
+    this.colors = colors;
+  }
 
-    if (this.particleMesh && this.particleMesh.material instanceof THREE.ShaderMaterial) {
-      this.particleMesh.material.uniforms.colorA.value = new THREE.Color(colors.dominant);
-      this.particleMesh.material.uniforms.colorB.value = new THREE.Color(colors.accent);
+  /** Generate harmony hue palette from base hue + mode */
+  private getHarmonyHues(baseHue: number, mode: number): number[] {
+    switch (mode) {
+      case 0: return [baseHue]; // Mono
+      case 1: return [baseHue - 30, baseHue, baseHue + 30]; // Analogous
+      case 2: return [baseHue, baseHue + 180]; // Complementary
+      case 3: return [baseHue, baseHue + 120, baseHue + 240]; // Triadic
+      case 4: return [baseHue, baseHue + 90, baseHue + 180, baseHue + 270]; // Tetradic
+      default: return [baseHue];
     }
+  }
+
+  /** Update particle colors in-place without reinitializing */
+  private recolorParticles(): void {
+    if (!this.particleMesh) return;
+    const colorAttr = this.particleMesh.geometry.getAttribute('color');
+    if (!colorAttr) return;
+    const arr = colorAttr.array as Float32Array;
+    const harmonyHues = this.getHarmonyHues(this.config.baseHue ?? 0, this.config.harmonyMode ?? 0);
+    const count = arr.length / 3;
+    const tmpColor = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      const pickHue = harmonyHues[Math.floor(Math.random() * harmonyHues.length)];
+      const hue = pickHue + (Math.random() - 0.5) * 15;
+      const sat = 60 + Math.random() * 40;
+      const lit = 50 + Math.random() * 30;
+      tmpColor.setHSL(((hue % 360 + 360) % 360) / 360, sat / 100, lit / 100);
+      arr[i * 3] = tmpColor.r;
+      arr[i * 3 + 1] = tmpColor.g;
+      arr[i * 3 + 2] = tmpColor.b;
+    }
+    colorAttr.needsUpdate = true;
   }
 }
