@@ -110,6 +110,43 @@ export default function DetailView({
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
+  // Auto-hide UI after idle
+  const IDLE_TIMEOUT = 3000;
+  const [uiVisible, setUiVisible] = useState(true);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetIdleTimer = useCallback(() => {
+    setUiVisible(true);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      // Only hide if not interacting with menus/controls/playlist
+      if (!toolsMenuOpen && !socialMenuOpen && !showPlaylist && !showControls) {
+        setUiVisible(false);
+      }
+    }, IDLE_TIMEOUT);
+  }, [toolsMenuOpen, socialMenuOpen, showPlaylist, showControls]);
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
+    const handler = () => resetIdleTimer();
+    events.forEach(e => window.addEventListener(e, handler, { passive: true }));
+    resetIdleTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handler));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [resetIdleTimer]);
+
+  // Keep UI visible while menus/controls/playlist are open
+  useEffect(() => {
+    if (toolsMenuOpen || socialMenuOpen || showPlaylist || showControls) {
+      setUiVisible(true);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    } else {
+      resetIdleTimer();
+    }
+  }, [toolsMenuOpen, socialMenuOpen, showPlaylist, showControls, resetIdleTimer]);
+
   useEffect(() => {
     if (!socialMenuOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -177,7 +214,7 @@ export default function DetailView({
   if (!currentMix) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col">
+    <div className={`fixed inset-0 z-50 flex flex-col${!uiVisible ? ' cursor-none' : ''}`}>
       {/* Background */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"
@@ -192,7 +229,7 @@ export default function DetailView({
       </div>
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3">
+      <div className={`relative z-10 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowPlaylist(!showPlaylist)}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
           <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>Part Time Chiller</span>
@@ -548,7 +585,7 @@ export default function DetailView({
 
       {/* Slim Player Bar */}
       <div
-        className="relative z-10 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl border-t border-neutral-800/50"
+        className={`relative z-10 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl border-t border-neutral-800/50 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
         style={{
           background: `linear-gradient(to right, ${dominantColor}25, ${accentColor}25)`,
         }}
