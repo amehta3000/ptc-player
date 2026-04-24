@@ -195,8 +195,7 @@ export class CassetteVisualizer extends BaseVisualizer {
     // Detect basePath: check Next.js runtime data, then infer from URL path
     let basePath = '';
     if (typeof window !== 'undefined') {
-      basePath = (window as any).__NEXT_DATA__?.basePath
-        ?? (window.location.pathname.startsWith('/ptc-player') ? '/ptc-player' : '');
+      basePath = (window as any).__NEXT_DATA__?.basePath ?? '';
     }
     const modelPath = `${basePath}/models/cassette_tape.glb`;
     console.log('[Cassette] Loading model from:', modelPath);

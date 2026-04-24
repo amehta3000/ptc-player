@@ -80,7 +80,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     setShowDetail(true);
 
     if (mix.slug) {
-      window.history.replaceState({}, '', `/ptc-player/track/${mix.slug}`);
+      window.history.replaceState({}, '', `/track/${mix.slug}`);
     }
 
     const colors = await extractColors(mix.cover);
@@ -168,7 +168,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
       setShowDetail(true);
       setShowVisualizer(true);
       if (targetMix.slug) {
-        window.history.replaceState({}, '', `/ptc-player/track/${targetMix.slug}`);
+        window.history.replaceState({}, '', `/track/${targetMix.slug}`);
       }
       const colors = await extractColors(targetMix.cover);
       setDominantColor(colors.dominant);
