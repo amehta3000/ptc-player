@@ -386,8 +386,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       const harmonyHues = this.getHarmonyHues(this.config.baseHue ?? 0, this.config.harmonyMode ?? 0);
       const pickHue = harmonyHues[Math.floor(Math.random() * harmonyHues.length)];
       const hue = pickHue + (Math.random() - 0.5) * 15; // slight jitter
-      const saturation = 60 + Math.random() * 40; // 60-100%
-      const lightness = 50 + Math.random() * 30; // 50-80%
+      const saturation = 65 + Math.random() * 35; // 65-100%
+      // Dark (additive): bright particles glow. Light (normal): dark particles show on light bg.
+      const lightness = this.darkMode ? (50 + Math.random() * 30) : (20 + Math.random() * 25);
       const color = new THREE.Color().setHSL(((hue % 360 + 360) % 360) / 360, saturation / 100, lightness / 100);
 
       // Add to geometry arrays
@@ -423,7 +424,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         bassIntensity: { value: 0.0 },
         midIntensity: { value: 0.0 },
         highIntensity: { value: 0.0 },
-        beatBoost: { value: 1.0 }
+        beatBoost: { value: 1.0 },
+        darkMode: { value: this.darkMode ? 1.0 : 0.0 }
       },
       vertexShader: `
         attribute float size;
@@ -437,11 +439,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         void main() {
           vColor = color;
 
-          // Sample per-particle amplitude from 64-bin spectrum texture
           float amplitude = texture2D(spectrumData, vec2((frequencyBand + 0.5) / 64.0, 0.5)).r;
           vAmplitude = amplitude;
 
-          // Continuous size boost: bass particles (bin 0) get 3x, treble (bin 63) get 1.5x
           float shellScale = 3.0 - (frequencyBand / 63.0) * 1.5;
           float audioBoost = 1.0 + amplitude * shellScale;
           audioBoost *= beatBoost;
@@ -453,28 +453,31 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       `,
       fragmentShader: `
         uniform float bassIntensity;
+        uniform float darkMode;
         varying vec3 vColor;
         varying float vAmplitude;
 
         void main() {
           float dist = length(gl_PointCoord - vec2(0.5));
-
-          // Gaussian falloff for smoky, nebula-like appearance
           float gaussian = exp(-dist * dist * 6.0);
 
-          // Brightness from per-bin amplitude
           float brightness = 0.2 + vAmplitude * 2.0;
-          brightness = clamp(brightness, 0.2, 3.0);
+          // Dark (additive): allow overbright for glow. Light (normal): clamp to 1 to avoid washing out.
+          float maxBright = darkMode > 0.5 ? 3.0 : 1.0;
+          brightness = clamp(brightness, 0.2, maxBright);
 
-          // Bass-driven global opacity pulse
-          float bassPulse = 0.2 + bassIntensity * 0.8;
+          float bassPulse = darkMode > 0.5
+            ? (0.2 + bassIntensity * 0.8)
+            : (0.6 + bassIntensity * 0.4);
 
           float alpha = gaussian * brightness * bassPulse;
+          // Light mode: boost alpha so particles are clearly visible
+          alpha = darkMode > 0.5 ? alpha : clamp(alpha * 2.5, 0.0, 1.0);
           gl_FragColor = vec4(vColor * brightness, alpha);
         }
       `,
       transparent: true,
-      blending: THREE.AdditiveBlending,
+      blending: this.darkMode ? THREE.AdditiveBlending : THREE.NormalBlending,
       depthWrite: false
     });
 
@@ -763,6 +766,12 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     if (this.fadeMaterial) {
       this.fadeMaterial.color.set(isDark ? 0x000000 : 0xe8ebed);
     }
+    if (this.particleMesh && this.particleMesh.material instanceof THREE.ShaderMaterial) {
+      this.particleMesh.material.blending = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
+      this.particleMesh.material.uniforms.darkMode.value = isDark ? 1.0 : 0.0;
+      this.particleMesh.material.needsUpdate = true;
+    }
+    this.recolorParticles();
   }
 
   updateConfig(key: string, value: number): void {
@@ -838,8 +847,8 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     for (let i = 0; i < count; i++) {
       const pickHue = harmonyHues[Math.floor(Math.random() * harmonyHues.length)];
       const hue = pickHue + (Math.random() - 0.5) * 15;
-      const sat = 60 + Math.random() * 40;
-      const lit = 50 + Math.random() * 30;
+      const sat = 65 + Math.random() * 35;
+      const lit = this.darkMode ? (50 + Math.random() * 30) : (20 + Math.random() * 25);
       tmpColor.setHSL(((hue % 360 + 360) % 360) / 360, sat / 100, lit / 100);
       arr[i * 3] = tmpColor.r;
       arr[i * 3 + 1] = tmpColor.g;

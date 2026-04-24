@@ -23,7 +23,7 @@ export default function TrackMenu({ mix, position = 'below' }: TrackMenuProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const shareUrl = `https://parttimechiller.com/ptc-player/track/${mix.slug}`;
+  const shareUrl = `https://parttimechiller.com/track/${mix.slug}`;
 
   const handleShare = useCallback(async () => {
     if (navigator.share) {

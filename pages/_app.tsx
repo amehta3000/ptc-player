@@ -9,6 +9,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
+        <link rel="icon" href="https://media.parttimechiller.com/logo3.png" />
         {clarityId && (
           <script
             type="text/javascript"

@@ -16,7 +16,7 @@ export default function TrackPage({ track }: TrackPageProps) {
         <meta property="og:description" content={`${track.description} | ${track.artist}`} />
         <meta property="og:image" content={track.cover} />
         <meta property="og:type" content="music.song" />
-        <meta property="og:url" content={`https://parttimechiller.com/ptc-player/track/${track.slug}`} />
+        <meta property="og:url" content={`https://parttimechiller.com/track/${track.slug}`} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${track.title} — Part Time Chiller`} />
         <meta name="twitter:description" content={`${track.description} | ${track.artist}`} />
