@@ -102,9 +102,9 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
       <button
         onClick={toggleShuffle}
         className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all ${
-          shuffleMode ? 'text-white' : 'text-white/40 hover:text-white/70'
+          shuffleMode ? '' : 'text-white/40 hover:text-white/60'
         }`}
-        style={shuffleMode ? { color: accentColor } : undefined}
+        style={shuffleMode ? { color: '#FFE033' } : undefined}
         aria-label="Toggle shuffle"
         title={shuffleMode ? 'Shuffle on' : 'Shuffle off'}
       >
@@ -117,8 +117,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <button
           onClick={onPlayPrevious}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-          style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:brightness-95"
+          style={{ background: 'rgba(242, 238, 224, 0.92)', color: '#1a1a1a' }}
           aria-label="Previous track"
           disabled={currentIndex === 0 && repeatMode === 'off'}
         >
@@ -128,8 +128,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
         </button>
         <button
           onClick={onTogglePlay}
-          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-          style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:brightness-95"
+          style={{ background: 'rgba(242, 238, 224, 0.92)', color: '#1a1a1a' }}
         >
           {isPlaying ? (
             <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -143,8 +143,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
         </button>
         <button
           onClick={onPlayNext}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-          style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:brightness-95"
+          style={{ background: 'rgba(242, 238, 224, 0.92)', color: '#1a1a1a' }}
           aria-label="Next track"
           disabled={currentIndex === filteredMixes.length - 1 && repeatMode === 'off'}
         >
@@ -158,9 +158,9 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
       <button
         onClick={cycleRepeat}
         className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all relative ${
-          repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white/70'
+          repeatMode !== 'off' ? '' : 'text-white/40 hover:text-white/60'
         }`}
-        style={repeatMode !== 'off' ? { color: accentColor } : undefined}
+        style={repeatMode !== 'off' ? { color: '#FFE033' } : undefined}
         aria-label={`Repeat: ${repeatMode}`}
         title={`Repeat: ${repeatMode}`}
       >
@@ -168,7 +168,7 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         {repeatMode === 'one' && (
-          <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold" style={{ color: accentColor }}>1</span>
+          <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold" style={{ color: '#FFE033' }}>1</span>
         )}
       </button>
 
