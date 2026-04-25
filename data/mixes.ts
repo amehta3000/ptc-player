@@ -93,7 +93,17 @@ export const mixes: Mix[] = [
     description: "Who is blastin out my window at 2am? Oh wait, it's me.",
     type: "track",
     artist: "Part Time Chiller"
-  },  
+  },
+  {
+    title: "Piano Overlord",
+    slug: "piano-overlord",
+    cover: "https://media.parttimechiller.com/PianoOverlord_PTC.png",
+    audio: "https://media.parttimechiller.com/PianoOverlord_PTC.mp3",
+    duration: "3:28",
+    description: "A rainy day piano heavy vibe for the soul",
+    type: "track",
+    artist: "Part Time Chiller"
+  },    
   {
     title: "Synthcopated",
     slug: "synthcopated",
@@ -121,16 +131,6 @@ export const mixes: Mix[] = [
     audio: "https://media.parttimechiller.com/RiseUp_PTC.mp3",
     duration: "3:28",
     description: "Time to get up and get down",
-    type: "track",
-    artist: "Part Time Chiller"
-  },
-    {
-    title: "Piano Overlord",
-    slug: "piano-overlord",
-    cover: "https://media.parttimechiller.com/PianoOverlord_PTC.png",
-    audio: "https://media.parttimechiller.com/PianoOverlord_PTC.mp3",
-    duration: "3:28",
-    description: "A rainy day piano heavy vibe for the soul",
     type: "track",
     artist: "Part Time Chiller"
   },
@@ -188,8 +188,8 @@ export const mixes: Mix[] = [
   {
     title: "The Margot Mixtape",
     slug: "the-margot-mixtape",
-    cover: "https://media.parttimechiller.com/MixAtMargot_PTC.png",
-    audio: "https://media.parttimechiller.com/MixAtMargot_PTC.mp3",
+    cover: "https://media.parttimechiller.com/TheMargotMixtape_PTC.png",
+    audio: "https://media.parttimechiller.com/TheMargotMixtape_PTC.mp3",
     duration: "2:38:29",
     description: "Sophisticated sexy vibes dj mixtape recorded live at the Margot rooftop in Los Angeles",
     type: "mix",
