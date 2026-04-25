@@ -29,6 +29,7 @@ interface DetailViewProps {
   onToggleRecording: (ratio: AspectRatio, format: ExportFormat) => void;
   onCancelConversion: () => void;
   recordingState: RecordingState;
+  onShare: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -57,6 +58,7 @@ export default function DetailView({
   visualizerName,
   darkMode,
   onToggleDarkMode,
+  onShare,
   onScreenshot,
   onToggleRecording,
   onCancelConversion,
@@ -109,6 +111,7 @@ export default function DetailView({
   const [exportRatio, setExportRatio] = useState<AspectRatio>('browser');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('webm');
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   const swipeStartX = useRef(0);
@@ -423,6 +426,27 @@ export default function DetailView({
             </button>
             {toolsMenuOpen && (
               <div className="absolute right-0 top-full mt-2 z-[60] w-56 rounded-lg backdrop-blur-xl bg-black/85 border border-white/15 shadow-xl overflow-hidden">
+                {/* Share link */}
+                <button
+                  onClick={() => {
+                    onShare();
+                    setShareCopied(true);
+                    setTimeout(() => setShareCopied(false), 2000);
+                  }}
+                  className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+                >
+                  {shareCopied ? (
+                    <svg className="w-4 h-4 flex-shrink-0 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  )}
+                  {shareCopied ? 'Link copied!' : 'Share this vibe'}
+                </button>
+                <div className="border-t border-white/10" />
                 {/* Dark/Light mode toggle */}
                 <button
                   onClick={() => { onToggleDarkMode(); setToolsMenuOpen(false); }}
@@ -608,7 +632,7 @@ export default function DetailView({
 
       {/* Slim Player Bar */}
       <div
-        className={`relative z-10 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
+        className={`relative z-30 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
         style={{
           background: `linear-gradient(to right, rgba(10,10,10,0.85), ${accentColor}15)`,
           borderTop: `1px solid ${accentColor}20`,

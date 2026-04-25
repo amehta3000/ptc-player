@@ -8,7 +8,7 @@ import { BarsVisualizer } from './visualizers/BarsVisualizer';
 import { OrbVisualizer } from './visualizers/OrbVisualizer';
 import { WebVisualizer } from './visualizers/WebVisualizer';
 import { TerrainVisualizer } from './visualizers/TerrainVisualizer';
-import { ChrysalisVisualizer } from './visualizers/ChrysalisVisualizer';
+// import { ChrysalisVisualizer } from './visualizers/ChrysalisVisualizer'; // retired
 import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
 import { RaindropsVisualizer } from './visualizers/RaindropsVisualizer';
 import { CassetteVisualizer } from './visualizers/CassetteVisualizer';
@@ -121,14 +121,14 @@ VisualizerRegistry.register('terrain', 'Terrain', TerrainVisualizer, {
   hue: 0,
 });
 
-VisualizerRegistry.register('chrysalis', 'Chrysalis', ChrysalisVisualizer, {
-  slices: 56,
-  waviness: 0.05,
-  rotationSpeed: 0.003,
-  pulseIntensity: 0.7,
-  lineThickness: 2,
-  hue: 0,
-});
+// VisualizerRegistry.register('chrysalis', 'Chrysalis', ChrysalisVisualizer, { // retired
+//   slices: 56,
+//   waviness: 0.05,
+//   rotationSpeed: 0.003,
+//   pulseIntensity: 0.7,
+//   lineThickness: 2,
+//   hue: 0,
+// });
 
 VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer, {
   particleCount: 4000,
