@@ -402,15 +402,12 @@ export class TerrainVisualizer extends BaseVisualizer {
         // Update Y position
         positions.setY(index, waveHeight + sineBase);
 
-        // Update color based on audio height only (not sine base)
-        if (z < this.segmentsZ * 0.7) { // Skip color updates for far vertices
-          const heightIntensity = Math.min(1, Math.abs(waveHeight) / amplitude);
-          const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
-          const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
-          const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
-
-          colorAttr.setXYZ(index, r, g, b);
-        }
+        // Update color based on audio height
+        const heightIntensity = Math.min(1, Math.abs(waveHeight) / amplitude);
+        const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
+        const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
+        const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
+        colorAttr.setXYZ(index, r, g, b);
       }
     }
     
@@ -428,6 +425,18 @@ export class TerrainVisualizer extends BaseVisualizer {
     super.updateColors(colors);
     if (this.accentLight) {
       this.accentLight.color.set(new THREE.Color(colors.accent));
+    }
+    // Repaint all vertices immediately so rows not covered by the per-frame
+    // update don't stay stuck on the default grey from init().
+    if (this.geometry) {
+      const colorAttr = this.geometry.attributes.color;
+      if (colorAttr) {
+        const { r, g, b } = this.parseRGB(colors.dominant);
+        for (let i = 0; i < colorAttr.count; i++) {
+          colorAttr.setXYZ(i, r, g, b);
+        }
+        colorAttr.needsUpdate = true;
+      }
     }
   }
   
