@@ -35,6 +35,7 @@ export function useVisualizer({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceCreatedRef = useRef<boolean>(false);
+  const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 640);
   const [controls, setControls] = useState<VisualizerControl[]>([]);
   const [presets, setPresets] = useState<VisualizerPreset[]>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, number>>({});
@@ -84,7 +85,7 @@ export function useVisualizer({
   useEffect(() => {
     if (!visualizerManagerRef.current || !enabled) return;
 
-    const config = { ...VisualizerRegistry.getDefaultConfig(visualizerType), ...currentConfig };
+    const config = { ...VisualizerRegistry.getDefaultConfig(visualizerType, isMobile.current), ...currentConfig };
     visualizerManagerRef.current.switchVisualizer(visualizerType, config, colors);
 
     const newControls = visualizerManagerRef.current.getCurrentControls();
@@ -133,7 +134,7 @@ export function useVisualizer({
 
   // Reset to defaults
   const resetToDefaults = useCallback(() => {
-    const defaults = VisualizerRegistry.getDefaultConfig(visualizerType);
+    const defaults = VisualizerRegistry.getDefaultConfig(visualizerType, isMobile.current);
     setCurrentConfig(defaults);
     Object.entries(defaults).forEach(([key, value]) => {
       if (visualizerManagerRef.current) {
@@ -148,7 +149,7 @@ export function useVisualizer({
   // Randomize visualizer
   const randomize = useCallback((): VisualizerType => {
     const randomType = VISUALIZER_TYPES[Math.floor(Math.random() * VISUALIZER_TYPES.length)];
-    const defaults = VisualizerRegistry.getDefaultConfig(randomType);
+    const defaults = VisualizerRegistry.getDefaultConfig(randomType, isMobile.current);
     const randomConfig: Record<string, number> = {};
 
     Object.entries(defaults).forEach(([key, defaultVal]) => {

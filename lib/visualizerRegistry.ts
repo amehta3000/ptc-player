@@ -29,6 +29,7 @@ interface VisualizerRegistryEntry {
   name: string;
   constructor: VisualizerConstructor;
   defaultConfig: VisualizerConfig;
+  mobileConfig?: Partial<VisualizerConfig>;
 }
 
 export class VisualizerRegistry {
@@ -38,9 +39,10 @@ export class VisualizerRegistry {
     type: VisualizerType,
     name: string,
     constructor: VisualizerConstructor,
-    defaultConfig: VisualizerConfig
+    defaultConfig: VisualizerConfig,
+    mobileConfig?: Partial<VisualizerConfig>
   ): void {
-    this.visualizers.set(type, { type, name, constructor, defaultConfig });
+    this.visualizers.set(type, { type, name, constructor, defaultConfig, mobileConfig });
   }
 
   static create(
@@ -66,8 +68,14 @@ export class VisualizerRegistry {
     return this.visualizers.get(type)?.name || type;
   }
 
-  static getDefaultConfig(type: VisualizerType): VisualizerConfig {
-    return { ...(this.visualizers.get(type)?.defaultConfig || {}) };
+  static getDefaultConfig(type: VisualizerType, isMobile = false): VisualizerConfig {
+    const entry = this.visualizers.get(type);
+    if (!entry) return {};
+    const base = { ...entry.defaultConfig };
+    if (isMobile && entry.mobileConfig) {
+      return { ...base, ...entry.mobileConfig };
+    }
+    return base;
   }
 }
 
@@ -127,6 +135,8 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
   trail: 0,
   baseHue: 0,
   harmonyMode: 0,
+}, {
+  particleSize: 1.0,
 });
 
 VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
