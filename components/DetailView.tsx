@@ -110,6 +110,9 @@ export default function DetailView({
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
+
   // Auto-hide UI after idle
   const IDLE_TIMEOUT = 3000;
   const [uiVisible, setUiVisible] = useState(true);
@@ -211,10 +214,29 @@ export default function DetailView({
     trackEvent('song_selected', mix.title);
   }, [setCurrentMix, setProgress, setCurrentTime, setDuration, setShowPlaylist, setDominantColor, setAccentColor]);
 
+  const handleSwipeStart = useCallback((e: React.TouchEvent) => {
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleSwipeEnd = useCallback((e: React.TouchEvent) => {
+    if (showPlaylist || showControls) return;
+    const deltaX = e.changedTouches[0].clientX - swipeStartX.current;
+    const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      navigateView(deltaX < 0 ? 1 : -1);
+      resetIdleTimer();
+    }
+  }, [showPlaylist, showControls, navigateView, resetIdleTimer]);
+
   if (!currentMix) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col${!uiVisible ? ' cursor-none' : ''}`}>
+    <div
+      className={`fixed inset-0 z-50 flex flex-col${!uiVisible ? ' cursor-none' : ''}`}
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}
+    >
       {/* Background */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"
