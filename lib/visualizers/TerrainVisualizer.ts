@@ -13,6 +13,7 @@ export class TerrainVisualizer extends BaseVisualizer {
   private renderer: THREE.WebGLRenderer | null = null;
   private geometry: THREE.PlaneGeometry | null = null;
   private mesh: THREE.Mesh | null = null;
+  private accentLight: THREE.DirectionalLight | null = null;
   private waveHistory: number[][] = [];
   private lastUpdateTime: number = 0;
   private segmentsX: number = 64;
@@ -164,9 +165,9 @@ export class TerrainVisualizer extends BaseVisualizer {
     directionalLight1.position.set(5, 10, 5);
     this.scene.add(directionalLight1);
     
-    const directionalLight2 = new THREE.DirectionalLight(0x4466ff, 0.4);
-    directionalLight2.position.set(-5, 5, -5);
-    this.scene.add(directionalLight2);
+    this.accentLight = new THREE.DirectionalLight(new THREE.Color(this.colors.accent), 0.4);
+    this.accentLight.position.set(-5, 5, -5);
+    this.scene.add(this.accentLight);
     
     // Create material with lighting
     const material = new THREE.MeshPhongMaterial({
@@ -411,7 +412,9 @@ export class TerrainVisualizer extends BaseVisualizer {
   
   updateColors(colors: ColorScheme): void {
     super.updateColors(colors);
-    // Colors will be updated in next update cycle
+    if (this.accentLight) {
+      this.accentLight.color.set(new THREE.Color(colors.accent));
+    }
   }
   
   updateConfig(key: string, value: number): void {
