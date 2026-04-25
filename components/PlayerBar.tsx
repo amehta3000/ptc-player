@@ -27,6 +27,7 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
   const duration = usePlayerStore((s) => s.duration);
   const dominantColor = usePlayerStore((s) => s.dominantColor);
   const accentColor = usePlayerStore((s) => s.accentColor);
+  const darkMode = usePlayerStore((s) => s.darkMode);
   const setShowDetail = usePlayerStore((s) => s.setShowDetail);
   const setProgress = usePlayerStore((s) => s.setProgress);
   const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
@@ -43,6 +44,7 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
 
   const currentIndex = getCurrentIndex();
   const filteredMixes = getFilteredMixes();
+  const highlightColor = darkMode ? accentColor : 'rgba(28, 28, 30, 0.85)';
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -63,8 +65,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
     <div
       className="fixed bottom-0 left-0 right-0 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 z-40"
       style={{
-        background: `linear-gradient(to right, ${dominantColor}25, ${accentColor}25)`,
-        borderColor: `${dominantColor}30`,
+        background: `linear-gradient(to right, rgba(10,10,10,0.85), ${accentColor}15)`,
+        borderTop: `1px solid ${accentColor}20`,
       }}
     >
       {/* Album art */}
@@ -73,7 +75,7 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
           src={currentMix.cover}
           alt={currentMix.title}
           className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover shadow-lg transition-all duration-500"
-          style={{ boxShadow: `0 0 0 2px ${accentColor}40` }}
+          style={{ boxShadow: `0 0 8px ${accentColor}50` }}
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
@@ -90,7 +92,7 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
         >
           <div
             className="h-full transition-all duration-300 shadow-lg"
-            style={{ width: `${progress}%`, background: `linear-gradient(to right, ${dominantColor}, ${accentColor})` }}
+            style={{ width: `${progress}%`, background: highlightColor }}
           />
         </div>
         <div className="flex justify-between items-center mt-0.5">
@@ -102,9 +104,9 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
       <button
         onClick={toggleShuffle}
         className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all ${
-          shuffleMode ? '' : 'text-white/40 hover:text-white/60'
+          shuffleMode ? '' : 'text-white/30 hover:text-white/50'
         }`}
-        style={shuffleMode ? { color: '#FFE033' } : undefined}
+        style={shuffleMode ? { color: highlightColor } : undefined}
         aria-label="Toggle shuffle"
         title={shuffleMode ? 'Shuffle on' : 'Shuffle off'}
       >
@@ -117,8 +119,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <button
           onClick={onPlayPrevious}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:brightness-95"
-          style={{ background: 'rgba(242, 238, 224, 0.92)', color: '#1a1a1a' }}
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95"
+          style={{ background: 'rgba(28, 28, 30, 0.9)', color: 'rgba(240, 240, 240, 0.9)', boxShadow: `0 0 0 1px ${accentColor}25` }}
           aria-label="Previous track"
           disabled={currentIndex === 0 && repeatMode === 'off'}
         >
@@ -128,8 +130,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
         </button>
         <button
           onClick={onTogglePlay}
-          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:brightness-95"
-          style={{ background: 'rgba(242, 238, 224, 0.92)', color: '#1a1a1a' }}
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
+          style={{ background: 'rgba(28, 28, 30, 0.9)', color: 'rgba(240, 240, 240, 0.95)', boxShadow: `0 0 0 1.5px ${accentColor}40, 0 4px 12px rgba(0,0,0,0.3)` }}
         >
           {isPlaying ? (
             <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -143,8 +145,8 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
         </button>
         <button
           onClick={onPlayNext}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:brightness-95"
-          style={{ background: 'rgba(242, 238, 224, 0.92)', color: '#1a1a1a' }}
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-105 active:scale-95"
+          style={{ background: 'rgba(28, 28, 30, 0.9)', color: 'rgba(240, 240, 240, 0.9)', boxShadow: `0 0 0 1px ${accentColor}25` }}
           aria-label="Next track"
           disabled={currentIndex === filteredMixes.length - 1 && repeatMode === 'off'}
         >
@@ -158,9 +160,9 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
       <button
         onClick={cycleRepeat}
         className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all relative ${
-          repeatMode !== 'off' ? '' : 'text-white/40 hover:text-white/60'
+          repeatMode !== 'off' ? '' : 'text-white/30 hover:text-white/50'
         }`}
-        style={repeatMode !== 'off' ? { color: '#FFE033' } : undefined}
+        style={repeatMode !== 'off' ? { color: highlightColor } : undefined}
         aria-label={`Repeat: ${repeatMode}`}
         title={`Repeat: ${repeatMode}`}
       >
@@ -168,7 +170,7 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         {repeatMode === 'one' && (
-          <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold" style={{ color: '#FFE033' }}>1</span>
+          <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold" style={{ color: highlightColor }}>1</span>
         )}
       </button>
 
@@ -204,8 +206,11 @@ export default function PlayerBar({ audioRef, onTogglePlay, onPlayNext, onPlayPr
             setVolume(v);
             if (isMuted && v > 0) toggleMute();
           }}
-          className="w-16 lg:w-20 h-1.5 rounded-lg appearance-none cursor-pointer bg-white/10"
-          style={{ accentColor: dominantColor }}
+          className="w-16 lg:w-20 viz-slider"
+          style={{
+            '--fill-pct': `${(isMuted ? 0 : volume) * 100}%`,
+            '--slider-fill': dominantColor,
+          } as React.CSSProperties}
           aria-label="Volume"
         />
       </div>

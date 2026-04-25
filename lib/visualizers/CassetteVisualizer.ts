@@ -109,6 +109,15 @@ export class CassetteVisualizer extends BaseVisualizer {
         default: 0.1,
         value: this.config.tiltReact ?? 0.1,
       },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0,
+      },
     ];
   }
 
@@ -380,14 +389,17 @@ export class CassetteVisualizer extends BaseVisualizer {
       this.orbitLight.position.y = 2 + Math.sin(this.time * 1.5) * 1;
       this.orbitLight.intensity = lightIntensity * (0.6 + this.smoothedNorm * 0.8);
 
-      // Color shifts: dominant → accent based on audio energy
-      const dominantRGB = this.parseHexOrRGBToColor(this.colors.dominant);
-      const accentRGB = this.parseHexOrRGBToColor(this.colors.accent);
+      // Color shifts: dominant → accent based on audio energy, with hue shift applied
+      const domParsed = this.parseHexOrRGBToColor(this.colors.dominant);
+      const accParsed = this.parseHexOrRGBToColor(this.colors.accent);
+      const hueShift = (this.config.hue ?? 0) / 360;
+      const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b).offsetHSL(hueShift, 0, 0);
+      const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b).offsetHSL(hueShift, 0, 0);
       const mix = this.smoothedNorm;
       this.orbitLight.color.setRGB(
-        dominantRGB.r + (accentRGB.r - dominantRGB.r) * mix,
-        dominantRGB.g + (accentRGB.g - dominantRGB.g) * mix,
-        dominantRGB.b + (accentRGB.b - dominantRGB.b) * mix
+        domColor.r + (accColor.r - domColor.r) * mix,
+        domColor.g + (accColor.g - domColor.g) * mix,
+        domColor.b + (accColor.b - domColor.b) * mix
       );
     }
 

@@ -183,4 +183,34 @@ export abstract class BaseVisualizer {
     }
     return { r: 1, g: 0.5, b: 0 };
   }
+
+  /**
+   * Shift the hue of a CSS rgb() color string by degrees (0-360).
+   */
+  protected shiftHue(cssColor: string, degrees: number): string {
+    if (!degrees) return cssColor;
+    const { r, g, b } = this.parseRGB(cssColor);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (max === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+    h = (h + degrees / 360 + 1) % 1;
+    if (s === 0) { const v = Math.round(l * 255); return `rgb(${v},${v},${v})`; }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const h2r = (t: number): number => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    return `rgb(${Math.round(h2r(h + 1/3) * 255)},${Math.round(h2r(h) * 255)},${Math.round(h2r(h - 1/3) * 255)})`;
+  }
 }

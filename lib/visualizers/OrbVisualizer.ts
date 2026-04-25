@@ -37,8 +37,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 0,
         max: 1,
         step: 1,
-        default: 0,
-        value: this.config.shape ?? 0,
+        default: 1,
+        value: this.config.shape ?? 1,
         labels: ['Orb', 'Disco Ball']
       },
       {
@@ -47,8 +47,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 0.5,
         max: 5,
         step: 0.1,
-        default: 2,
-        value: this.config.lightIntensity ?? 2
+        default: 3.0,
+        value: this.config.lightIntensity ?? 3.0
       },
       {
         name: 'Light Speed',
@@ -56,8 +56,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 0,
         max: 2,
         step: 0.05,
-        default: 0.5,
-        value: this.config.lightSpeed ?? 0.5
+        default: 0.25,
+        value: this.config.lightSpeed ?? 0.25
       },
       {
         name: 'Ambient',
@@ -83,8 +83,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 0.1,
         max: 2,
         step: 0.05,
-        default: 0.55,
-        value: this.config.noiseMultiplier || 0.55
+        default: 0.8,
+        value: this.config.noiseMultiplier || 0.8
       },
       {
         name: 'Animation Speed',
@@ -101,8 +101,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 0,
         max: 0.01,
         step: 0.0005,
-        default: 0.003,
-        value: this.config.autoRotationSpeed ?? 0.003
+        default: 0.002,
+        value: this.config.autoRotationSpeed ?? 0.002
       },
       {
         name: 'Radius',
@@ -110,8 +110,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 1,
         max: 4,
         step: 0.1,
-        default: 2.0,
-        value: this.config.radius ?? 2.0
+        default: 2.5,
+        value: this.config.radius ?? 2.5
       },
       {
         name: 'Mesh Detail',
@@ -119,8 +119,8 @@ export class OrbVisualizer extends BaseVisualizer {
         min: 1,
         max: 8,
         step: 1,
-        default: 4,
-        value: this.config.meshDetail ?? 4
+        default: 7,
+        value: this.config.meshDetail ?? 7
       },
       {
         name: 'Wireframe',
@@ -131,6 +131,15 @@ export class OrbVisualizer extends BaseVisualizer {
         default: 1,
         value: this.config.wireframe ?? 1,
         labels: ['Solid', 'Wire']
+      },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
       }
     ];
   }
@@ -410,43 +419,48 @@ export class OrbVisualizer extends BaseVisualizer {
     const count = positions.count;
     const time = Date.now() * 0.001 * timeSpeed;
     
-    const dominantRGB = this.parseRGB(this.colors.dominant);
-    const accentRGB = this.parseRGB(this.colors.accent);
-    
+    const hueShift = (this.config.hue ?? 0) / 360;
+    const domParsed = this.parseRGB(this.colors.dominant);
+    const accParsed = this.parseRGB(this.colors.accent);
+    const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b).offsetHSL(hueShift, 0, 0);
+    const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b).offsetHSL(hueShift, 0, 0);
+    const dominantRGB = { r: domColor.r, g: domColor.g, b: domColor.b };
+    const accentRGB = { r: accColor.r, g: accColor.g, b: accColor.b };
+
     for (let i = 0; i < count; i++) {
       const origX = this.originalPositions[i * 3];
       const origY = this.originalPositions[i * 3 + 1];
       const origZ = this.originalPositions[i * 3 + 2];
-      
+
       // Create position with time offset
       const posX = origX + time;
       const posY = origY + time;
       const posZ = origZ + time;
-      
+
       // Perlin-like noise using layered sine waves
-      const noise = 
+      const noise =
         Math.sin(posX * 2) * Math.cos(posY * 2) * 0.5 +
         Math.sin(posY * 3) * Math.cos(posZ * 3) * 0.3 +
         Math.sin(posZ * 4) * Math.cos(posX * 2) * 0.4 +
         Math.sin((posX + posY + posZ) * 1.5) * 0.3;
-      
+
       const intensifiedNoise = noise * freqMultiplier * 2;
       const displacement = (normalizedFrequency * noiseMultiplier) * (intensifiedNoise * 0.1);
-      
+
       // Apply displacement along normal
       const scale = 1 + displacement;
       positions.setXYZ(i, origX * scale, origY * scale, origZ * scale);
-      
+
       // Update vertex color
       const colorIntensity = Math.abs(displacement) * 8;
       const blend = Math.min(1, Math.max(0, colorIntensity));
       const timeVariation = Math.sin(time * 0.5 + i * 0.01) * 0.15;
       const finalBlend = Math.min(1, Math.max(0, blend + timeVariation));
-      
+
       const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * finalBlend;
       const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * finalBlend;
       const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * finalBlend;
-      
+
       colorAttr.setXYZ(i, r, g, b);
     }
     

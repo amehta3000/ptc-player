@@ -22,6 +22,15 @@ export class RadialVisualizer extends BaseVisualizer {
   getControls(): VisualizerControl[] {
     return [
       {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
+      },
+      {
         name: 'Intensity',
         key: 'intensity',
         min: 0.5,
@@ -152,22 +161,27 @@ export class RadialVisualizer extends BaseVisualizer {
   
   updateColors(colors: ColorScheme): void {
     super.updateColors(colors);
-    
-    // Update gradient colors
-    if (this.svg) {
-      const gradient = this.svg.querySelector('#radialGradient');
-      if (gradient) {
-        const stops = gradient.querySelectorAll('stop');
-        if (stops[0]) stops[0].setAttribute('stop-color', colors.dominant);
-        if (stops[1]) stops[1].setAttribute('stop-color', colors.accent);
-      }
-      
-      // Update center circle
-      const circle = this.svg.querySelector('circle');
-      if (circle) {
-        circle.setAttribute('stroke', colors.dominant);
-      }
+    this.applyGradientColors();
+  }
+
+  updateConfig(key: string, value: number): void {
+    super.updateConfig(key, value);
+    if (key === 'hue') this.applyGradientColors();
+  }
+
+  private applyGradientColors(): void {
+    if (!this.svg) return;
+    const hueShift = this.config.hue ?? 0;
+    const dom = hueShift ? this.shiftHue(this.colors.dominant, hueShift) : this.colors.dominant;
+    const acc = hueShift ? this.shiftHue(this.colors.accent, hueShift) : this.colors.accent;
+    const gradient = this.svg.querySelector('#radialGradient');
+    if (gradient) {
+      const stops = gradient.querySelectorAll('stop');
+      if (stops[0]) stops[0].setAttribute('stop-color', dom);
+      if (stops[1]) stops[1].setAttribute('stop-color', acc);
     }
+    const circle = this.svg.querySelector('circle');
+    if (circle) circle.setAttribute('stroke', dom);
   }
   
   destroy(): void {

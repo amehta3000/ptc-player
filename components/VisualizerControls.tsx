@@ -74,7 +74,7 @@ export default function VisualizerControls({
         <div key={control.key}>
           <label className="flex justify-between text-xs text-white/70 mb-1">
             <span>{control.name}</span>
-            {!control.labels && (
+            {!control.labels && control.key !== 'hue' && (
               <span className="font-mono">
                 {control.step >= 1
                   ? control.value.toLocaleString()
@@ -103,6 +103,16 @@ export default function VisualizerControls({
                 </button>
               ))}
             </div>
+          ) : control.key === 'hue' ? (
+            <input
+              type="range"
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              value={control.value}
+              onChange={(e) => onUpdateConfig(control.key, parseFloat(e.target.value))}
+              className="w-full viz-slider-hue"
+            />
           ) : (
             <input
               type="range"
@@ -112,6 +122,10 @@ export default function VisualizerControls({
               value={control.value}
               onChange={(e) => onUpdateConfig(control.key, parseFloat(e.target.value))}
               className="w-full viz-slider"
+              style={{
+                '--fill-pct': `${((control.value - control.min) / (control.max - control.min)) * 100}%`,
+                '--slider-fill': dominantColor,
+              } as React.CSSProperties}
             />
           )}
         </div>

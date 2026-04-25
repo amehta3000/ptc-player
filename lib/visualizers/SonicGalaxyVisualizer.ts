@@ -105,15 +105,6 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         value: this.config.attractorCount || 3
       },
       {
-        name: 'Gravity',
-        key: 'gravity',
-        min: 0,
-        max: 10,
-        step: 0.5,
-        default: 7.0,
-        value: this.config.gravity ?? 7.0
-      },
-      {
         name: 'Max Speed',
         key: 'maxSpeed',
         min: 0,
@@ -126,7 +117,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         name: 'Particle Size',
         key: 'particleSize',
         min: 0.5,
-        max: 5,
+        max: 3,
         step: 0.5,
         default: 0.5,
         value: this.config.particleSize || 0.5
@@ -150,13 +141,13 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         value: this.config.trail ?? 0
       },
       {
-        name: 'Base Hue',
-        key: 'baseHue',
+        name: 'Hue',
+        key: 'hue',
         min: 0,
         max: 360,
         step: 1,
         default: 0,
-        value: this.config.baseHue ?? 0
+        value: this.config.hue ?? 0
       },
       {
         name: 'Harmony',
@@ -167,6 +158,15 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         default: 0,
         value: this.config.harmonyMode ?? 0,
         labels: ['Mono', 'Analogous', 'Complement', 'Triadic', 'Tetradic']
+      },
+      {
+        name: 'Gravity',
+        key: 'gravity',
+        min: 0,
+        max: 10,
+        step: 0.5,
+        default: 7.0,
+        value: this.config.gravity ?? 7.0
       }
     ];
   }
@@ -183,7 +183,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleSize: 0.5,
           cameraSpeed: 0.01,
           trail: 0.40,
-          baseHue: 0,
+          hue: 0,
           harmonyMode: 0
         }
       },
@@ -197,7 +197,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleSize: 0.5,
           cameraSpeed: 0.002,
           trail: 0.14,
-          baseHue: 200,
+          hue: 200,
           harmonyMode: 1
         }
       },
@@ -211,22 +211,22 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
           particleSize: 0.5,
           cameraSpeed: 0.001,
           trail: 0.03,
-          baseHue: 30,
+          hue: 30,
           harmonyMode: 2
         }
       },
       {
         name: '4',
         config: {
-          particleCount: 4000,
-          attractorCount: 3,
-          gravity: 7.0,
-          maxSpeed: 0.5,
+          particleCount: 37200,
+          attractorCount: 2,
+          gravity: 0.5,
+          maxSpeed: 0.0,
           particleSize: 0.5,
-          cameraSpeed: 0.001,
-          trail: 0.08,
-          baseHue: 280,
-          harmonyMode: 3
+          cameraSpeed: 0.01,
+          trail: 0.06,
+          hue: 0,
+          harmonyMode: 1
         }
       }
     ];
@@ -383,7 +383,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       const frequencyBin = Math.floor(Math.min(63, Math.max(0, (radius - 1) / 3 * 63)));
 
       // Random HSL color per particle — use harmony palette
-      const harmonyHues = this.getHarmonyHues(this.config.baseHue ?? 0, this.config.harmonyMode ?? 0);
+      const harmonyHues = this.getHarmonyHues(this.config.hue ?? 0, this.config.harmonyMode ?? 0);
       const pickHue = harmonyHues[Math.floor(Math.random() * harmonyHues.length)];
       const hue = pickHue + (Math.random() - 0.5) * 15; // slight jitter
       const saturation = 65 + Math.random() * 35; // 65-100%
@@ -516,8 +516,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
                         freqMod < 0.66 ? mid :
                         high;
 
-      // Audio-driven mass: gravity control scales audio influence on all attractors
-      attractor.mass = attractor.baseMass * (1 + audioValue * gravityMult) * this.beatBoost;
+      // gravity scales both baseline pull and audio reactivity
+      // divided by 7 so the default (7) preserves the original feel
+      attractor.mass = attractor.baseMass * (gravityMult / 7) * (1 + audioValue * gravityMult) * this.beatBoost;
       attractor.spinStrength = 2.0 + mid * midSpinMult;
     });
 
@@ -814,7 +815,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       this.renderer.domElement.style.filter = value > 0 ? `blur(${value * 2}px)` : 'none';
     }
 
-    if ((key === 'baseHue' || key === 'harmonyMode') && this.particleMesh) {
+    if ((key === 'hue' || key === 'harmonyMode') && this.particleMesh) {
       this.recolorParticles();
     }
   }
@@ -824,14 +825,14 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   }
 
   /** Generate harmony hue palette from base hue + mode */
-  private getHarmonyHues(baseHue: number, mode: number): number[] {
+  private getHarmonyHues(hue: number, mode: number): number[] {
     switch (mode) {
-      case 0: return [baseHue]; // Mono
-      case 1: return [baseHue - 30, baseHue, baseHue + 30]; // Analogous
-      case 2: return [baseHue, baseHue + 180]; // Complementary
-      case 3: return [baseHue, baseHue + 120, baseHue + 240]; // Triadic
-      case 4: return [baseHue, baseHue + 90, baseHue + 180, baseHue + 270]; // Tetradic
-      default: return [baseHue];
+      case 0: return [hue]; // Mono
+      case 1: return [hue - 30, hue, hue + 30]; // Analogous
+      case 2: return [hue, hue + 180]; // Complementary
+      case 3: return [hue, hue + 120, hue + 240]; // Triadic
+      case 4: return [hue, hue + 90, hue + 180, hue + 270]; // Tetradic
+      default: return [hue];
     }
   }
 
@@ -841,7 +842,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
     const colorAttr = this.particleMesh.geometry.getAttribute('color');
     if (!colorAttr) return;
     const arr = colorAttr.array as Float32Array;
-    const harmonyHues = this.getHarmonyHues(this.config.baseHue ?? 0, this.config.harmonyMode ?? 0);
+    const harmonyHues = this.getHarmonyHues(this.config.hue ?? 0, this.config.harmonyMode ?? 0);
     const count = arr.length / 3;
     const tmpColor = new THREE.Color();
     for (let i = 0; i < count; i++) {
