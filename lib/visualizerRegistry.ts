@@ -142,6 +142,7 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
   harmonyMode: 0,
 }, {
   particleSize: 1.0,
+  trail: 0.12,
 });
 
 VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
