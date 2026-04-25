@@ -91,15 +91,15 @@ VisualizerRegistry.register('bars', 'Bars', BarsVisualizer, {
 
 VisualizerRegistry.register('orb', 'Orb', OrbVisualizer, {
   freqMultiplier: 3.6,
-  noiseMultiplier: 0.55,
+  noiseMultiplier: 0.8,
   timeSpeed: 2.0,
-  autoRotationSpeed: 0.003,
-  radius: 2.0,
-  meshDetail: 4,
+  autoRotationSpeed: 0.002,
+  radius: 2.5,
+  meshDetail: 7,
   wireframe: 1,
-  shape: 0,
-  lightIntensity: 2,
-  lightSpeed: 0.5,
+  shape: 1,
+  lightIntensity: 3.0,
+  lightSpeed: 0.25,
   ambient: 0.3,
   hue: 0,
 });

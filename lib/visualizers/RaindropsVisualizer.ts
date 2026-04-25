@@ -63,7 +63,19 @@ export class RaindropsVisualizer extends BaseVisualizer {
   }
 
   getControls(): VisualizerControl[] {
-    return [
+    const surfaceMode = this.config.surfaceMode ?? 0;
+
+    const controls: VisualizerControl[] = [
+      {
+        name: 'Surface',
+        key: 'surfaceMode',
+        min: 0,
+        max: 2,
+        step: 1,
+        default: 0,
+        value: surfaceMode,
+        labels: ['Plane', 'Cube', 'Sphere']
+      },
       {
         name: 'Max Ripples',
         key: 'maxRipples',
@@ -83,15 +95,6 @@ export class RaindropsVisualizer extends BaseVisualizer {
         value: this.config.bassThreshold ?? 0.1
       },
       {
-        name: 'Plane Size',
-        key: 'planeSize',
-        min: 10,
-        max: 40,
-        step: 2,
-        default: 40,
-        value: this.config.planeSize ?? 40
-      },
-      {
         name: 'Intensity',
         key: 'intensity',
         min: 0.5,
@@ -109,34 +112,42 @@ export class RaindropsVisualizer extends BaseVisualizer {
         default: 0.1,
         value: this.config.ringThickness ?? 0.1
       },
-      {
-        name: 'Layout Mode',
-        key: 'layoutMode',
-        min: 0,
-        max: 3,
-        step: 1,
-        default: 0,
-        value: this.config.layoutMode ?? 0
-      },
-      {
-        name: 'Show Grid Overlay',
-        key: 'showGridOverlay',
-        min: 0,
-        max: 1,
-        step: 1,
-        default: 1,
-        value: this.config.showGridOverlay ?? 1
-      },
-      {
-        name: 'Surface',
-        key: 'surfaceMode',
-        min: 0,
-        max: 2,
-        step: 1,
-        default: 0,
-        value: this.config.surfaceMode ?? 0
-      },
-      {
+    ];
+
+    if (surfaceMode === 0) {
+      controls.push(
+        {
+          name: 'Plane Size',
+          key: 'planeSize',
+          min: 10,
+          max: 40,
+          step: 2,
+          default: 40,
+          value: this.config.planeSize ?? 40
+        },
+        {
+          name: 'Layout Mode',
+          key: 'layoutMode',
+          min: 0,
+          max: 3,
+          step: 1,
+          default: 0,
+          value: this.config.layoutMode ?? 0
+        },
+        {
+          name: 'Show Grid Overlay',
+          key: 'showGridOverlay',
+          min: 0,
+          max: 1,
+          step: 1,
+          default: 1,
+          value: this.config.showGridOverlay ?? 1
+        }
+      );
+    }
+
+    if (surfaceMode > 0) {
+      controls.push({
         name: 'Auto Rotation',
         key: 'autoRotation',
         min: 0,
@@ -144,17 +155,20 @@ export class RaindropsVisualizer extends BaseVisualizer {
         step: 0.0005,
         default: 0.003,
         value: this.config.autoRotation ?? 0.003
-      },
-      {
-        name: 'Hue',
-        key: 'hue',
-        min: 0,
-        max: 360,
-        step: 1,
-        default: 0,
-        value: this.config.hue ?? 0
-      }
-    ];
+      });
+    }
+
+    controls.push({
+      name: 'Hue',
+      key: 'hue',
+      min: 0,
+      max: 360,
+      step: 1,
+      default: 0,
+      value: this.config.hue ?? 0
+    });
+
+    return controls;
   }
 
   protected initScene(): void {

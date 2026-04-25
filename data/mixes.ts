@@ -22,7 +22,7 @@ export const mixes: Mix[] = [
     duration: "3:43",
     description: "I heard ya, okay?",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
   {
     title: "Dive into dark",
@@ -32,7 +32,7 @@ export const mixes: Mix[] = [
     duration: "2:52",
     description: "Sometimes you need to go deep into the dark",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
   {
     title: "Slow down",
@@ -42,7 +42,7 @@ export const mixes: Mix[] = [
     duration: "2:36",
     description: "You just got too...",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
   {
     title: "Slow Burn",
@@ -52,7 +52,7 @@ export const mixes: Mix[] = [
     duration: "3:47",
     description: "Low end head nodding vibes",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
    {
     title: "Midnight interlude",
@@ -62,7 +62,7 @@ export const mixes: Mix[] = [
     duration: "5:30",
     description: "Driving down the freeway floating in darkness",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
    {
     title: "Some Vibes",
@@ -72,7 +72,7 @@ export const mixes: Mix[] = [
     duration: "2:15",
     description: "Some Roland vibes for your midnight soul",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
   {
     title: "Stranger Events",
@@ -82,7 +82,7 @@ export const mixes: Mix[] = [
     duration: "3:16",
     description: "Things are strange out there",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },
   {
     title: "Blastin",
@@ -92,7 +92,7 @@ export const mixes: Mix[] = [
     duration: "1:38",
     description: "Who is blastin out my window at 2am? Oh wait, it's me.",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },  
   {
     title: "Synthcopated",
@@ -102,7 +102,17 @@ export const mixes: Mix[] = [
     duration: "3:17",
     description: "A little bounce for an ounce.",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
+  },  
+  {
+    title: "Boogie Down Deductions",
+    slug: "boogie-down-deductions",
+    cover: "https://media.parttimechiller.com/BoogieDownDeductions_PTC.png",
+    audio: "https://media.parttimechiller.com/BoogieDownDeductions_PTC.mp3",
+    duration: "2:44",
+    description: "Breakers break anthem",
+    type: "track",
+    artist: "Part Time Chiller"
   },  
   {
     title: "Rise Up",
@@ -112,7 +122,17 @@ export const mixes: Mix[] = [
     duration: "3:28",
     description: "Time to get up and get down",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
+  },
+    {
+    title: "Piano Overlord",
+    slug: "piano-overlord",
+    cover: "https://media.parttimechiller.com/PianoOverlord_PTC.png",
+    audio: "https://media.parttimechiller.com/PianoOverlord_PTC.mp3",
+    duration: "3:28",
+    description: "A rainy day piano heavy vibe for the soul",
+    type: "track",
+    artist: "Part Time Chiller"
   },
   
   // {
@@ -123,7 +143,7 @@ export const mixes: Mix[] = [
   //   duration: "2:54",
   //   description: "Frictionless cruising vibes",
   //   type: "track",
-  //   artist: "Part-Time Chiller"
+  //   artist: "Part Time Chiller"
   // },  
   // {
   //   title: "Loose Grooves",
@@ -133,7 +153,7 @@ export const mixes: Mix[] = [
   //   duration: "4:16",
   //   description: "So loose, so groovy",
   //   type: "track",
-  //   artist: "Part-Time Chiller"
+  //   artist: "Part Time Chiller"
   // },  
   {
     title: "Aw Yeah",
@@ -143,7 +163,7 @@ export const mixes: Mix[] = [
     duration: "7:20",
     description: "Aw yeah, aw yeah, aw yeah",
     type: "track",
-    artist: "Part-Time Chiller"
+    artist: "Part Time Chiller"
   },  
   {
     title: "Live at Oldfields mix",
@@ -153,7 +173,7 @@ export const mixes: Mix[] = [
     duration: "3:00:00",
     description: "Midtempo vibes for Friday evening soirée",
     type: "mix",
-    artist: "Part-Time Chiller DJ Set"
+    artist: "Part Time Chiller"
   },
   {
     title: "Live at Tamarak Ventures",
@@ -163,16 +183,16 @@ export const mixes: Mix[] = [
     duration: "3:00:00",
     description: "Perfect early summertime evening vibes recorded at Tamarak Ventures 2025",
     type: "mix",
-    artist: "Part-Time Chiller DJ Set"
+    artist: "Part Time Chiller"
   },
   {
-    title: "Mixing at Margot",
-    slug: "mixing-at-margot",
+    title: "The Margot Mixtape",
+    slug: "the-margot-mixtape",
     cover: "https://media.parttimechiller.com/MixAtMargot_PTC.png",
     audio: "https://media.parttimechiller.com/MixAtMargot_PTC.mp3",
     duration: "2:38:29",
-    description: "Sophisticated sexy vibes recorded live at Margot in Los Angeles",
+    description: "Sophisticated sexy vibes dj mixtape recorded live at the Margot rooftop in Los Angeles",
     type: "mix",
-    artist: "Part-Time Chiller DJ Set"
+    artist: "Part Time Chiller"
   }
 ];

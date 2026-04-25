@@ -127,9 +127,15 @@ export function useVisualizer({
     visualizerManagerRef.current.updateConfig(key, value);
     setCurrentConfig((prev) => ({ ...prev, [key]: value }));
 
-    setControls((prev) =>
-      prev.map((control) => (control.key === key ? { ...control, value } : control))
-    );
+    // Re-fetch full control list for keys that affect which controls are visible
+    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode']);
+    if (refetchKeys.has(key)) {
+      setControls(visualizerManagerRef.current.getCurrentControls());
+    } else {
+      setControls((prev) =>
+        prev.map((control) => (control.key === key ? { ...control, value } : control))
+      );
+    }
   }, []);
 
   // Reset to defaults
