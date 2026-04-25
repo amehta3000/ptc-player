@@ -90,6 +90,15 @@ export class ChrysalisVisualizer extends BaseVisualizer {
         step: 0.5,
         default: 5,
         value: this.config.radius ?? 5
+      },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
       }
     ];
   }
@@ -333,6 +342,9 @@ export class ChrysalisVisualizer extends BaseVisualizer {
       const material = loopData.loop.material as LineMaterial;
       material.opacity = 0.5 + freqValue * 0.4;
       material.linewidth = this.config.lineThickness || 2;
+      const hueOffset = this.config.hue ?? 0;
+      const loopHue = ((index / this.loops.length) * 360 + hueOffset) % 360;
+      material.color.setHSL(loopHue / 360, 0.8, 0.6);
     });
   }
 

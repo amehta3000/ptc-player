@@ -26,56 +26,146 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-/* Visualizer control sliders — tall rectangular thumbs for mobile */
+/* Visualizer control sliders — round thumb with filled track */
 input[type='range'].viz-slider {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   cursor: pointer;
-  height: 28px;
+  height: 22px;
   padding: 0;
 }
 
 input[type='range'].viz-slider::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.15);
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--slider-fill, rgba(96, 165, 250, 0.85)) var(--fill-pct, 0%),
+    rgba(255, 255, 255, 0.13) var(--fill-pct, 0%)
+  );
+}
+
+@media (prefers-color-scheme: light) {
+  input[type='range'].viz-slider::-webkit-slider-runnable-track {
+    background: linear-gradient(
+      to right,
+      var(--slider-fill, rgba(59, 130, 246, 0.85)) var(--fill-pct, 0%),
+      rgba(0, 0, 0, 0.1) var(--fill-pct, 0%)
+    );
+  }
 }
 
 input[type='range'].viz-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 10px;
-  height: 22px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.7);
-  border: none;
-  margin-top: -9px;
-  transition: background 0.15s;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--slider-fill, rgba(96, 165, 250, 0.9));
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  margin-top: -6.5px;
+  cursor: pointer;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  transition: transform 0.1s, border-color 0.1s;
 }
 
-input[type='range'].viz-slider::-webkit-slider-thumb:hover,
+input[type='range'].viz-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 input[type='range'].viz-slider::-webkit-slider-thumb:active {
-  background: rgba(255, 255, 255, 0.95);
+  transform: scale(1.05);
 }
 
 input[type='range'].viz-slider::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.15);
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.13);
   border: none;
+}
+
+input[type='range'].viz-slider::-moz-range-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--slider-fill, rgba(96, 165, 250, 0.85));
 }
 
 input[type='range'].viz-slider::-moz-range-thumb {
-  width: 10px;
-  height: 22px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.7);
-  border: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--slider-fill, rgba(96, 165, 250, 0.9));
+  border: 2px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
 }
 
-input[type='range'].viz-slider::-moz-range-thumb:hover,
-input[type='range'].viz-slider::-moz-range-thumb:active {
-  background: rgba(255, 255, 255, 0.95);
+input[type='range'].viz-slider::-moz-range-thumb:hover {
+  transform: scale(1.12);
+}
+
+/* Hue slider — rainbow gradient track with large circular thumb */
+input[type='range'].viz-slider-hue {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 36px;
+  padding: 0;
+}
+
+input[type='range'].viz-slider-hue::-webkit-slider-runnable-track {
+  height: 28px;
+  border-radius: 14px;
+  background: linear-gradient(
+    to right,
+    hsl(0, 100%, 50%),
+    hsl(60, 100%, 50%),
+    hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%),
+    hsl(240, 100%, 50%),
+    hsl(300, 100%, 50%),
+    hsl(360, 100%, 50%)
+  );
+}
+
+input[type='range'].viz-slider-hue::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  margin-top: 0px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+input[type='range'].viz-slider-hue::-moz-range-track {
+  height: 28px;
+  border-radius: 14px;
+  background: linear-gradient(
+    to right,
+    hsl(0, 100%, 50%),
+    hsl(60, 100%, 50%),
+    hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%),
+    hsl(240, 100%, 50%),
+    hsl(300, 100%, 50%),
+    hsl(360, 100%, 50%)
+  );
+  border: none;
+}
+
+input[type='range'].viz-slider-hue::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }

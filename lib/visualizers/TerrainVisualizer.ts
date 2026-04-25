@@ -95,6 +95,15 @@ export class TerrainVisualizer extends BaseVisualizer {
         step: 0.05,
         default: 0.3,
         value: this.config.sineAmplitude ?? 0.3
+      },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
       }
     ];
   }
@@ -354,8 +363,13 @@ export class TerrainVisualizer extends BaseVisualizer {
     // Update geometry vertices
     const positions = this.geometry.attributes.position;
     const colorAttr = this.geometry.attributes.color;
-    const dominantRGB = this.parseRGB(this.colors.dominant);
-    const accentRGB = this.parseRGB(this.colors.accent);
+    const hueShift = (this.config.hue ?? 0) / 360;
+    const domParsed = this.parseRGB(this.colors.dominant);
+    const accParsed = this.parseRGB(this.colors.accent);
+    const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b).offsetHSL(hueShift, 0, 0);
+    const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b).offsetHSL(hueShift, 0, 0);
+    const dominantRGB = { r: domColor.r, g: domColor.g, b: domColor.b };
+    const accentRGB = { r: accColor.r, g: accColor.g, b: accColor.b };
     
     // Pre-calculate decay factors
     const decayFactors: number[] = [];

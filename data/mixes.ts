@@ -27,7 +27,7 @@ export const mixes: Mix[] = [
   {
     title: "Dive into dark",
     slug: "dive-into-dark",
-    cover: "https://media.parttimechiller.com/DiveIntoDark_PTC.png",
+    cover: "https://media.parttimechiller.com/DiveIntoDarkI_PTC.png",
     audio: "https://media.parttimechiller.com/DiveIntoDark_PTC.mp3",
     duration: "2:52",
     description: "Sometimes you need to go deep into the dark",
@@ -148,7 +148,7 @@ export const mixes: Mix[] = [
   {
     title: "Live at Oldfields mix",
     slug: "live-at-oldfields",
-    cover: "https://media.parttimechiller.com/OldfieldsMix_PTC.png",
+    cover: "https://media.parttimechiller.com/OldfieldsMixI_PTC.png",
     audio: "https://media.parttimechiller.com/OldfieldsMix_PTC.mp3",
     duration: "3:00:00",
     description: "Midtempo vibes for Friday evening soirée",

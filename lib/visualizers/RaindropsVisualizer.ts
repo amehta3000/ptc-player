@@ -144,6 +144,15 @@ export class RaindropsVisualizer extends BaseVisualizer {
         step: 0.0005,
         default: 0.003,
         value: this.config.autoRotation ?? 0.003
+      },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
       }
     ];
   }
@@ -502,7 +511,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
     const maxRadius = (8 - (normalizedBand * 6)) * sizeScale;
     const speed = 1.5 + (normalizedBand * 2);
 
-    const hue = normalizedBand * 0.7;
+    const hueOffset = (this.config.hue ?? 0) / 360;
+    const hue = (normalizedBand * 0.7 + hueOffset) % 1;
     const saturation = 0.8 + (normalizedBand * 0.2);
     const lightness = 0.5 + (amplitude * 0.3);
     const color = new THREE.Color().setHSL(hue, saturation, lightness);

@@ -69,6 +69,15 @@ export class WebVisualizer extends BaseVisualizer {
         step: 0.1,
         default: 3,
         value: this.config.radius ?? 3
+      },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
       }
     ];
   }
@@ -181,9 +190,14 @@ export class WebVisualizer extends BaseVisualizer {
     const ringCount = 12;
     const time = Date.now() * 0.001;
     
-    const dominantRGB = this.parseRGB(this.colors.dominant);
-    const accentRGB = this.parseRGB(this.colors.accent);
-    
+    const hueShift = (this.config.hue ?? 0) / 360;
+    const domParsed = this.parseRGB(this.colors.dominant);
+    const accParsed = this.parseRGB(this.colors.accent);
+    const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b).offsetHSL(hueShift, 0, 0);
+    const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b).offsetHSL(hueShift, 0, 0);
+    const dominantRGB = { r: domColor.r, g: domColor.g, b: domColor.b };
+    const accentRGB = { r: accColor.r, g: accColor.g, b: accColor.b };
+
     let vertexIndex = 0;
     
     for (let ring = 0; ring < ringCount; ring++) {

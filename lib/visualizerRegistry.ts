@@ -81,11 +81,12 @@ export class VisualizerRegistry {
 
 // Register all visualizers with their default configs
 VisualizerRegistry.register('bars', 'Bars', BarsVisualizer, {
-  scale: 0.5,
-  smoothness: 1.0,
+  scale: 1.0,
+  smoothness: 1.5,
   width: 20,
-  mode: 0,
-  palette: 0,
+  mode: 3,
+  palette: 2,
+  hue: 0,
 });
 
 VisualizerRegistry.register('orb', 'Orb', OrbVisualizer, {
@@ -100,6 +101,7 @@ VisualizerRegistry.register('orb', 'Orb', OrbVisualizer, {
   lightIntensity: 2,
   lightSpeed: 0.5,
   ambient: 0.3,
+  hue: 0,
 });
 
 VisualizerRegistry.register('web', 'Web', WebVisualizer, {
@@ -107,6 +109,7 @@ VisualizerRegistry.register('web', 'Web', WebVisualizer, {
   midExtension: 0.5,
   highShimmer: 0.1,
   rotationSpeed: 0.002,
+  hue: 0,
 });
 
 VisualizerRegistry.register('terrain', 'Terrain', TerrainVisualizer, {
@@ -115,6 +118,7 @@ VisualizerRegistry.register('terrain', 'Terrain', TerrainVisualizer, {
   decay: 0.95,
   cameraDistance: 9.5,
   autoRotation: 0.0005,
+  hue: 0,
 });
 
 VisualizerRegistry.register('chrysalis', 'Chrysalis', ChrysalisVisualizer, {
@@ -123,6 +127,7 @@ VisualizerRegistry.register('chrysalis', 'Chrysalis', ChrysalisVisualizer, {
   rotationSpeed: 0.003,
   pulseIntensity: 0.7,
   lineThickness: 2,
+  hue: 0,
 });
 
 VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer, {
@@ -133,7 +138,7 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
   particleSize: 0.5,
   cameraSpeed: 0.001,
   trail: 0,
-  baseHue: 0,
+  hue: 0,
   harmonyMode: 0,
 }, {
   particleSize: 1.0,
@@ -147,6 +152,7 @@ VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
   intensity: 0.8,
   ringThickness: 0.10,
   layoutMode: 0,
+  hue: 0,
 });
 
 VisualizerRegistry.register('sacredGeometry', 'Sacred Geometry', SacredGeometryVisualizer, {
@@ -155,7 +161,7 @@ VisualizerRegistry.register('sacredGeometry', 'Sacred Geometry', SacredGeometryV
   pulseStrength: 0.4,
   layerCount: 6,
   complexity: 2,
-  baseHue: 0,
+  hue: 0,
   harmonyMode: 1,
   symmetry: 6,
 });
@@ -168,4 +174,5 @@ VisualizerRegistry.register('cassette', 'Cassette', CassetteVisualizer, {
   bounce: 0.2,
   autoRotate: 0.003,
   tiltReact: 0.1,
+  hue: 0,
 });

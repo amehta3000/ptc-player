@@ -69,6 +69,7 @@ export default function DetailView({
   const duration = usePlayerStore((s) => s.duration);
   const dominantColor = usePlayerStore((s) => s.dominantColor);
   const accentColor = usePlayerStore((s) => s.accentColor);
+  const highlightColor = darkMode ? accentColor : 'rgba(28, 28, 30, 0.85)';
   const showVisualizer = usePlayerStore((s) => s.showVisualizer);
   const setShowVisualizer = usePlayerStore((s) => s.setShowVisualizer);
   const showControls = usePlayerStore((s) => s.showControls);
@@ -251,7 +252,7 @@ export default function DetailView({
       </div>
 
       {/* Header */}
-      <div className={`relative z-10 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
+      <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowPlaylist(!showPlaylist)}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
           <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>Part Time Chiller</span>
@@ -371,7 +372,7 @@ export default function DetailView({
               onClick={() => showVisualizer && setShowControls(!showControls)}
               className={`h-9 px-3 text-sm select-none min-w-[5rem] text-center whitespace-nowrap transition-all duration-300 flex items-center justify-center ${showVisualizer ? 'cursor-pointer' : ''} ${darkMode ? 'bg-neutral-800/80 text-white' : 'bg-neutral-200/80 text-neutral-800'}`}
             >
-              {currentDisplayName}
+              {showControls && showVisualizer ? 'Close panel' : currentDisplayName}
             </span>
             <button
               onClick={() => navigateView(1)}
@@ -421,7 +422,7 @@ export default function DetailView({
               </svg>
             </button>
             {toolsMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-lg backdrop-blur-xl bg-black/85 border border-white/15 shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 z-[60] w-56 rounded-lg backdrop-blur-xl bg-black/85 border border-white/15 shadow-xl overflow-hidden">
                 {/* Dark/Light mode toggle */}
                 <button
                   onClick={() => { onToggleDarkMode(); setToolsMenuOpen(false); }}
@@ -607,9 +608,10 @@ export default function DetailView({
 
       {/* Slim Player Bar */}
       <div
-        className={`relative z-10 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl border-t border-neutral-800/50 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
+        className={`relative z-10 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
         style={{
-          background: `linear-gradient(to right, ${dominantColor}25, ${accentColor}25)`,
+          background: `linear-gradient(to right, rgba(10,10,10,0.85), ${accentColor}15)`,
+          borderTop: `1px solid ${accentColor}20`,
         }}
       >
         {/* Album art — toggles playlist */}
@@ -622,7 +624,7 @@ export default function DetailView({
             src={currentMix.cover}
             alt={currentMix.title}
             className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover shadow-lg transition-all duration-500"
-            style={{ boxShadow: `0 0 0 2px ${accentColor}40` }}
+            style={{ boxShadow: `0 0 8px ${accentColor}50` }}
           />
         </button>
 
@@ -635,7 +637,7 @@ export default function DetailView({
           >
             <div
               className="h-full transition-all duration-300 shadow-lg"
-              style={{ width: `${progress}%`, background: `linear-gradient(to right, ${dominantColor}, ${accentColor})` }}
+              style={{ width: `${progress}%`, background: highlightColor }}
             />
           </div>
           <div className="flex justify-between items-center mt-0.5">
@@ -649,7 +651,7 @@ export default function DetailView({
           className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all ${
             shuffleMode ? 'text-white' : 'text-white/40 hover:text-white/70'
           }`}
-          style={shuffleMode ? { color: accentColor } : undefined}
+          style={shuffleMode ? { color: highlightColor } : undefined}
           aria-label="Toggle shuffle"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -661,8 +663,8 @@ export default function DetailView({
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <button
             onClick={onPlayPrevious}
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-            style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-300 hover:scale-105 active:scale-95"
+            style={{ background: 'rgba(28, 28, 30, 0.9)', color: 'rgba(240, 240, 240, 0.9)', boxShadow: `0 0 0 1px ${accentColor}25` }}
             disabled={currentIndex === 0 && repeatMode === 'off'}
             aria-label="Previous track"
           >
@@ -672,8 +674,8 @@ export default function DetailView({
           </button>
           <button
             onClick={onTogglePlay}
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-            style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+            style={{ background: 'rgba(28, 28, 30, 0.9)', color: 'rgba(240, 240, 240, 0.95)', boxShadow: `0 0 0 1.5px ${accentColor}40, 0 4px 12px rgba(0,0,0,0.3)` }}
           >
             {isPlaying ? (
               <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -687,8 +689,8 @@ export default function DetailView({
           </button>
           <button
             onClick={onPlayNext}
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
-            style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-300 hover:scale-105 active:scale-95"
+            style={{ background: 'rgba(28, 28, 30, 0.9)', color: 'rgba(240, 240, 240, 0.9)', boxShadow: `0 0 0 1px ${accentColor}25` }}
             disabled={currentIndex === filteredMixes.length - 1 && repeatMode === 'off'}
             aria-label="Next track"
           >
@@ -704,14 +706,14 @@ export default function DetailView({
           className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all relative ${
             repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white/70'
           }`}
-          style={repeatMode !== 'off' ? { color: accentColor } : undefined}
+          style={repeatMode !== 'off' ? { color: highlightColor } : undefined}
           aria-label={`Repeat: ${repeatMode}`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           {repeatMode === 'one' && (
-            <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold" style={{ color: accentColor }}>1</span>
+            <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold" style={{ color: highlightColor }}>1</span>
           )}
         </button>
 
@@ -747,8 +749,11 @@ export default function DetailView({
               setVolume(v);
               if (isMuted && v > 0) toggleMute();
             }}
-            className="w-16 lg:w-20 h-1.5 rounded-lg appearance-none cursor-pointer bg-white/10"
-            style={{ accentColor: dominantColor }}
+            className="w-16 lg:w-20 viz-slider"
+            style={{
+              '--fill-pct': `${(isMuted ? 0 : volume) * 100}%`,
+              '--slider-fill': dominantColor,
+            } as React.CSSProperties}
             aria-label="Volume"
           />
         </div>

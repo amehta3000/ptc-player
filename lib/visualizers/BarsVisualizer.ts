@@ -43,6 +43,15 @@ export class BarsVisualizer extends BaseVisualizer {
         value: this.config.palette ?? 0
       },
       {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
+      },
+      {
         name: 'Bar Height',
         key: 'scale',
         min: 0.5,
@@ -316,40 +325,42 @@ export class BarsVisualizer extends BaseVisualizer {
 
   private getBarColor(index: number, total: number): string {
     const paletteIndex = Math.round(this.config.palette ?? 0);
+    const hueShift = this.config.hue ?? 0;
     const t = total > 1 ? index / (total - 1) : 0;
 
     switch (paletteIndex) {
       case 0: {
-        // Album: dominant → accent
+        // Album: dominant → accent, then apply hue shift
         const d = this.parseRGB(this.colors.dominant);
         const a = this.parseRGB(this.colors.accent);
         const r = Math.round((d.r * (1 - t) + a.r * t) * 255);
         const g = Math.round((d.g * (1 - t) + a.g * t) * 255);
         const b = Math.round((d.b * (1 - t) + a.b * t) * 255);
-        return `rgb(${r},${g},${b})`;
+        const rgb = `rgb(${r},${g},${b})`;
+        return hueShift ? this.shiftHue(rgb, hueShift) : rgb;
       }
       case 1:
         // Rainbow
-        return `hsl(${t * 360}, 80%, 55%)`;
+        return `hsl(${t * 360 + hueShift}, 80%, 55%)`;
       case 2:
         // Fire: red → orange → yellow
-        return `hsl(${t * 55}, 90%, ${45 + t * 15}%)`;
+        return `hsl(${t * 55 + hueShift}, 90%, ${45 + t * 15}%)`;
       case 3:
         // Ocean: deep blue → cyan → teal
-        return `hsl(${220 - t * 50}, 75%, ${40 + t * 20}%)`;
+        return `hsl(${220 - t * 50 + hueShift}, 75%, ${40 + t * 20}%)`;
       case 4:
         // Neon: magenta → cyan → lime
-        return `hsl(${300 - t * 180}, 100%, 55%)`;
+        return `hsl(${300 - t * 180 + hueShift}, 100%, 55%)`;
       case 5: {
         // Sunset: purple → magenta → orange → gold
-        const hue = t < 0.5 ? 280 + t * 80 : 30 + (t - 0.5) * 30;
-        return `hsl(${hue}, 80%, 50%)`;
+        const baseHue = t < 0.5 ? 280 + t * 80 : 30 + (t - 0.5) * 30;
+        return `hsl(${baseHue + hueShift}, 80%, 50%)`;
       }
       case 6:
-        // Monochrome: white with varying opacity
+        // Monochrome: white with varying opacity (hue has no effect)
         return `rgba(255, 255, 255, ${0.4 + t * 0.6})`;
       default:
-        return `hsl(${t * 360}, 80%, 55%)`;
+        return `hsl(${t * 360 + hueShift}, 80%, 55%)`;
     }
   }
 
