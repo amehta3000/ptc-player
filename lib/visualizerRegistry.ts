@@ -102,6 +102,8 @@ VisualizerRegistry.register('orb', 'Orb', OrbVisualizer, {
   lightSpeed: 0.25,
   ambient: 0.3,
   hue: 0,
+}, {
+  radius: 2.0,
 });
 
 VisualizerRegistry.register('web', 'Web', WebVisualizer, {
