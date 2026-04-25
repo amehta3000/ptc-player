@@ -1,9 +1,10 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useVisualizer } from '../lib/useVisualizer';
 import { extractColors } from '../lib/colorExtractor';
 import { trackEvent } from '../lib/analytics';
 import { mixes, getMixBySlug } from '../data/mixes';
+import { buildShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
 
 interface PlayerAppProps {
@@ -13,6 +14,13 @@ interface PlayerAppProps {
 export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Parse share state synchronously at render time — before any effects can call replaceState
+  const [initialShareState] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const vizParam = new URLSearchParams(window.location.search).get('viz');
+    return vizParam ? parseShareParam(vizParam) : null;
+  });
 
   // Store selectors
   const currentMix = usePlayerStore((s) => s.currentMix);
@@ -53,6 +61,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     toggleRecording,
     cancelConversion,
     recordingState,
+    currentConfig,
   } = useVisualizer({
     audioRef,
     containerRef: visualizerContainerRef,
@@ -176,6 +185,31 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     })();
   }, []);
 
+  // Restore shared visualizer state from ?viz= URL param
+  useEffect(() => {
+    if (!initialShareState) return;
+    setVisualizerType(initialShareState.v);
+    if (Object.keys(initialShareState.c).length > 0) {
+      setTimeout(() => applyPreset(initialShareState.c), 300);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build and copy the share URL for the current track + visualizer state
+  const handleShare = useCallback(() => {
+    if (!currentMix?.slug) return;
+    const url = buildShareUrl(currentMix.slug, visualizerType, visualizerControls);
+    navigator.clipboard.writeText(url).catch(() => {
+      // Fallback for browsers that block clipboard API
+      const input = document.createElement('input');
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    });
+    trackEvent('share_link_copied', currentMix.title);
+  }, [currentMix, visualizerType, visualizerControls]);
+
   // Debug mode keyboard shortcut (Cmd/Ctrl + D)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -278,6 +312,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onToggleRecording={toggleRecording}
         onCancelConversion={cancelConversion}
         recordingState={recordingState}
+        onShare={handleShare}
       />
     </div>
   );
