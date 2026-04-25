@@ -73,7 +73,7 @@ export class VisualizerRegistry {
     if (!entry) return {};
     const base = { ...entry.defaultConfig };
     if (isMobile && entry.mobileConfig) {
-      return { ...base, ...entry.mobileConfig };
+      return { ...base, ...entry.mobileConfig } as VisualizerConfig;
     }
     return base;
   }
