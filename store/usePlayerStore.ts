@@ -58,6 +58,7 @@ interface PlayerActions {
   setShowPlaylist: (show: boolean) => void;
   setShowDebug: (show: boolean) => void;
   toggleDarkMode: () => void;
+  setDarkMode: (dark: boolean) => void;
   setVisualizerType: (type: VisualizerType) => void;
   setCurrentFont: (font: string) => void;
 
@@ -152,6 +153,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   setShowPlaylist: (show) => set({ showPlaylist: show }),
   setShowDebug: (show) => set({ showDebug: show }),
   toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
+  setDarkMode: (dark) => set({ darkMode: dark }),
   setVisualizerType: (type) => set({ visualizerType: type }),
   setCurrentFont: (font) => set({ currentFont: font }),
 

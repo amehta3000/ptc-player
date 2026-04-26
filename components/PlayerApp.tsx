@@ -45,6 +45,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const setShowDebug = usePlayerStore((s) => s.setShowDebug);
   const darkMode = usePlayerStore((s) => s.darkMode);
   const toggleDarkMode = usePlayerStore((s) => s.toggleDarkMode);
+  const setDarkMode = usePlayerStore((s) => s.setDarkMode);
 
   // Visualizer hook
   const {
@@ -189,6 +190,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   useEffect(() => {
     if (!initialShareState) return;
     setVisualizerType(initialShareState.v);
+    setDarkMode(initialShareState.d);
     if (Object.keys(initialShareState.c).length > 0) {
       setTimeout(() => applyPreset(initialShareState.c), 300);
     }
@@ -197,7 +199,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   // Build and copy the share URL for the current track + visualizer state
   const handleShare = useCallback(() => {
     if (!currentMix?.slug) return;
-    const url = buildShareUrl(currentMix.slug, visualizerType, visualizerControls);
+    const url = buildShareUrl(currentMix.slug, visualizerType, visualizerControls, darkMode);
     navigator.clipboard.writeText(url).catch(() => {
       // Fallback for browsers that block clipboard API
       const input = document.createElement('input');
