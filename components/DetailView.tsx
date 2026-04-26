@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
-import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS, MAX_RECORDING_SECONDS } from '../lib/exportManager';
+import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import { trackEvent } from '../lib/analytics';
