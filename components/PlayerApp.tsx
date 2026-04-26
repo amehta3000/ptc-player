@@ -26,6 +26,8 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     setShowIntro(false);
   }, []);
 
+  const handleShowAbout = useCallback(() => setShowIntro(true), []);
+
   // Parse share state synchronously at render time — before any effects can call replaceState
   const [initialShareState] = useState(() => {
     if (typeof window === 'undefined') return null;
@@ -326,6 +328,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onCancelConversion={cancelConversion}
         recordingState={recordingState}
         onShare={handleShare}
+        onShowAbout={handleShowAbout}
       />
       {showIntro && <IntroSequence onDismiss={handleIntroDismiss} />}
     </div>
