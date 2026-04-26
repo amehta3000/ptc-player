@@ -27,7 +27,7 @@ export default function VisualizerControls({
   const visualizerType = usePlayerStore((s) => s.visualizerType);
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="absolute top-16 sm:top-20 sm:bottom-[80px] right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-72 max-h-[60vh] sm:max-h-none overflow-y-auto p-3 sm:p-4 rounded-lg backdrop-blur-xl bg-black/60 border border-white/10 z-20 space-y-2.5 sm:space-y-3">
       <div className="text-sm font-medium text-white/90 mb-2 sm:mb-3 flex items-center gap-2">
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />

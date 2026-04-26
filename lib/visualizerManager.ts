@@ -16,20 +16,15 @@ export class VisualizerManager {
   private isPlaying: boolean = false;
   private darkMode: boolean = true;
   private resizeObserver: ResizeObserver | null = null;
-  private resizeDebounceId: ReturnType<typeof setTimeout> | null = null;
-
+  
   constructor(audioEngine: AudioEngine, container: HTMLDivElement) {
     this.audioEngine = audioEngine;
     this.container = container;
 
-    // Debounced resize: wait until layout stops changing (e.g. drawer transition ends)
-    // before notifying visualizers, so they only setSize() once instead of every frame
+    // Observe container size changes and dispatch window resize
+    // so all visualizers (which listen on window resize) get notified
     this.resizeObserver = new ResizeObserver(() => {
-      if (this.resizeDebounceId !== null) clearTimeout(this.resizeDebounceId);
-      this.resizeDebounceId = setTimeout(() => {
-        this.resizeDebounceId = null;
-        window.dispatchEvent(new Event('resize'));
-      }, 350);
+      window.dispatchEvent(new Event('resize'));
     });
     this.resizeObserver.observe(this.container);
   }
@@ -160,10 +155,6 @@ export class VisualizerManager {
    */
   destroy(): void {
     this.stopAnimationLoop();
-    if (this.resizeDebounceId !== null) {
-      clearTimeout(this.resizeDebounceId);
-      this.resizeDebounceId = null;
-    }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
