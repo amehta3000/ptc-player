@@ -4,6 +4,7 @@ import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisu
 import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
+import IntroSequence from './IntroSequence';
 import { trackEvent } from '../lib/analytics';
 import { Mix } from '../data/mixes';
 import { extractColors } from '../lib/colorExtractor';
@@ -31,6 +32,8 @@ interface DetailViewProps {
   recordingState: RecordingState;
   onShare: () => void;
   onShowAbout: () => void;
+  showIntro: boolean;
+  onIntroDismiss: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -61,6 +64,8 @@ export default function DetailView({
   onToggleDarkMode,
   onShare,
   onShowAbout,
+  showIntro,
+  onIntroDismiss,
   onScreenshot,
   onToggleRecording,
   onCancelConversion,
@@ -243,6 +248,9 @@ export default function DetailView({
       onTouchStart={handleSwipeStart}
       onTouchEnd={handleSwipeEnd}
     >
+      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
+      {showIntro && <IntroSequence onDismiss={onIntroDismiss} />}
+
       {/* Background */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"

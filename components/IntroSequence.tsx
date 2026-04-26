@@ -22,7 +22,7 @@ export default function IntroSequence({ onDismiss }: IntroSequenceProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-[15] flex flex-col items-center justify-center cursor-pointer select-none px-6 ${animatingOut ? 'intro-out' : ''}`}
+      className={`fixed inset-0 z-[18] flex flex-col items-center justify-center cursor-pointer select-none px-6 ${animatingOut ? 'intro-out' : ''}`}
       onClick={handleDismiss}
     >
       <div

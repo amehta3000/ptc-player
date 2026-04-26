@@ -6,7 +6,6 @@ import { trackEvent } from '../lib/analytics';
 import { mixes, getMixBySlug } from '../data/mixes';
 import { buildShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
-import IntroSequence from './IntroSequence';
 
 interface PlayerAppProps {
   initialSlug?: string;
@@ -329,8 +328,9 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         recordingState={recordingState}
         onShare={handleShare}
         onShowAbout={handleShowAbout}
+        showIntro={showIntro}
+        onIntroDismiss={handleIntroDismiss}
       />
-      {showIntro && <IntroSequence onDismiss={handleIntroDismiss} />}
     </div>
   );
 }
