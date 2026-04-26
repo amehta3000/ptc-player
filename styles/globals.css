@@ -169,3 +169,24 @@ input[type='range'].viz-slider-hue::-moz-range-thumb {
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
+
+/* Intro title sequence */
+@keyframes introFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes introFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.intro-word {
+  opacity: 0;
+  animation: introFadeUp 600ms ease-out forwards;
+}
+
+.intro-out {
+  animation: introFadeOut 600ms ease-out forwards;
+  pointer-events: none;
+}
