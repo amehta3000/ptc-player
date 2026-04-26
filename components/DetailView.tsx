@@ -550,33 +550,53 @@ export default function DetailView({
         </div>
       </div>
 
-      {/* Control Panel */}
-      {showControls && showVisualizer && (
-        <VisualizerControls
-          controls={visualizerControls}
-          presets={visualizerPresets}
-          onUpdateConfig={onUpdateConfig}
-          onReset={onResetConfig}
-          onApplyPreset={onApplyPreset}
-          onRandomizeControls={onRandomizeControls}
-          visualizerName={visualizerName}
-          onChangeVisualizer={(type) => setVisualizerType(type)}
-        />
-      )}
-
-      {/* Full-viewport visualizer layer (behind UI) */}
-      {showVisualizer && (
+      {/* Body area — canvas + right drawer */}
+      <div className="relative flex-1 min-h-0 flex overflow-hidden">
+        {/* Canvas / album art area */}
         <div
-          className="absolute inset-0 z-[5] p-0 sm:p-4"
+          className="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden"
           onClick={() => { if (showControls && window.innerWidth < 640) setShowControls(false); }}
         >
           <VisualizerContainer containerRef={containerRef} />
         </div>
-      )}
 
-      {/* Middle area — album art when not visualizing, spacer when visualizing */}
-      <div className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}>
-        {!showVisualizer && <VisualizerContainer containerRef={containerRef} />}
+        {/* Desktop right drawer — slides in/out via width transition */}
+        {showVisualizer && (
+          <div
+            className={`hidden sm:flex flex-col flex-shrink-0 overflow-hidden backdrop-blur-xl bg-black/70 border-l border-white/10 transition-all duration-300 ease-in-out ${
+              showControls ? 'w-80' : 'w-0'
+            }`}
+          >
+            <div className="w-80 overflow-y-auto flex-1 min-h-0">
+              <VisualizerControls
+                controls={visualizerControls}
+                presets={visualizerPresets}
+                onUpdateConfig={onUpdateConfig}
+                onReset={onResetConfig}
+                onApplyPreset={onApplyPreset}
+                onRandomizeControls={onRandomizeControls}
+                visualizerName={visualizerName}
+                onChangeVisualizer={(type) => setVisualizerType(type)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Mobile overlay controls */}
+        {showControls && showVisualizer && (
+          <div className="sm:hidden absolute inset-y-0 right-0 z-20 w-[calc(100%-3rem)] max-w-xs overflow-y-auto backdrop-blur-xl bg-black/80 border-l border-white/10">
+            <VisualizerControls
+              controls={visualizerControls}
+              presets={visualizerPresets}
+              onUpdateConfig={onUpdateConfig}
+              onReset={onResetConfig}
+              onApplyPreset={onApplyPreset}
+              onRandomizeControls={onRandomizeControls}
+              visualizerName={visualizerName}
+              onChangeVisualizer={(type) => setVisualizerType(type)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Playlist Drawer */}
