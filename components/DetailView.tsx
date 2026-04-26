@@ -350,15 +350,21 @@ export default function DetailView({
         </div>
 
         <div className="flex items-center gap-2.5 flex-1 sm:flex-none justify-center sm:justify-end">
-          {/* Randomize */}
+          {/* Share */}
           <button
-            onClick={onRandomize}
-            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
-            title="Randomize Visualizer"
+            onClick={() => { onShare(); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}
+            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
+            title="Share this vibe"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
+            {shareCopied ? (
+              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            )}
           </button>
           {/* View navigator: < Name > */}
           <div className="flex items-center">
@@ -373,9 +379,18 @@ export default function DetailView({
             </button>
             <span
               onClick={() => showVisualizer && setShowControls(!showControls)}
-              className={`h-9 px-3 text-sm select-none min-w-[5rem] text-center whitespace-nowrap transition-all duration-300 flex items-center justify-center ${showVisualizer ? 'cursor-pointer' : ''} ${darkMode ? 'bg-neutral-800/80 text-white' : 'bg-neutral-200/80 text-neutral-800'}`}
+              className={`h-9 px-3 text-sm select-none min-w-[2.5rem] text-center whitespace-nowrap transition-all duration-300 flex items-center justify-center ${showVisualizer ? 'cursor-pointer' : ''} ${darkMode ? 'bg-neutral-800/80 text-white' : 'bg-neutral-200/80 text-neutral-800'}`}
+              title={showControls && showVisualizer ? 'Close panel' : 'Configure visualizer'}
             >
-              {showControls && showVisualizer ? 'Close panel' : currentDisplayName}
+              {showControls && showVisualizer ? (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              )}
             </span>
             <button
               onClick={() => navigateView(1)}
@@ -559,6 +574,7 @@ export default function DetailView({
           onReset={onResetConfig}
           onApplyPreset={onApplyPreset}
           onRandomizeControls={onRandomizeControls}
+          onRandomize={onRandomize}
           visualizerName={visualizerName}
           onChangeVisualizer={(type) => setVisualizerType(type)}
         />

@@ -9,6 +9,7 @@ interface VisualizerControlsProps {
   onReset: () => void;
   onApplyPreset: (config: Record<string, number>) => void;
   onRandomizeControls: () => void;
+  onRandomize: () => void;
   visualizerName: string;
   onChangeVisualizer: (type: VisualizerType) => void;
 }
@@ -20,6 +21,7 @@ export default function VisualizerControls({
   onReset,
   onApplyPreset,
   onRandomizeControls,
+  onRandomize,
   visualizerName,
   onChangeVisualizer,
 }: VisualizerControlsProps) {
@@ -44,6 +46,15 @@ export default function VisualizerControls({
             </option>
           ))}
         </select>
+        <button
+          onClick={onRandomize}
+          className="w-7 h-7 flex-shrink-0 rounded flex items-center justify-center bg-white/5 text-white/50 border border-white/5 hover:bg-white/15 hover:text-white/90 transition-all duration-200"
+          title="Random visualizer"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </button>
       </div>
 
       {presets.length > 0 && (
