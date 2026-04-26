@@ -15,13 +15,9 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const [showIntro, setShowIntro] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return !localStorage.getItem('ptc_intro_seen');
-  });
+  const [showIntro, setShowIntro] = useState(true);
 
   const handleIntroDismiss = useCallback(() => {
-    localStorage.setItem('ptc_intro_seen', '1');
     setShowIntro(false);
   }, []);
 
