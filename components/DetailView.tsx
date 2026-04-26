@@ -1,9 +1,10 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
-import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS, MAX_RECORDING_SECONDS } from '../lib/exportManager';
+import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
+import IntroSequence from './IntroSequence';
 import { trackEvent } from '../lib/analytics';
 import { Mix } from '../data/mixes';
 import { extractColors } from '../lib/colorExtractor';
@@ -30,6 +31,9 @@ interface DetailViewProps {
   onCancelConversion: () => void;
   recordingState: RecordingState;
   onShare: () => void;
+  onShowAbout: () => void;
+  showIntro: boolean;
+  onIntroDismiss: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -59,6 +63,9 @@ export default function DetailView({
   darkMode,
   onToggleDarkMode,
   onShare,
+  onShowAbout,
+  showIntro,
+  onIntroDismiss,
   onScreenshot,
   onToggleRecording,
   onCancelConversion,
@@ -241,6 +248,9 @@ export default function DetailView({
       onTouchStart={handleSwipeStart}
       onTouchEnd={handleSwipeEnd}
     >
+      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
+      {showIntro && <IntroSequence onDismiss={onIntroDismiss} />}
+
       {/* Background */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"
@@ -295,6 +305,16 @@ export default function DetailView({
               <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
             </svg>
           </a>
+          <button
+            onClick={onShowAbout}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-sky-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`}
+            title="About"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4M12 8h.01" />
+            </svg>
+          </button>
         </div>
 
         {/* Social media overflow menu — mobile only */}
@@ -345,20 +365,36 @@ export default function DetailView({
                 </svg>
                 Spotify
               </a>
+              <button
+                onClick={() => { onShowAbout(); setSocialMenuOpen(false); }}
+                className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-sky-500/20 hover:text-sky-300 transition-colors flex items-center gap-3 border-t border-white/10"
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4M12 8h.01" />
+                </svg>
+                About
+              </button>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-2.5 flex-1 sm:flex-none justify-center sm:justify-end">
-          {/* Randomize */}
+          {/* Share */}
           <button
-            onClick={onRandomize}
-            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
-            title="Randomize Visualizer"
+            onClick={() => { onShare(); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}
+            className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
+            title="Share this vibe"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
+            {shareCopied ? (
+              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+              </svg>
+            )}
           </button>
           {/* View navigator: < Name > */}
           <div className="flex items-center">
@@ -373,9 +409,18 @@ export default function DetailView({
             </button>
             <span
               onClick={() => showVisualizer && setShowControls(!showControls)}
-              className={`h-9 px-3 text-sm select-none min-w-[5rem] text-center whitespace-nowrap transition-all duration-300 flex items-center justify-center ${showVisualizer ? 'cursor-pointer' : ''} ${darkMode ? 'bg-neutral-800/80 text-white' : 'bg-neutral-200/80 text-neutral-800'}`}
+              className={`h-9 px-3 text-sm select-none min-w-[2.5rem] text-center whitespace-nowrap transition-all duration-300 flex items-center justify-center ${showVisualizer ? 'cursor-pointer' : ''} ${darkMode ? 'bg-neutral-800/80 text-white' : 'bg-neutral-200/80 text-neutral-800'}`}
+              title={showControls && showVisualizer ? 'Close panel' : 'Configure visualizer'}
             >
-              {showControls && showVisualizer ? 'Close panel' : currentDisplayName}
+              {showControls && showVisualizer ? (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              )}
             </span>
             <button
               onClick={() => navigateView(1)}
@@ -441,7 +486,7 @@ export default function DetailView({
                     </svg>
                   ) : (
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
                     </svg>
                   )}
                   {shareCopied ? 'Link copied!' : 'Share this vibe'}
@@ -559,6 +604,7 @@ export default function DetailView({
           onReset={onResetConfig}
           onApplyPreset={onApplyPreset}
           onRandomizeControls={onRandomizeControls}
+          onRandomize={onRandomize}
           visualizerName={visualizerName}
           onChangeVisualizer={(type) => setVisualizerType(type)}
         />

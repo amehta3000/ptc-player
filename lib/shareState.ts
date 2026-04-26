@@ -5,12 +5,14 @@ import { VisualizerControl } from './visualizers/BaseVisualizer';
 export interface ShareState {
   v: VisualizerType;
   c: Record<string, number>;
+  d: boolean;
 }
 
 export function buildShareUrl(
   mixSlug: string,
   vizType: VisualizerType,
-  controls: VisualizerControl[]
+  controls: VisualizerControl[],
+  darkMode: boolean
 ): string {
   const defaults = VisualizerRegistry.getDefaultConfig(vizType, false);
   const deltas: Record<string, number> = {};
@@ -21,7 +23,7 @@ export function buildShareUrl(
     }
   });
 
-  const state: ShareState = { v: vizType, c: deltas };
+  const state: ShareState = { v: vizType, c: deltas, d: darkMode };
   const encoded = btoa(JSON.stringify(state))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -37,6 +39,8 @@ export function parseShareParam(param: string): ShareState | null {
     const json = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
     const state = JSON.parse(json);
     if (state && typeof state.v === 'string' && state.c && typeof state.c === 'object') {
+      // Default d to true for old links that predate the darkMode field
+      if (typeof state.d !== 'boolean') state.d = true;
       return state as ShareState;
     }
     return null;

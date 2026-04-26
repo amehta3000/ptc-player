@@ -77,7 +77,7 @@ export interface RecordingState {
   duration: number;
 }
 
-export const MAX_RECORDING_SECONDS = 30;
+export const MAX_RECORDING_SECONDS = Infinity;
 
 // Lazy-loaded singleton FFmpeg instance
 let ffmpegInstance: FFmpeg | null = null;
@@ -246,8 +246,7 @@ export class VideoRecorder {
     this.mediaRecorder.start(100);
     this.startTime = Date.now();
 
-    // Auto-stop after max duration
-    this.maxDurationTimeout = window.setTimeout(() => this.stop(), MAX_RECORDING_SECONDS * 1000);
+    // No max duration — user stops recording manually
 
     this.durationInterval = window.setInterval(() => {
       this.onStateChange({

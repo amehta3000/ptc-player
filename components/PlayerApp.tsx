@@ -15,6 +15,18 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
 
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('ptc_intro_seen');
+  });
+
+  const handleIntroDismiss = useCallback(() => {
+    localStorage.setItem('ptc_intro_seen', '1');
+    setShowIntro(false);
+  }, []);
+
+  const handleShowAbout = useCallback(() => setShowIntro(true), []);
+
   // Parse share state synchronously at render time — before any effects can call replaceState
   const [initialShareState] = useState(() => {
     if (typeof window === 'undefined') return null;
@@ -45,6 +57,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const setShowDebug = usePlayerStore((s) => s.setShowDebug);
   const darkMode = usePlayerStore((s) => s.darkMode);
   const toggleDarkMode = usePlayerStore((s) => s.toggleDarkMode);
+  const setDarkMode = usePlayerStore((s) => s.setDarkMode);
 
   // Visualizer hook
   const {
@@ -189,6 +202,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   useEffect(() => {
     if (!initialShareState) return;
     setVisualizerType(initialShareState.v);
+    setDarkMode(initialShareState.d);
     if (Object.keys(initialShareState.c).length > 0) {
       setTimeout(() => applyPreset(initialShareState.c), 300);
     }
@@ -197,7 +211,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   // Build and copy the share URL for the current track + visualizer state
   const handleShare = useCallback(() => {
     if (!currentMix?.slug) return;
-    const url = buildShareUrl(currentMix.slug, visualizerType, visualizerControls);
+    const url = buildShareUrl(currentMix.slug, visualizerType, visualizerControls, darkMode);
     navigator.clipboard.writeText(url).catch(() => {
       // Fallback for browsers that block clipboard API
       const input = document.createElement('input');
@@ -313,6 +327,9 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onCancelConversion={cancelConversion}
         recordingState={recordingState}
         onShare={handleShare}
+        onShowAbout={handleShowAbout}
+        showIntro={showIntro}
+        onIntroDismiss={handleIntroDismiss}
       />
     </div>
   );
