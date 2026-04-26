@@ -16,34 +16,34 @@ export default function IntroSequence({ onDismiss }: IntroSequenceProps) {
   };
 
   useEffect(() => {
-    const timer = setTimeout(handleDismiss, 2800);
+    const timer = setTimeout(handleDismiss, 5500);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <div
-      className={`fixed inset-0 z-[18] flex flex-col items-center justify-center cursor-pointer select-none px-6 ${animatingOut ? 'intro-out' : ''}`}
+      className={`fixed inset-0 z-[18] flex flex-col items-start justify-center cursor-pointer select-none pl-12 sm:pl-16 md:pl-20 lg:pl-28 ${animatingOut ? 'intro-out' : ''}`}
       onClick={handleDismiss}
     >
       <div
-        className="intro-word text-white/70 font-bold leading-none tracking-tight text-[11vw] sm:text-[9vw] md:text-[8vw]"
+        className="intro-word text-white/70 font-bold leading-none tracking-tight text-[8vw] sm:text-[7vw] md:text-[6.5vw]"
         style={{ animationDelay: '100ms' }}
       >
         PART TIME CHILLER
       </div>
       <div
-        className="intro-word text-white/60 font-bold leading-tight tracking-tight text-[5vw] sm:text-[4vw] md:text-[3.5vw] mt-3"
+        className="intro-word text-white/55 font-bold leading-tight tracking-tight text-[3.8vw] sm:text-[3vw] md:text-[2.6vw] mt-4"
         style={{ animationDelay: '500ms' }}
       >
         MUSIC FOR THE IN BETWEEN
       </div>
       <div
-        className="intro-word text-white/60 font-bold leading-tight tracking-tight text-[5vw] sm:text-[4vw] md:text-[3.5vw]"
+        className="intro-word text-white/55 font-bold leading-tight tracking-tight text-[3.8vw] sm:text-[3vw] md:text-[2.6vw]"
         style={{ animationDelay: '900ms' }}
       >
         A VISUAL BEAT TAPE + DJ MIXES
       </div>
-      <div className="absolute bottom-8 text-xs text-white/30 tracking-widest uppercase">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-xs text-white/30 tracking-widest uppercase">
         tap to skip
       </div>
     </div>
