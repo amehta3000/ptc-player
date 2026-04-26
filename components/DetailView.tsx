@@ -123,6 +123,7 @@ export default function DetailView({
 
   const swipeStartX = useRef(0);
   const swipeStartY = useRef(0);
+  const swipeStartTime = useRef(0);
 
   // Auto-hide UI after idle
   const IDLE_TIMEOUT = 3000;
@@ -228,13 +229,24 @@ export default function DetailView({
   const handleSwipeStart = useCallback((e: React.TouchEvent) => {
     swipeStartX.current = e.touches[0].clientX;
     swipeStartY.current = e.touches[0].clientY;
+    swipeStartTime.current = Date.now();
   }, []);
 
   const handleSwipeEnd = useCallback((e: React.TouchEvent) => {
     if (showPlaylist || showControls) return;
     const deltaX = e.changedTouches[0].clientX - swipeStartX.current;
     const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
-    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+    const elapsed = Date.now() - swipeStartTime.current;
+    // Require a quick flick: must finish within 350ms, travel >80px horizontally,
+    // and be at least 2× more horizontal than vertical.
+    // This prevents slow camera drags from accidentally changing the visualizer.
+    const velocity = Math.abs(deltaX) / elapsed; // px/ms
+    if (
+      elapsed < 350 &&
+      velocity > 0.4 &&
+      Math.abs(deltaX) > 80 &&
+      Math.abs(deltaX) > Math.abs(deltaY) * 2
+    ) {
       navigateView(deltaX < 0 ? 1 : -1);
       resetIdleTimer();
     }
