@@ -14,7 +14,17 @@ export function getMixBySlug(slug: string): Mix | undefined {
 }
 
 export const mixes: Mix[] = [
-   {
+  {
+    title: "Slow down",
+    slug: "slow-down",
+    cover: "https://media.parttimechiller.com/Slowdown_PTC.png",
+    audio: "https://media.parttimechiller.com/Slowdown_PTC.mp3",
+    duration: "2:36",
+    description: "You just got too...",
+    type: "track",
+    artist: "Part Time Chiller"
+  },
+  {
     title: "Okay",
     slug: "okay",
     cover: "https://media.parttimechiller.com/Okay_PTC.png",
@@ -31,16 +41,6 @@ export const mixes: Mix[] = [
     audio: "https://media.parttimechiller.com/DiveIntoDark_PTC.mp3",
     duration: "2:52",
     description: "Sometimes you need to go deep into the dark",
-    type: "track",
-    artist: "Part Time Chiller"
-  },
-  {
-    title: "Slow down",
-    slug: "slow-down",
-    cover: "https://media.parttimechiller.com/Slowdown_PTC.png",
-    audio: "https://media.parttimechiller.com/Slowdown_PTC.mp3",
-    duration: "2:36",
-    description: "You just got too...",
     type: "track",
     artist: "Part Time Chiller"
   },
