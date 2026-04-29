@@ -16,12 +16,23 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [showIntro, setShowIntro] = useState(true);
+  const [introTimeout, setIntroTimeout] = useState(5500);
+  const [introForceOut, setIntroForceOut] = useState(false);
 
   const handleIntroDismiss = useCallback(() => {
     setShowIntro(false);
+    setIntroForceOut(false);
   }, []);
 
-  const handleShowAbout = useCallback(() => setShowIntro(true), []);
+  const handleShowAbout = useCallback(() => {
+    if (showIntro) {
+      setIntroForceOut(true);
+    } else {
+      setIntroForceOut(false);
+      setIntroTimeout(30000);
+      setShowIntro(true);
+    }
+  }, [showIntro]);
 
   // Parse share state synchronously at render time — before any effects can call replaceState
   const [initialShareState] = useState(() => {
@@ -325,6 +336,8 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         onShare={handleShare}
         onShowAbout={handleShowAbout}
         showIntro={showIntro}
+        introTimeout={introTimeout}
+        introForceOut={introForceOut}
         onIntroDismiss={handleIntroDismiss}
       />
     </div>

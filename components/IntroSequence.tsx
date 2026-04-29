@@ -1,24 +1,31 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface IntroSequenceProps {
   onDismiss: () => void;
+  autoTimeout?: number;
+  forceOut?: boolean;
 }
 
-export default function IntroSequence({ onDismiss }: IntroSequenceProps) {
+export default function IntroSequence({ onDismiss, autoTimeout = 5500, forceOut }: IntroSequenceProps) {
   const [animatingOut, setAnimatingOut] = useState(false);
   const dismissedRef = useRef(false);
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
     setAnimatingOut(true);
     setTimeout(onDismiss, 600);
-  };
+  }, [onDismiss]);
 
   useEffect(() => {
-    const timer = setTimeout(handleDismiss, 5500);
+    const timer = setTimeout(handleDismiss, autoTimeout);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (forceOut) handleDismiss();
+  }, [forceOut, handleDismiss]);
 
   return (
     <div

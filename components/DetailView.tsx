@@ -33,6 +33,8 @@ interface DetailViewProps {
   onShare: () => void;
   onShowAbout: () => void;
   showIntro: boolean;
+  introTimeout?: number;
+  introForceOut?: boolean;
   onIntroDismiss: () => void;
 }
 
@@ -65,6 +67,8 @@ export default function DetailView({
   onShare,
   onShowAbout,
   showIntro,
+  introTimeout,
+  introForceOut,
   onIntroDismiss,
   onScreenshot,
   onToggleRecording,
@@ -261,7 +265,7 @@ export default function DetailView({
       onTouchEnd={handleSwipeEnd}
     >
       {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
-      {showIntro && <IntroSequence onDismiss={onIntroDismiss} />}
+      {showIntro && <IntroSequence onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} />}
 
       {/* Background */}
       <div
