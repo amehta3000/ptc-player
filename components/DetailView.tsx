@@ -281,7 +281,7 @@ export default function DetailView({
       </div>
 
       {/* Header */}
-      <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
+      <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-700 ${uiVisible ? 'opacity-100' : 'opacity-[0.06] pointer-events-none'}`}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowPlaylist(!showPlaylist)}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
           <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>Part Time Chiller</span>
@@ -694,7 +694,7 @@ export default function DetailView({
 
       {/* Slim Player Bar */}
       <div
-        className={`relative z-30 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
+        className={`relative z-30 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-700 ${uiVisible ? 'opacity-100' : 'opacity-[0.06] pointer-events-none'}`}
         style={{
           background: `linear-gradient(to right, rgba(10,10,10,0.85), ${accentColor}15)`,
           borderTop: `1px solid ${accentColor}20`,
@@ -846,6 +846,20 @@ export default function DetailView({
 
         {/* Track menu */}
         <TrackMenu mix={currentMix} position="above" />
+      </div>
+
+      {/* Ghost title — fades in when UI idles */}
+      <div
+        className={`absolute bottom-20 left-5 sm:left-6 z-20 pointer-events-none transition-all duration-700 ${uiVisible ? 'opacity-0' : 'opacity-100'}`}
+      >
+        <p className="text-white/20 text-sm font-bold tracking-wide leading-tight">
+          {currentMix.title}
+        </p>
+        {currentMix.description && (
+          <p className="text-white/12 text-xs tracking-wide mt-0.5" style={{ color: 'rgba(255,255,255,0.12)' }}>
+            {currentMix.description}
+          </p>
+        )}
       </div>
     </div>
   );

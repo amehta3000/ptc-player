@@ -111,8 +111,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   progress: 0,
   currentTime: 0,
   duration: 0,
-  volume: 1,
-  isMuted: false,
+  volume: typeof window !== 'undefined' ? parseFloat(localStorage.getItem('ptc-volume') ?? '1') : 1,
+  isMuted: typeof window !== 'undefined' ? localStorage.getItem('ptc-muted') === 'true' : false,
   shuffleMode: false,
   repeatMode: 'off',
 
@@ -137,8 +137,16 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   setProgress: (progress) => set({ progress }),
   setCurrentTime: (time) => set({ currentTime: time }),
   setDuration: (duration) => set({ duration }),
-  setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
-  toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
+  setVolume: (volume) => {
+    const v = Math.max(0, Math.min(1, volume));
+    if (typeof window !== 'undefined') localStorage.setItem('ptc-volume', String(v));
+    set({ volume: v });
+  },
+  toggleMute: () => set((s) => {
+    const next = !s.isMuted;
+    if (typeof window !== 'undefined') localStorage.setItem('ptc-muted', String(next));
+    return { isMuted: next };
+  }),
   toggleShuffle: () => set((s) => ({ shuffleMode: !s.shuffleMode })),
   cycleRepeat: () =>
     set((s) => ({
