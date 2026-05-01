@@ -237,24 +237,36 @@ export default function DetailView({
   }, []);
 
   const handleSwipeEnd = useCallback((e: React.TouchEvent) => {
-    if (showPlaylist || showControls) return;
     const deltaX = e.changedTouches[0].clientX - swipeStartX.current;
     const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
     const elapsed = Date.now() - swipeStartTime.current;
-    // Require a quick flick: must finish within 350ms, travel >80px horizontally,
-    // and be at least 2× more horizontal than vertical.
-    // This prevents slow camera drags from accidentally changing the visualizer.
-    const velocity = Math.abs(deltaX) / elapsed; // px/ms
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // Vertical flick: up to open controls, down to close
+    if (absY > absX * 2 && elapsed < 400 && absY > 60 && (absY / elapsed) > 0.3) {
+      if (deltaY < 0 && !showControls && !showPlaylist) {
+        setShowControls(true);
+        resetIdleTimer();
+      } else if (deltaY > 0 && showControls) {
+        setShowControls(false);
+        resetIdleTimer();
+      }
+      return;
+    }
+
+    // Horizontal flick: change visualizer
+    if (showPlaylist || showControls) return;
     if (
       elapsed < 350 &&
-      velocity > 0.4 &&
-      Math.abs(deltaX) > 80 &&
-      Math.abs(deltaX) > Math.abs(deltaY) * 2
+      (absX / elapsed) > 0.4 &&
+      absX > 80 &&
+      absX > absY * 2
     ) {
       navigateView(deltaX < 0 ? 1 : -1);
       resetIdleTimer();
     }
-  }, [showPlaylist, showControls, navigateView, resetIdleTimer]);
+  }, [showPlaylist, showControls, setShowControls, navigateView, resetIdleTimer]);
 
   if (!currentMix) return null;
 
