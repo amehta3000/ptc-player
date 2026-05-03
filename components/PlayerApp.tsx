@@ -3,6 +3,7 @@ import { usePlayerStore } from '../store/usePlayerStore';
 import { useVisualizer } from '../lib/useVisualizer';
 import { extractColors } from '../lib/colorExtractor';
 import { trackEvent, trackGAEvent } from '../lib/analytics';
+import { OverlayDrawerFn } from '../lib/exportManager';
 import { mixes, getMixBySlug } from '../data/mixes';
 import { buildShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
@@ -66,6 +67,73 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const toggleDarkMode = usePlayerStore((s) => s.toggleDarkMode);
   const setDarkMode = usePlayerStore((s) => s.setDarkMode);
 
+  // Intro overlay for screenshot/recording — updated each render so it's always current
+  const introOverlayRef = useRef<OverlayDrawerFn | null>(null);
+  introOverlayRef.current = showIntro
+    ? (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+        const primary   = darkMode ? 'rgba(255,255,255,0.70)' : 'rgba(0,0,0,0.70)';
+        const secondary = darkMode ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
+        const muted     = darkMode ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)';
+        const divider   = darkMode ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.20)';
+
+        const leftPad = w * 0.08;
+        const rightPad = w * 0.04;
+        const maxTextW = w - leftPad - rightPad;
+
+        // Measure title at nominal size and scale all sizes down proportionally if needed
+        let sz1 = w * 0.08;
+        ctx.font = `bold ${sz1}px "Stint Ultra Expanded", serif`;
+        const titleMeasured = ctx.measureText('PART TIME CHILLER').width;
+        const scale = titleMeasured > maxTextW ? maxTextW / titleMeasured : 1;
+        sz1 *= scale;
+        const sz2 = w * 0.038 * scale;
+        const sz3 = w * 0.024 * scale;
+        const sz4 = w * 0.038 * scale;
+        const gap1 = w * 0.011;  // mt-4 equivalent
+        const gap2 = w * 0.017;  // mt-6 equivalent
+        const pt   = w * 0.011;  // pt-4 equivalent
+
+        const mixTitle = currentMix?.title;
+        const totalH = sz1 + gap1 + sz2 * 1.25 + sz3 * 1.25 + (mixTitle ? gap2 + 1 + pt + sz4 * 1.25 : 0);
+        let y = (h - totalH) / 2;
+
+        ctx.save();
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+
+        ctx.font = `bold ${sz1}px "Stint Ultra Expanded", serif`;
+        ctx.fillStyle = primary;
+        ctx.fillText('PART TIME CHILLER', leftPad, y);
+        y += sz1 + gap1;
+
+        ctx.font = `bold ${sz2}px "Stint Ultra Expanded", serif`;
+        ctx.fillStyle = secondary;
+        ctx.fillText('MUSIC FOR THE IN BETWEEN', leftPad, y);
+        y += sz2 * 1.25;
+
+        ctx.font = `bold ${sz3}px "Stint Ultra Expanded", serif`;
+        ctx.fillStyle = muted;
+        ctx.fillText('A VISUAL BEAT TAPE + DJ MIXES', leftPad, y);
+        y += sz3 * 1.25;
+
+        if (mixTitle) {
+          y += gap2;
+          ctx.strokeStyle = divider;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(leftPad, y);
+          ctx.lineTo(w * 0.7, y);
+          ctx.stroke();
+          y += 1 + pt;
+          ctx.font = `bold ${sz4}px "Stint Ultra Expanded", serif`;
+          ctx.fillStyle = primary;
+          ctx.fillText(mixTitle.toUpperCase(), leftPad, y);
+        }
+
+        ctx.restore();
+      }
+    : null;
+
   // Visualizer hook
   const {
     controls: visualizerControls,
@@ -90,6 +158,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     isPlaying,
     enabled: showVisualizer && !!currentMix,
     darkMode,
+    overlayRef: introOverlayRef,
   });
 
   // Sync volume to audio element
@@ -115,6 +184,10 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     const colors = await extractColors(mix.cover);
     setDominantColor(colors.dominant);
     setAccentColor(colors.accent);
+
+    setIntroForceOut(false);
+    setIntroTimeout(5500);
+    setShowIntro(true);
 
     trackEvent('song_selected', mix.title);
   }, [setCurrentMix, setProgress, setCurrentTime, setDuration, setShowDetail, setDominantColor, setAccentColor]);

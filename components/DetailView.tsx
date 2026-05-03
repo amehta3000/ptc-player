@@ -265,7 +265,7 @@ export default function DetailView({
       onTouchEnd={handleSwipeEnd}
     >
       {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
-      {showIntro && <IntroSequence onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} />}
+      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
 
       {/* Background */}
       <div

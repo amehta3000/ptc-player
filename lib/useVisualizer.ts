@@ -9,7 +9,7 @@ import { VisualizerManager } from './visualizerManager';
 import { VisualizerRegistry } from './visualizerRegistry';
 import { ColorScheme, VisualizerControl, VisualizerPreset } from './visualizers/BaseVisualizer';
 import { VisualizerType, VISUALIZER_TYPES } from '../store/usePlayerStore';
-import { captureScreenshot, VideoRecorder, RecordingState, AspectRatio, ExportFormat } from './exportManager';
+import { captureScreenshot, VideoRecorder, RecordingState, AspectRatio, ExportFormat, OverlayDrawerFn } from './exportManager';
 
 interface UseVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -19,6 +19,7 @@ interface UseVisualizerProps {
   isPlaying: boolean;
   enabled: boolean;
   darkMode: boolean;
+  overlayRef?: React.MutableRefObject<OverlayDrawerFn | null>;
 }
 
 export function useVisualizer({
@@ -29,6 +30,7 @@ export function useVisualizer({
   isPlaying,
   enabled,
   darkMode,
+  overlayRef,
 }: UseVisualizerProps) {
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const visualizerManagerRef = useRef<VisualizerManager | null>(null);
@@ -219,8 +221,8 @@ export function useVisualizer({
     const canvas = visualizerManagerRef.current?.getCanvas();
     if (!canvas) return;
     const name = VisualizerRegistry.getName(visualizerType);
-    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio, darkMode);
-  }, [visualizerType, darkMode]);
+    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio, darkMode, overlayRef?.current ?? undefined);
+  }, [visualizerType, darkMode, overlayRef]);
 
   // Video recording
   const toggleRecording = useCallback((ratio: AspectRatio = 'browser', format: ExportFormat = 'webm') => {
@@ -233,9 +235,9 @@ export function useVisualizer({
     } else {
       const canvas = visualizerManagerRef.current?.getCanvas();
       if (!canvas || !audioContextRef.current || !analyserRef.current) return;
-      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio, darkMode, format);
+      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio, darkMode, format, () => overlayRef?.current ?? undefined);
     }
-  }, [darkMode]);
+  }, [darkMode, overlayRef]);
 
   // Cancel MP4 conversion
   const cancelConversion = useCallback(() => {

@@ -8,6 +8,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
 
 export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1';
+export type OverlayDrawerFn = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 export type ExportFormat = 'webm' | 'mp4';
 
 export const ASPECT_RATIO_LABELS: Record<AspectRatio, string> = {
@@ -51,7 +52,7 @@ function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { s
   return { sx, sy, sw, sh, outW: sw, outH: sh };
 }
 
-export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 'visualizer.png', ratio: AspectRatio = 'browser', darkMode: boolean = true): void {
+export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 'visualizer.png', ratio: AspectRatio = 'browser', darkMode: boolean = true, overlayDrawer?: OverlayDrawerFn): void {
   const { sx, sy, sw, sh, outW, outH } = getExportDimensions(canvas, ratio);
   const bgColor = darkMode ? '#000000' : '#e8ebed';
 
@@ -64,6 +65,7 @@ export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, outW, outH);
   ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, outW, outH);
+  if (overlayDrawer) overlayDrawer(ctx, outW, outH);
   const dataUrl = offscreen.toDataURL('image/png');
   const link = document.createElement('a');
   link.download = filename;
@@ -128,7 +130,7 @@ export class VideoRecorder {
     this.onStateChange = onStateChange;
   }
 
-  start(canvas: HTMLCanvasElement, audioContext: AudioContext, analyserNode: AnalyserNode, ratio: AspectRatio = 'browser', darkMode: boolean = true, format: ExportFormat = 'webm'): boolean {
+  start(canvas: HTMLCanvasElement, audioContext: AudioContext, analyserNode: AnalyserNode, ratio: AspectRatio = 'browser', darkMode: boolean = true, format: ExportFormat = 'webm', getOverlay?: () => OverlayDrawerFn | null | undefined): boolean {
     if (this.mediaRecorder?.state === 'recording') return false;
 
     // Always use an offscreen canvas to composite onto an opaque background
@@ -147,6 +149,9 @@ export class VideoRecorder {
       ctx.fillRect(0, 0, dims.outW, dims.outH);
       // Composite the visualizer canvas on top
       ctx.drawImage(canvas, dims.sx, dims.sy, dims.sw, dims.sh, 0, 0, dims.outW, dims.outH);
+      // Draw HTML overlay (e.g. intro title card) if present
+      const overlay = getOverlay?.();
+      if (overlay) overlay(ctx, dims.outW, dims.outH);
       // Belt-and-suspenders: fill behind any remaining transparent areas
       ctx.globalCompositeOperation = 'destination-over';
       ctx.fillStyle = bgColor;
