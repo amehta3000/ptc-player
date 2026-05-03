@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useVisualizer } from '../lib/useVisualizer';
 import { extractColors } from '../lib/colorExtractor';
-import { trackEvent } from '../lib/analytics';
+import { trackEvent, trackGAEvent } from '../lib/analytics';
 import { mixes, getMixBySlug } from '../data/mixes';
 import { buildShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
@@ -261,6 +261,40 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Visualizer dwell time tracking
+  const dwellStartRef = useRef<number>(Date.now());
+  const dwellTypeRef = useRef<string>(visualizerType);
+
+  useEffect(() => {
+    const prev = dwellTypeRef.current;
+    const elapsed = Math.round((Date.now() - dwellStartRef.current) / 1000);
+
+    // Fire for the outgoing visualizer if they spent at least 5s on it
+    if (elapsed >= 5) {
+      trackGAEvent('visualizer_dwell', {
+        visualizer_type: prev,
+        duration_seconds: elapsed,
+      });
+    }
+
+    dwellTypeRef.current = visualizerType;
+    dwellStartRef.current = Date.now();
+  }, [visualizerType]);
+
+  useEffect(() => {
+    const handleUnload = () => {
+      const elapsed = Math.round((Date.now() - dwellStartRef.current) / 1000);
+      if (elapsed >= 5) {
+        trackGAEvent('visualizer_dwell', {
+          visualizer_type: dwellTypeRef.current,
+          duration_seconds: elapsed,
+        });
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
 
   // Playback controls
