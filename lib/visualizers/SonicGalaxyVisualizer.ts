@@ -153,11 +153,11 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         name: 'Harmony',
         key: 'harmonyMode',
         min: 0,
-        max: 4,
+        max: 2,
         step: 1,
         default: 0,
         value: this.config.harmonyMode ?? 0,
-        labels: ['Mono', 'Analogous', 'Complement', 'Triadic', 'Tetradic']
+        labels: ['Mono', 'Analogous', 'Complement']
       },
       {
         name: 'Gravity',

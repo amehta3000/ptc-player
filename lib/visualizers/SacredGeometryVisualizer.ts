@@ -52,7 +52,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       { name: 'Layer Count', key: 'layerCount', min: 3, max: 8, step: 1, default: 6, value: this.config.layerCount ?? 6 },
       { name: 'Complexity', key: 'complexity', min: 1, max: 3, step: 1, default: 2, value: this.config.complexity ?? 2, labels: ['Simple', 'Medium', 'Complex'] },
       { name: 'Hue', key: 'hue', min: 0, max: 360, step: 1, default: 0, value: this.config.hue ?? 0 },
-      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 4, step: 1, default: 1, value: this.config.harmonyMode ?? 1, labels: ['Mono', 'Analogous', 'Complement', 'Triadic', 'Tetradic'] },
+      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 1, value: this.config.harmonyMode ?? 1, labels: ['Mono', 'Analogous', 'Complement'] },
       { name: 'Symmetry', key: 'symmetry', min: 3, max: 12, step: 1, default: 6, value: this.config.symmetry ?? 6 },
     ];
   }
@@ -62,7 +62,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       { name: '1', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, layerCount: 6, complexity: 2, hue: 220, harmonyMode: 1, symmetry: 6 } },
       { name: '2', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, layerCount: 8, complexity: 3, hue: 30, harmonyMode: 2, symmetry: 6 } },
       { name: '3', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, layerCount: 3, complexity: 1, hue: 280, harmonyMode: 0, symmetry: 4 } },
-      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, hue: 160, harmonyMode: 3, symmetry: 8 } },
+      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, hue: 160, harmonyMode: 2, symmetry: 8 } },
     ];
   }
 

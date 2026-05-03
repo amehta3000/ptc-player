@@ -104,6 +104,16 @@ export class TerrainVisualizer extends BaseVisualizer {
         step: 1,
         default: 0,
         value: this.config.hue ?? 0
+      },
+      {
+        name: 'Harmony',
+        key: 'harmonyMode',
+        min: 0,
+        max: 2,
+        step: 1,
+        default: 0,
+        value: this.config.harmonyMode ?? 0,
+        labels: ['Mono', 'Analogous', 'Complement']
       }
     ];
   }
@@ -363,11 +373,12 @@ export class TerrainVisualizer extends BaseVisualizer {
     // Update geometry vertices
     const positions = this.geometry.attributes.position;
     const colorAttr = this.geometry.attributes.color;
-    const hueShift = (this.config.hue ?? 0) / 360;
-    const domParsed = this.parseRGB(this.colors.dominant);
-    const accParsed = this.parseRGB(this.colors.accent);
-    const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b).offsetHSL(hueShift, 0, 0);
-    const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b).offsetHSL(hueShift, 0, 0);
+    const hue = this.config.hue ?? 0;
+    const { dominant: domStr, accent: accStr } = this.harmonyColorScheme(this.config.harmonyMode ?? 0, hue);
+    const domParsed = this.parseRGB(domStr);
+    const accParsed = this.parseRGB(accStr);
+    const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b);
+    const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b);
     const dominantRGB = { r: domColor.r, g: domColor.g, b: domColor.b };
     const accentRGB = { r: accColor.r, g: accColor.g, b: accColor.b };
     

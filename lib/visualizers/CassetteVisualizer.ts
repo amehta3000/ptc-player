@@ -118,6 +118,16 @@ export class CassetteVisualizer extends BaseVisualizer {
         default: 0,
         value: this.config.hue ?? 0,
       },
+      {
+        name: 'Harmony',
+        key: 'harmonyMode',
+        min: 0,
+        max: 2,
+        step: 1,
+        default: 0,
+        value: this.config.harmonyMode ?? 0,
+        labels: ['Mono', 'Analogous', 'Complement'],
+      },
     ];
   }
 
@@ -389,12 +399,13 @@ export class CassetteVisualizer extends BaseVisualizer {
       this.orbitLight.position.y = 2 + Math.sin(this.time * 1.5) * 1;
       this.orbitLight.intensity = lightIntensity * (0.6 + this.smoothedNorm * 0.8);
 
-      // Color shifts: dominant → accent based on audio energy, with hue shift applied
-      const domParsed = this.parseHexOrRGBToColor(this.colors.dominant);
-      const accParsed = this.parseHexOrRGBToColor(this.colors.accent);
-      const hueShift = (this.config.hue ?? 0) / 360;
-      const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b).offsetHSL(hueShift, 0, 0);
-      const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b).offsetHSL(hueShift, 0, 0);
+      // Color shifts: dominant → accent based on audio energy, with hue + harmony applied
+      const hue = this.config.hue ?? 0;
+      const { dominant: domStr, accent: accStr } = this.harmonyColorScheme(this.config.harmonyMode ?? 0, hue);
+      const domParsed = this.parseHexOrRGBToColor(domStr);
+      const accParsed = this.parseHexOrRGBToColor(accStr);
+      const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b);
+      const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b);
       const mix = this.smoothedNorm;
       this.orbitLight.color.setRGB(
         domColor.r + (accColor.r - domColor.r) * mix,

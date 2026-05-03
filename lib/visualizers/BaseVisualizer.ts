@@ -185,6 +185,19 @@ export abstract class BaseVisualizer {
   }
 
   /**
+   * Return a ColorScheme derived from the current colors with hue offset + harmony applied.
+   * harmonyMode: 0=Mono, 1=Analogous (+40°), 2=Complement (+180°)
+   */
+  protected harmonyColorScheme(harmonyMode: number, hueOffsetDeg: number): ColorScheme {
+    const base = hueOffsetDeg !== 0 ? this.shiftHue(this.colors.dominant, hueOffsetDeg) : this.colors.dominant;
+    switch (harmonyMode) {
+      case 1: return { dominant: base, accent: this.shiftHue(base, 40) };
+      case 2: return { dominant: base, accent: this.shiftHue(base, 180) };
+      default: return { dominant: base, accent: base };
+    }
+  }
+
+  /**
    * Shift the hue of a CSS rgb() color string by degrees (0-360).
    */
   protected shiftHue(cssColor: string, degrees: number): string {

@@ -52,6 +52,16 @@ export class BarsVisualizer extends BaseVisualizer {
         value: this.config.hue ?? 0
       },
       {
+        name: 'Harmony',
+        key: 'harmonyMode',
+        min: 0,
+        max: 2,
+        step: 1,
+        default: 0,
+        value: this.config.harmonyMode ?? 0,
+        labels: ['Mono', 'Analogous', 'Complement']
+      },
+      {
         name: 'Bar Height',
         key: 'scale',
         min: 0.5,
@@ -330,14 +340,14 @@ export class BarsVisualizer extends BaseVisualizer {
 
     switch (paletteIndex) {
       case 0: {
-        // Album: dominant → accent, then apply hue shift
-        const d = this.parseRGB(this.colors.dominant);
-        const a = this.parseRGB(this.colors.accent);
+        // Album: dominant → accent via harmony + hue
+        const { dominant: domStr, accent: accStr } = this.harmonyColorScheme(this.config.harmonyMode ?? 0, hueShift);
+        const d = this.parseRGB(domStr);
+        const a = this.parseRGB(accStr);
         const r = Math.round((d.r * (1 - t) + a.r * t) * 255);
         const g = Math.round((d.g * (1 - t) + a.g * t) * 255);
         const b = Math.round((d.b * (1 - t) + a.b * t) * 255);
-        const rgb = `rgb(${r},${g},${b})`;
-        return hueShift ? this.shiftHue(rgb, hueShift) : rgb;
+        return `rgb(${r},${g},${b})`;
       }
       case 1:
         // Rainbow

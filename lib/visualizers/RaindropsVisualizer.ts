@@ -16,7 +16,7 @@
 
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
 interface Ripple {
   position: THREE.Vector3;
@@ -24,9 +24,15 @@ interface Ripple {
   startTime: number;
   amplitude: number;
   maxRadius: number;
-  speed: number;
+  lifetime: number; // seconds until fully expanded
   frequencyBand: number; // 0-63 from audioData array
   color: THREE.Color;
+}
+
+interface PendingDrop {
+  frequencyBand: number;
+  amplitude: number;
+  triggerAt: number;
 }
 
 export class RaindropsVisualizer extends BaseVisualizer {
@@ -36,6 +42,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
   private ripples: Ripple[] = [];
   private rippleMeshes: THREE.Mesh[] = [];
   private lastDropTimes: number[] = new Array(64).fill(0);
+  private pendingDrops: PendingDrop[] = [];
   private isPaused = false;
   private pauseStartTime = 0;
   private layoutMode: number = 0; // 0=rainfall, 1=row, 2=grid, 3=spiral
@@ -63,7 +70,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
   }
 
   getControls(): VisualizerControl[] {
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
 
     const controls: VisualizerControl[] = [
       {
@@ -72,7 +79,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
         min: 0,
         max: 2,
         step: 1,
-        default: 0,
+        default: 2,
         value: surfaceMode,
         labels: ['Plane', 'Cube', 'Sphere']
       },
@@ -86,22 +93,22 @@ export class RaindropsVisualizer extends BaseVisualizer {
         value: this.config.maxRipples ?? 64
       },
       {
-        name: 'Bass Threshold',
+        name: 'Drop Rate',
         key: 'bassThreshold',
-        min: 0.1,
-        max: 0.8,
-        step: 0.05,
-        default: 0.1,
-        value: this.config.bassThreshold ?? 0.1
+        min: 0.02,
+        max: 0.4,
+        step: 0.02,
+        default: 0.08,
+        value: this.config.bassThreshold ?? 0.08
       },
       {
-        name: 'Intensity',
+        name: 'Brightness',
         key: 'intensity',
-        min: 0.5,
-        max: 3,
+        min: 0.3,
+        max: 5,
         step: 0.1,
-        default: 0.8,
-        value: this.config.intensity ?? 0.8
+        default: 1.0,
+        value: this.config.intensity ?? 1.0
       },
       {
         name: 'Ring Thickness',
@@ -114,37 +121,6 @@ export class RaindropsVisualizer extends BaseVisualizer {
       },
     ];
 
-    if (surfaceMode === 0) {
-      controls.push(
-        {
-          name: 'Plane Size',
-          key: 'planeSize',
-          min: 10,
-          max: 40,
-          step: 2,
-          default: 40,
-          value: this.config.planeSize ?? 40
-        },
-        {
-          name: 'Layout Mode',
-          key: 'layoutMode',
-          min: 0,
-          max: 3,
-          step: 1,
-          default: 0,
-          value: this.config.layoutMode ?? 0
-        },
-        {
-          name: 'Show Grid Overlay',
-          key: 'showGridOverlay',
-          min: 0,
-          max: 1,
-          step: 1,
-          default: 1,
-          value: this.config.showGridOverlay ?? 1
-        }
-      );
-    }
 
     if (surfaceMode > 0) {
       controls.push({
@@ -158,17 +134,76 @@ export class RaindropsVisualizer extends BaseVisualizer {
       });
     }
 
-    controls.push({
-      name: 'Hue',
-      key: 'hue',
-      min: 0,
-      max: 360,
-      step: 1,
-      default: 0,
-      value: this.config.hue ?? 0
-    });
+    controls.push(
+      {
+        name: 'Color Mode',
+        key: 'colorMode',
+        min: 0,
+        max: 1,
+        step: 1,
+        default: 0,
+        value: this.config.colorMode ?? 0,
+        labels: ['Album', 'Rainbow']
+      },
+      {
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
+      },
+      {
+        name: 'Harmony',
+        key: 'harmonyMode',
+        min: 0,
+        max: 2,
+        step: 1,
+        default: 0,
+        value: this.config.harmonyMode ?? 0,
+        labels: ['Mono', 'Analogous', 'Complement']
+      }
+    );
 
     return controls;
+  }
+
+  getPresets(): VisualizerPreset[] {
+    return [
+      {
+        name: '1',
+        config: {
+          surfaceMode: 2, maxRipples: 48, bassThreshold: 0.18,
+          intensity: 1.0, ringThickness: 0.1, autoRotation: 0.003,
+          colorMode: 0, hue: 0
+        }
+      },
+      {
+        name: '2',
+        config: {
+          surfaceMode: 2, maxRipples: 96, bassThreshold: 0.3,
+          intensity: 1.8, ringThickness: 0.35, autoRotation: 0.005,
+          colorMode: 1, hue: 0
+        }
+      },
+      {
+        name: '3',
+        config: {
+          surfaceMode: 0, maxRipples: 80, bassThreshold: 0.22,
+          intensity: 1.2, ringThickness: 0.12, layoutMode: 0,
+          showGridOverlay: 0, colorMode: 0, hue: 0
+        }
+      },
+      {
+        name: '4',
+        config: {
+          surfaceMode: 1, maxRipples: 64, bassThreshold: 0.14,
+          intensity: 1.3, ringThickness: 0.2, autoRotation: 0.004,
+          colorMode: 0, hue: 0
+        }
+      }
+    ];
   }
 
   protected initScene(): void {
@@ -223,7 +258,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
   private setupMouseDrag(): void {
     this.boundOnMouseDown = (e: MouseEvent) => {
-      const surfaceMode = this.config.surfaceMode ?? 0;
+      const surfaceMode = this.config.surfaceMode ?? 2;
       if (surfaceMode === 0) return;
       this.isDragging = true;
       this.lastMouse = { x: e.clientX, y: e.clientY };
@@ -251,7 +286,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
   private updateCameraPosition(): void {
     if (!this.camera) return;
 
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
 
     if (surfaceMode === 0) {
       this.camera.position.set(0, 20, 0);
@@ -275,7 +310,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.surfaceMesh = null;
     }
 
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
     if (surfaceMode === 0) return;
 
     let sourceGeometry: THREE.BufferGeometry;
@@ -336,7 +371,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.rowAxisOverlay = null;
     }
 
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
     if (surfaceMode !== 0) return;
 
     const layoutMode = this.config.layoutMode || 0;
@@ -418,7 +453,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
   }
 
   private getSurfacePosition(frequencyBand: number): { position: THREE.Vector3; normal: THREE.Vector3 } {
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
 
     if (surfaceMode === 1) {
       // Cube: pick a random face, random position on that face
@@ -469,7 +504,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       return;
     }
 
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
     const normalizedBand = frequencyBand / 63;
 
     let position: THREE.Vector3;
@@ -523,13 +558,32 @@ export class RaindropsVisualizer extends BaseVisualizer {
     // Ripple characteristics scaled by surface mode
     const sizeScale = surfaceMode === 0 ? 1.0 : 0.3;
     const maxRadius = (8 - (normalizedBand * 6)) * sizeScale;
-    const speed = 1.5 + (normalizedBand * 2);
+    // Lifetime in seconds: bass ripples live longer, treble shorter
+    const lifetime = 1.8 + (1.0 - normalizedBand) * 1.4;
 
     const hueOffset = (this.config.hue ?? 0) / 360;
-    const hue = (normalizedBand * 0.7 + hueOffset) % 1;
-    const saturation = 0.8 + (normalizedBand * 0.2);
-    const lightness = 0.5 + (amplitude * 0.3);
-    const color = new THREE.Color().setHSL(hue, saturation, lightness);
+    const colorMode = this.config.colorMode ?? 0;
+
+    let color: THREE.Color;
+    if (colorMode === 1) {
+      // Rainbow mode: HSL spectrum across frequency bands
+      const hue = (normalizedBand * 0.7 + hueOffset) % 1;
+      const saturation = 0.7 + normalizedBand * 0.2;
+      const lightness = 0.5 + amplitude * 0.25;
+      color = new THREE.Color().setHSL(hue, saturation, lightness);
+    } else {
+      // Album mode: blend dominant (bass) → accent (treble) using harmony + hue
+      const { dominant: domStr, accent: accStr } = this.harmonyColorScheme(this.config.harmonyMode ?? 0, this.config.hue ?? 0);
+      const domParsed = this.parseRGB(domStr);
+      const accParsed = this.parseRGB(accStr);
+      const domColor = new THREE.Color(domParsed.r, domParsed.g, domParsed.b);
+      const accColor = new THREE.Color(accParsed.r, accParsed.g, accParsed.b);
+      color = domColor.clone().lerp(accColor, normalizedBand);
+      // Boost lightness based on amplitude so louder hits are brighter
+      const hsl = { h: 0, s: 0, l: 0 };
+      color.getHSL(hsl);
+      color.setHSL(hsl.h, Math.min(1, hsl.s + 0.2), Math.min(0.9, hsl.l + amplitude * 0.3));
+    }
 
     const ripple: Ripple = {
       position,
@@ -537,7 +591,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       startTime: performance.now(),
       amplitude: amplitude * (this.config.intensity || 1.5),
       maxRadius,
-      speed,
+      lifetime,
       frequencyBand,
       color,
     };
@@ -560,7 +614,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
 
     if (surfaceMode === 0) {
       mesh.position.set(ripple.position.x, 0, ripple.position.z);
@@ -606,14 +660,16 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
     if (!this.isPaused) {
       const now = performance.now();
-      const baseThreshold = (this.config.bassThreshold ?? 0.1) * 255;
+      // Drop Rate is now intuitive: higher = more drops (inverted from raw threshold)
+      const dropRate = this.config.bassThreshold ?? 0.08;
+      const baseThreshold = (1 - dropRate) * 0.55 * 255;
       const layoutMode = this.config.layoutMode || 0;
 
+      // Queue new drops with random stagger so they don't all land at once
       for (let i = 0; i < audioAnalysis.audioData.length; i++) {
         const level = audioAnalysis.audioData[i];
         const normalizedBand = i / 63;
-        // Bass-sensitive threshold: bass bands trigger more easily
-        const bandScale = 0.5 + (normalizedBand * 0.5); // bass: 0.5x, treble: 1.0x
+        const bandScale = 0.5 + (normalizedBand * 0.5);
         let threshold = baseThreshold * bandScale;
 
         if (layoutMode === 1) {
@@ -621,21 +677,28 @@ export class RaindropsVisualizer extends BaseVisualizer {
           threshold *= 1 + tilt * (0.5 - normalizedBand);
         }
 
-        // Bass: longer intervals for impactful drops; treble: short intervals for drizzle
-        let minInterval = 280 - (normalizedBand * 240); // bass: 280ms, treble: 40ms
-
+        let minInterval = 320 - (normalizedBand * 260); // bass: 320ms, treble: 60ms
         if (layoutMode === 1) {
-          const lowSlow = 260;
-          const highFast = 60;
-          minInterval = lowSlow - (normalizedBand * (lowSlow - highFast));
+          minInterval = 280 - (normalizedBand * 220);
         }
 
         if (level > threshold && now - this.lastDropTimes[i] > minInterval) {
-          // Boost bass amplitude for more impactful drops
           const amplitudeBoost = 1.0 + (1.0 - normalizedBand) * 0.5;
           const amplitude = Math.min((level / 255) * amplitudeBoost, 1.0);
-          this.addRipple(i, amplitude);
+          const staggerMs = Math.random() * 150;
+          this.pendingDrops.push({ frequencyBand: i, amplitude, triggerAt: now + staggerMs });
           this.lastDropTimes[i] = now;
+        }
+      }
+
+      // Drain the queue — max 3 new ripples per frame for a gentle, staggered feel
+      const maxNewPerFrame = 3;
+      let spawned = 0;
+      for (let i = this.pendingDrops.length - 1; i >= 0 && spawned < maxNewPerFrame; i--) {
+        if (now >= this.pendingDrops[i].triggerAt) {
+          this.addRipple(this.pendingDrops[i].frequencyBand, this.pendingDrops[i].amplitude);
+          this.pendingDrops.splice(i, 1);
+          spawned++;
         }
       }
     }
@@ -651,10 +714,9 @@ export class RaindropsVisualizer extends BaseVisualizer {
       if (!ripple) continue;
 
       const age = (now - ripple.startTime) / 1000;
-      const currentRadius = age * ripple.speed;
-      const progress = currentRadius / ripple.maxRadius;
+      const timeProgress = Math.min(age / ripple.lifetime, 1);
 
-      if (progress >= 1) {
+      if (timeProgress >= 1) {
         this.scene.remove(mesh);
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
@@ -667,13 +729,22 @@ export class RaindropsVisualizer extends BaseVisualizer {
         continue;
       }
 
+      // Ease-out: ring expands quickly then decelerates like real water
+      const eased = 1 - Math.pow(1 - timeProgress, 2.2);
+      const currentRadius = ripple.maxRadius * eased;
+
       const innerRadius = Math.max(0.01, currentRadius - thickness / 2);
       const outerRadius = currentRadius + thickness / 2;
 
-      const fadeStart = 0.6;
+      // Soft opacity: brief fade-in → hold → gradual fade-out from 40%
       let opacity = ripple.amplitude;
-      if (progress > fadeStart) {
-        opacity *= 1 - ((progress - fadeStart) / (1 - fadeStart));
+      const fadeInEnd = 0.06;
+      const fadeOutStart = 0.40;
+      if (timeProgress < fadeInEnd) {
+        opacity *= timeProgress / fadeInEnd;
+      } else if (timeProgress > fadeOutStart) {
+        const t = (timeProgress - fadeOutStart) / (1 - fadeOutStart);
+        opacity *= 1 - (t * t); // ease-in fade out (lingers then drops)
       }
 
       if (this.isPaused && this.pauseStartTime > 0) {
@@ -689,7 +760,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
     }
 
     // --- Camera auto-rotation for 3D modes ---
-    const surfaceMode = this.config.surfaceMode ?? 0;
+    const surfaceMode = this.config.surfaceMode ?? 2;
     if (surfaceMode > 0 && !this.isDragging) {
       const speed = this.config.autoRotation ?? 0.003;
       this.cameraRotation.y += speed;
@@ -713,6 +784,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
     }
     this.rippleMeshes = [];
     this.ripples = [];
+    this.pendingDrops = [];
   }
 
   setDarkMode(isDark: boolean): void {
