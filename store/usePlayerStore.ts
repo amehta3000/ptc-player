@@ -3,7 +3,7 @@ import { Mix, mixes } from '../data/mixes';
 
 type FilterType = 'all' | 'mix' | 'track';
 type RepeatMode = 'off' | 'all' | 'one';
-type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | /* 'chrysalis' | */ 'sonicGalaxy' | 'raindrops' | 'sacredGeometry' | 'cassette';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | /* 'chrysalis' | */ 'sonicGalaxy' | 'constellation' | 'raindrops' | 'sacredGeometry' | 'cassette';
 
 export type { FilterType, RepeatMode, VisualizerType };
 
@@ -78,7 +78,7 @@ interface PlayerActions {
   playPrevious: () => { action: 'restart' } | { action: 'previous'; mix: Mix } | null;
 }
 
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'sonicGalaxy', 'orb', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'sonicGalaxy', 'constellation', 'orb', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',
@@ -87,6 +87,7 @@ export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   terrain: 'Terrain',
   // chrysalis: 'Chrysalis', // retired
   sonicGalaxy: 'Sonic Galaxy',
+  constellation: 'Constellation',
   raindrops: 'Raindrops',
   sacredGeometry: 'Sacred Geometry',
   cassette: 'Cassette',

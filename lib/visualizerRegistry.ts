@@ -13,6 +13,7 @@ import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
 import { RaindropsVisualizer } from './visualizers/RaindropsVisualizer';
 import { CassetteVisualizer } from './visualizers/CassetteVisualizer';
 import { SacredGeometryVisualizer } from './visualizers/SacredGeometryVisualizer';
+import { ConstellationVisualizer } from './visualizers/ConstellationVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -145,6 +146,24 @@ VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer
 }, {
   particleSize: 1.0,
   trail: 0.12,
+});
+
+VisualizerRegistry.register('constellation', 'Constellation', ConstellationVisualizer, {
+  particleCount: 2000,
+  attractorCount: 3,
+  gravity: 7.0,
+  maxSpeed: 0.5,
+  particleSize: 0.5,
+  cameraSpeed: 0.001,
+  trail: 0,
+  hue: 0,
+  harmonyMode: 0,
+  connectionThreshold: 0.6,
+  edgeOpacity: 0.5,
+  maxConnections: 3,
+}, {
+  particleCount: 1000,
+  particleSize: 1.0,
 });
 
 VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
