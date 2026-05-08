@@ -13,6 +13,11 @@ interface GlowMaterialRef {
   baseOpacity: number;
 }
 
+interface FillMaterialRef {
+  material: THREE.MeshBasicMaterial;
+  baseOpacity: number;
+}
+
 export class SacredGeometryVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
   private camera: THREE.OrthographicCamera | null = null;
@@ -22,6 +27,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
   private glowLayers: THREE.Group[] = [];
   private glowMaterials: GlowMaterialRef[][] = []; // per-layer glow material refs
   private mainMaterials: THREE.LineBasicMaterial[][] = []; // per-layer main materials
+  private fillMaterials: FillMaterialRef[][] = []; // per-layer fill mesh materials
 
   // Audio smoothing
   private smoothedBass = 0;
@@ -52,6 +58,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       { name: 'Layer Count', key: 'layerCount', min: 3, max: 8, step: 1, default: 6, value: this.config.layerCount ?? 6 },
       { name: 'Complexity', key: 'complexity', min: 1, max: 3, step: 1, default: 2, value: this.config.complexity ?? 2, labels: ['Simple', 'Medium', 'Complex'] },
       { name: 'Hue', key: 'hue', min: 0, max: 360, step: 1, default: 0, value: this.config.hue ?? 0 },
+      { name: 'Fill Opacity', key: 'fillOpacity', min: 0, max: 1, step: 0.05, default: 0.25, value: this.config.fillOpacity ?? 0.25 },
       { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 1, value: this.config.harmonyMode ?? 1, labels: ['Mono', 'Analogous', 'Complement'] },
       { name: 'Symmetry', key: 'symmetry', min: 3, max: 12, step: 1, default: 6, value: this.config.symmetry ?? 6 },
     ];
@@ -59,10 +66,10 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
 
   getPresets(): VisualizerPreset[] {
     return [
-      { name: '1', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, layerCount: 6, complexity: 2, hue: 220, harmonyMode: 1, symmetry: 6 } },
-      { name: '2', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, layerCount: 8, complexity: 3, hue: 30, harmonyMode: 2, symmetry: 6 } },
-      { name: '3', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, layerCount: 3, complexity: 1, hue: 280, harmonyMode: 0, symmetry: 4 } },
-      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, layerCount: 7, complexity: 3, hue: 160, harmonyMode: 2, symmetry: 8 } },
+      { name: '1', config: { rotationSpeed: 0.002, glowIntensity: 0.6, pulseStrength: 0.3, fillOpacity: 1, layerCount: 6, complexity: 2, hue: 220, harmonyMode: 1, symmetry: 6 } },
+      { name: '2', config: { rotationSpeed: 0.004, glowIntensity: 0.8, pulseStrength: 0.5, fillOpacity: 0.8, layerCount: 8, complexity: 3, hue: 30, harmonyMode: 2, symmetry: 6 } },
+      { name: '3', config: { rotationSpeed: 0.001, glowIntensity: 0.3, pulseStrength: 0.15, fillOpacity: 0.5, layerCount: 3, complexity: 1, hue: 280, harmonyMode: 0, symmetry: 4 } },
+      { name: '4', config: { rotationSpeed: 0.008, glowIntensity: 0.9, pulseStrength: 0.8, fillOpacity: 1, layerCount: 7, complexity: 3, hue: 160, harmonyMode: 2, symmetry: 8 } },
     ];
   }
 
@@ -122,30 +129,23 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     if (!this.scene) return;
 
     // Tear down & dispose previous
-    for (const l of this.layers) {
+    const disposeGroup = (l: THREE.Group) => {
       l.traverse((child) => {
-        if ((child as THREE.Line).isLine) {
-          const line = child as THREE.Line;
-          line.geometry?.dispose();
-          (line.material as THREE.Material)?.dispose();
+        const obj = child as any;
+        if (obj.isLine || obj.isMesh) {
+          obj.geometry?.dispose();
+          (obj.material as THREE.Material)?.dispose();
         }
       });
-      this.scene.remove(l);
-    }
-    for (const l of this.glowLayers) {
-      l.traverse((child) => {
-        if ((child as THREE.Line).isLine) {
-          const line = child as THREE.Line;
-          line.geometry?.dispose();
-          (line.material as THREE.Material)?.dispose();
-        }
-      });
-      this.scene.remove(l);
-    }
+      this.scene!.remove(l);
+    };
+    this.layers.forEach(disposeGroup);
+    this.glowLayers.forEach(disposeGroup);
     this.layers = [];
     this.glowLayers = [];
     this.glowMaterials = [];
     this.mainMaterials = [];
+    this.fillMaterials = [];
 
     const symmetry = Math.round(this.config.symmetry ?? 6);
     const complexity = Math.round(this.config.complexity ?? 2);
@@ -157,21 +157,22 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       const glowGroup = new THREE.Group();
       const layerGlowRefs: GlowMaterialRef[] = [];
       const layerMainRefs: THREE.LineBasicMaterial[] = [];
+      const layerFillRefs: FillMaterialRef[] = [];
 
       const layerKind = i === 0 ? 0 : ((i - 1) % 4);
 
       switch (layerKind) {
         case 0: // Seed of life / flower pattern
-          this.addSeedOfLife(group, glowGroup, radius, symmetry, layerMainRefs, layerGlowRefs);
+          this.addSeedOfLife(group, glowGroup, radius, symmetry, layerMainRefs, layerGlowRefs, layerFillRefs);
           break;
         case 1: // Concentric polygons with spokes
-          this.addPolygonRing(group, glowGroup, radius, symmetry, complexity, layerMainRefs, layerGlowRefs);
+          this.addPolygonRing(group, glowGroup, radius, symmetry, complexity, layerMainRefs, layerGlowRefs, layerFillRefs);
           break;
         case 2: // Star / stellated pattern
-          this.addStarPattern(group, glowGroup, radius, symmetry, complexity, layerMainRefs, layerGlowRefs);
+          this.addStarPattern(group, glowGroup, radius, symmetry, complexity, layerMainRefs, layerGlowRefs, layerFillRefs);
           break;
         case 3: // Circle ring with connecting arcs
-          this.addCircleRing(group, glowGroup, radius, symmetry, layerMainRefs, layerGlowRefs);
+          this.addCircleRing(group, glowGroup, radius, symmetry, layerMainRefs, layerGlowRefs, layerFillRefs);
           break;
       }
 
@@ -181,6 +182,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       this.glowLayers.push(glowGroup);
       this.glowMaterials.push(layerGlowRefs);
       this.mainMaterials.push(layerMainRefs);
+      this.fillMaterials.push(layerFillRefs);
     }
   }
 
@@ -270,22 +272,59 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     }
   }
 
+  /** Create a filled regular polygon geometry */
+  private makeFilledPolygon(radius: number, sides: number): THREE.BufferGeometry {
+    const shape = new THREE.Shape();
+    for (let i = 0; i < sides; i++) {
+      const t = (i / sides) * Math.PI * 2 - Math.PI / 2;
+      if (i === 0) shape.moveTo(Math.cos(t) * radius, Math.sin(t) * radius);
+      else shape.lineTo(Math.cos(t) * radius, Math.sin(t) * radius);
+    }
+    shape.closePath();
+    return new THREE.ShapeGeometry(shape);
+  }
+
+  /** Add a transparent filled mesh (additive blend) to the main group */
+  private addFilledShape(
+    main: THREE.Group,
+    geometry: THREE.BufferGeometry,
+    color: THREE.Color,
+    opacity: number,
+    fillRefs: FillMaterialRef[],
+    position?: THREE.Vector3
+  ): void {
+    const mat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geometry, mat);
+    if (position) mesh.position.copy(position);
+    main.add(mesh);
+    fillRefs.push({ material: mat, baseOpacity: opacity });
+  }
+
   // ── Layer patterns ─────────────────────────────────────────────────
 
   private addSeedOfLife(
     main: THREE.Group, glow: THREE.Group, radius: number, symmetry: number,
-    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[]
+    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[], fillRefs: FillMaterialRef[]
   ): void {
     const color = this.getDominant();
 
     // Center circle
     this.addWithGlow(main, glow, this.makeCircle(radius), color, 0.9, mainRefs, glowRefs);
+    this.addFilledShape(main, new THREE.CircleGeometry(radius, 64), color, 0.05, fillRefs);
 
     // Ring of overlapping circles (flower-of-life first ring)
     for (let i = 0; i < symmetry; i++) {
       const a = (i / symmetry) * Math.PI * 2;
       const pos = new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0);
       this.addWithGlow(main, glow, this.makeCircle(radius), color, 0.8, mainRefs, glowRefs, pos);
+      this.addFilledShape(main, new THREE.CircleGeometry(radius, 64), color, 0.04, fillRefs, pos);
     }
 
     // Second ring of circles (outer flower petals) for more density
@@ -294,20 +333,22 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       const a = (i / symmetry) * Math.PI * 2 + Math.PI / symmetry;
       const pos = new THREE.Vector3(Math.cos(a) * outerR, Math.sin(a) * outerR, 0);
       this.addWithGlow(main, glow, this.makeCircle(radius), color, 0.5, mainRefs, glowRefs, pos);
+      this.addFilledShape(main, new THREE.CircleGeometry(radius, 64), color, 0.025, fillRefs, pos);
     }
   }
 
   private addPolygonRing(
     main: THREE.Group, glow: THREE.Group, radius: number, symmetry: number, complexity: number,
-    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[]
+    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[], fillRefs: FillMaterialRef[]
   ): void {
     const color = this.getAccent();
 
-    // Concentric polygons
+    // Concentric polygons with fills
     for (let c = 0; c < complexity; c++) {
       const r = radius * (0.75 + c * 0.35);
       const sides = symmetry + c * 2;
       this.addWithGlow(main, glow, this.makePolygon(r, sides), color, 0.85 - c * 0.1, mainRefs, glowRefs);
+      this.addFilledShape(main, this.makeFilledPolygon(r, sides), color, 0.04 - c * 0.008, fillRefs);
     }
 
     // Radiating spokes from center to polygon vertices
@@ -322,11 +363,12 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
 
     // Inner circle inscribed in polygon
     this.addWithGlow(main, glow, this.makeCircle(radius * 0.65), color, 0.4, mainRefs, glowRefs);
+    this.addFilledShape(main, new THREE.CircleGeometry(radius * 0.65, 64), color, 0.035, fillRefs);
   }
 
   private addStarPattern(
     main: THREE.Group, glow: THREE.Group, radius: number, symmetry: number, complexity: number,
-    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[]
+    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[], fillRefs: FillMaterialRef[]
   ): void {
     const color = this.getMixed(0.5);
 
@@ -340,8 +382,12 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       this.addWithGlow(main, glow, new THREE.BufferGeometry().setFromPoints(pts), color, 0.75, mainRefs, glowRefs);
     }
 
+    // Filled convex polygon at star radius (clean fill behind the star lines)
+    this.addFilledShape(main, this.makeFilledPolygon(radius, symmetry), color, 0.035, fillRefs);
+
     // Bounding circle
     this.addWithGlow(main, glow, this.makeCircle(radius * 1.08), color, 0.45, mainRefs, glowRefs);
+    this.addFilledShape(main, new THREE.CircleGeometry(radius * 1.08, 64), color, 0.02, fillRefs);
 
     // Inner star: half-radius stellated
     const innerPts: THREE.Vector3[] = [];
@@ -352,24 +398,27 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       innerPts.push(new THREE.Vector3(Math.cos(t) * r, Math.sin(t) * r, 0));
     }
     this.addWithGlow(main, glow, new THREE.BufferGeometry().setFromPoints(innerPts), color, 0.55, mainRefs, glowRefs);
+    this.addFilledShape(main, new THREE.CircleGeometry(halfR, 64), color, 0.05, fillRefs);
   }
 
   private addCircleRing(
     main: THREE.Group, glow: THREE.Group, radius: number, symmetry: number,
-    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[]
+    mainRefs: THREE.LineBasicMaterial[], glowRefs: GlowMaterialRef[], fillRefs: FillMaterialRef[]
   ): void {
     const color = this.getDominant();
     const smallR = radius * 0.3;
 
-    // Small circles placed at vertices of the ring
+    // Small circles placed at vertices of the ring (with filled discs)
     for (let i = 0; i < symmetry; i++) {
       const a = (i / symmetry) * Math.PI * 2;
       const pos = new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0);
       this.addWithGlow(main, glow, this.makeCircle(smallR), color, 0.7, mainRefs, glowRefs, pos);
+      this.addFilledShape(main, new THREE.CircleGeometry(smallR, 48), color, 0.06, fillRefs, pos);
     }
 
-    // Connect adjacent circle centers (polygon)
+    // Connect adjacent circle centers (polygon) + fill
     this.addWithGlow(main, glow, this.makePolygon(radius, symmetry), color, 0.5, mainRefs, glowRefs);
+    this.addFilledShape(main, this.makeFilledPolygon(radius, symmetry), color, 0.04, fillRefs);
 
     // Cross-connect: each vertex to one opposite
     if (symmetry >= 4) {
@@ -491,6 +540,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     const rotationSpeed = this.config.rotationSpeed ?? 0.003;
     const glowIntensity = this.config.glowIntensity ?? 0.6;
     const pulseStrength = this.config.pulseStrength ?? 0.4;
+    const fillOpacity = this.config.fillOpacity ?? 0.25;
     const hue = this.config.hue ?? 0;
     const harmonyMode = this.config.harmonyMode ?? 1;
 
@@ -557,6 +607,15 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
         for (const mat of mains) {
           mat.color.lerp(targetColor, 0.12);
           mat.opacity = Math.min(1, mainOpacityBoost);
+        }
+      }
+
+      // Update fill materials — scale with fillOpacity control
+      const fills = this.fillMaterials[i];
+      if (fills) {
+        for (const ref of fills) {
+          ref.material.color.lerp(targetColor, 0.12);
+          ref.material.opacity = ref.baseOpacity * fillOpacity;
         }
       }
 
