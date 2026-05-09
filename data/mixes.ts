@@ -47,7 +47,7 @@ export const mixes: Mix[] = [
   {
     title: "Slow Burn",
     slug: "slow-burn",
-    cover: "https://media.parttimechiller.com/SlowBurn_PTC.png",
+    cover: "https://media.parttimechiller.com/SlowBurn2_PTC.png",
     audio: "https://media.parttimechiller.com/SlowBurn_PTC.mp3",
     duration: "3:47",
     description: "Low end head nodding vibes",
