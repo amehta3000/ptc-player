@@ -15,6 +15,7 @@ interface PlayerAppProps {
 export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
+  const isInitialLoad = useRef(true);
 
   const [showIntro, setShowIntro] = useState(true);
   const [introTimeout, setIntroTimeout] = useState(5500);
@@ -234,15 +235,20 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   // Auto-play on mix selection
   useEffect(() => {
     if (!currentMix || !audioRef.current) return;
+    const firstLoad = isInitialLoad.current;
+    isInitialLoad.current = false;
     const timer = setTimeout(async () => {
       try {
         if (audioContextRef.current?.state === 'suspended') {
           await audioContextRef.current.resume();
         }
         audioRef.current!.load();
-        await audioRef.current!.play();
-        setIsPlaying(true);
-        trackEvent('song_played', currentMix.title);
+        // On initial page load always autoplay; on track switch respect current play state
+        if (firstLoad || usePlayerStore.getState().isPlaying) {
+          await audioRef.current!.play();
+          setIsPlaying(true);
+          trackEvent('song_played', currentMix.title);
+        }
       } catch (err) {
         console.log('Auto-play failed:', err);
       }
