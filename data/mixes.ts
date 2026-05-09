@@ -67,7 +67,7 @@ export const mixes: Mix[] = [
    {
     title: "Some Vibes",
     slug: "some-vibes",
-    cover: "https://media.parttimechiller.com/SomeVibes_PTC.png",
+    cover: "https://media.parttimechiller.com/SomeVibes2_PTC.png",
     audio: "https://media.parttimechiller.com/SomeVibes_PTC.mp3",
     duration: "2:15",
     description: "Some Roland vibes for your midnight soul",
@@ -124,6 +124,16 @@ export const mixes: Mix[] = [
     type: "track",
     artist: "Part Time Chiller"
   },  
+   {
+    title: "House Trax 1",
+    slug: "house-trax-1",
+    cover: "https://media.parttimechiller.com/HouseTrax1_PTC.png",
+    audio: "https://media.parttimechiller.com/HouseTrax1_PTC.mp3",
+    duration: "1:43",
+    description: "A classic house bassline vibe",
+    type: "track",
+    artist: "Part Time Chiller"
+  }, 
   {
     title: "Rise Up",
     slug: "rise-up",
