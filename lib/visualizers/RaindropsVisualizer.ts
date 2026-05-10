@@ -111,6 +111,15 @@ export class RaindropsVisualizer extends BaseVisualizer {
         value: this.config.intensity ?? 1.0
       },
       {
+        name: 'Glow',
+        key: 'glow',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 0,
+        value: this.config.glow ?? 0
+      },
+      {
         name: 'Ring Thickness',
         key: 'ringThickness',
         min: 0.1,
@@ -225,6 +234,11 @@ export class RaindropsVisualizer extends BaseVisualizer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(this.darkMode ? 0x000000 : 0xe8ebed, 1);
     this.container.appendChild(this.renderer.domElement);
+
+    const glow = this.config.glow ?? 0;
+    if (glow > 0) {
+      this.renderer.domElement.style.filter = `blur(${glow * 4}px)`;
+    }
 
     this.observeResize();
     this.setupMouseDrag();
@@ -840,6 +854,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
     this.clearAllRipples();
 
     if (this.renderer) {
+      this.renderer.domElement.style.filter = 'none';
       this.renderer.dispose();
       if (this.container.contains(this.renderer.domElement)) {
         this.container.removeChild(this.renderer.domElement);
@@ -874,6 +889,10 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.updateGridOverlay();
       this.cameraRotation = { x: 0.3, y: 0 };
       this.updateCameraPosition();
+    }
+
+    if (key === 'glow' && this.renderer) {
+      this.renderer.domElement.style.filter = value > 0 ? `blur(${value * 4}px)` : 'none';
     }
   }
 }
