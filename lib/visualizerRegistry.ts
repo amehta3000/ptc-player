@@ -182,6 +182,24 @@ VisualizerRegistry.register('cassette', 'Cassette', CassetteVisualizer, {
   hue: 0,
 });
 
+VisualizerRegistry.register('constellation', 'Constellation', ConstellationVisualizer, {
+  particleCount: 2000,
+  attractorCount: 3,
+  gravity: 7.0,
+  maxSpeed: 0.5,
+  particleSize: 0.5,
+  cameraSpeed: 0.001,
+  trail: 0,
+  hue: 0,
+  harmonyMode: 0,
+  connectionThreshold: 0.6,
+  edgeOpacity: 0.5,
+  maxConnections: 3,
+}, {
+  particleSize: 1.0,
+  trail: 0.12,
+});
+
 VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
   bassPulse: 1.2,
   surfaceDetail: 0.7,
