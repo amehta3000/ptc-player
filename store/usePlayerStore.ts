@@ -78,7 +78,7 @@ interface PlayerActions {
   playPrevious: () => { action: 'restart' } | { action: 'previous'; mix: Mix } | null;
 }
 
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'plasma', 'sonicGalaxy', 'constellation', 'orb', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'sonicGalaxy', 'constellation', 'orb', 'plasma', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',
