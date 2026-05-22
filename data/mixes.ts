@@ -128,7 +128,7 @@ export const mixes: Mix[] = [
     title: "House Trax 1",
     slug: "house-trax-1",
     cover: "https://media.parttimechiller.com/HouseTrax1_PTC.png",
-    audio: "https://media.parttimechiller.com/HouseTrax1_PTC.mp3",
+    audio: "https://media.parttimechiller.com/HouseBassTrax1_PTC.mp3",
     duration: "1:43",
     description: "A classic house bassline vibe",
     type: "track",
