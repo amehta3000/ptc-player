@@ -63,13 +63,13 @@ export class TerrainVisualizer extends BaseVisualizer {
         value: this.config.decay || 0.95
       },
       {
-        name: 'Camera Distance',
-        key: 'cameraDistance',
-        min: 5,
-        max: 15,
-        step: 0.5,
-        default: 9.5,
-        value: this.config.cameraDistance || 9.5
+        name: 'Auto Rotation',
+        key: 'autoRotation',
+        min: 0,
+        max: 0.01,
+        step: 0.0005,
+        default: 0.002,
+        value: this.config.autoRotation ?? 0.002
       },
       {
         name: 'Zoom Speed',
@@ -79,15 +79,6 @@ export class TerrainVisualizer extends BaseVisualizer {
         step: 0.001,
         default: 0,
         value: this.config.zoomSpeed ?? 0
-      },
-      {
-        name: 'Auto Rotation',
-        key: 'autoRotation',
-        min: 0,
-        max: 0.01,
-        step: 0.0005,
-        default: 0.002,
-        value: this.config.autoRotation ?? 0.002
       },
       {
         name: 'Segments',
