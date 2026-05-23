@@ -19,6 +19,8 @@ export class TerrainVisualizer extends BaseVisualizer {
   private segmentsX: number = 64;
   private segmentsZ: number = 40; // Reduced for better performance
   private cameraRotation = { x: 0.7, y: 0 };
+  private cameraDistance = 9.5;
+  private zoomPhase = Math.asin((9.5 - 10) / 5);
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
   private frameCount: number = 0;
@@ -66,8 +68,17 @@ export class TerrainVisualizer extends BaseVisualizer {
         min: 5,
         max: 15,
         step: 0.5,
-        default: 8,
-        value: this.config.cameraDistance || 8
+        default: 9.5,
+        value: this.config.cameraDistance || 9.5
+      },
+      {
+        name: 'Zoom Speed',
+        key: 'zoomSpeed',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.zoomSpeed ?? 0
       },
       {
         name: 'Auto Rotation',
@@ -143,7 +154,11 @@ export class TerrainVisualizer extends BaseVisualizer {
     this.container.appendChild(this.renderer.domElement);
     this.container.style.cursor = 'grab';
     this.container.style.touchAction = 'none';
-    
+
+    // Sync live cameraDistance from config
+    this.cameraDistance = this.config.cameraDistance || 9.5;
+    this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 10) / 5)));
+
     // Initial camera position
     this.updateCameraPosition();
 
@@ -223,53 +238,87 @@ export class TerrainVisualizer extends BaseVisualizer {
   
   private setupCameraControls(element: HTMLDivElement): void {
     element.style.cursor = 'grab';
-    const onMouseDown = (e: MouseEvent | TouchEvent) => {
+
+    const onMouseDown = (e: MouseEvent) => {
       this.isDragging = true;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
+      this.lastMousePos = { x: e.clientX, y: e.clientY };
     };
-    
-    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+    const onMouseMove = (e: MouseEvent) => {
       if (!this.isDragging) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      const deltaX = pos.clientX - this.lastMousePos.x;
-      const deltaY = pos.clientY - this.lastMousePos.y;
-      
-      this.cameraRotation.y += deltaX * 0.005;
-      this.cameraRotation.x += deltaY * 0.005;
+      this.cameraRotation.y += (e.clientX - this.lastMousePos.x) * 0.005;
+      this.cameraRotation.x += (e.clientY - this.lastMousePos.y) * 0.005;
       this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
-      
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
+      this.lastMousePos = { x: e.clientX, y: e.clientY };
     };
-    
-    const onMouseUp = () => {
-      this.isDragging = false;
+    const onMouseUp = () => { this.isDragging = false; };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      this.cameraDistance = Math.max(5, Math.min(15, this.cameraDistance + e.deltaY * 0.01));
+      this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 10) / 5)));
     };
-    
+
+    let pinchDist = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      } else {
+        this.isDragging = true;
+        this.lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (pinchDist > 0) {
+          this.cameraDistance = Math.max(5, Math.min(15, this.cameraDistance + (pinchDist - dist) * 0.05));
+          this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 10) / 5)));
+        }
+        pinchDist = dist;
+      } else if (this.isDragging) {
+        const pos = e.touches[0];
+        this.cameraRotation.y += (pos.clientX - this.lastMousePos.x) * 0.005;
+        this.cameraRotation.x += (pos.clientY - this.lastMousePos.y) * 0.005;
+        this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
+        this.lastMousePos = { x: pos.clientX, y: pos.clientY };
+      }
+    };
+    const onTouchEnd = () => { this.isDragging = false; pinchDist = 0; };
+
     element.addEventListener('mousedown', onMouseDown);
     element.addEventListener('mousemove', onMouseMove);
     element.addEventListener('mouseup', onMouseUp);
     element.addEventListener('mouseleave', onMouseUp);
-    element.addEventListener('touchstart', onMouseDown);
-    element.addEventListener('touchmove', onMouseMove);
-    element.addEventListener('touchend', onMouseUp);
+    element.addEventListener('wheel', onWheel, { passive: false });
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: false });
+    element.addEventListener('touchend', onTouchEnd);
   }
   
   private updateCameraPosition(): void {
     if (!this.camera) return;
-    
-    const distance = this.config.cameraDistance || 8;
-    const autoRotation = this.config.autoRotation ?? 0.002;
-    
-    // Apply auto-rotation if not dragging
-    if (!this.isDragging) {
-      this.cameraRotation.y += autoRotation;
+
+    const zoomSpeed = this.config.zoomSpeed ?? 0;
+    if (zoomSpeed > 0) {
+      this.zoomPhase += zoomSpeed;
+      this.cameraDistance = 10 + 5 * Math.sin(this.zoomPhase);
     }
-    
-    // Calculate camera position
-    this.camera.position.x = distance * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
-    this.camera.position.y = distance * Math.sin(this.cameraRotation.x);
-    this.camera.position.z = distance * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+
+    if (!this.isDragging) {
+      this.cameraRotation.y += this.config.autoRotation ?? 0.0005;
+    }
+
+    const d = this.cameraDistance;
+    this.camera.position.x = d * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+    this.camera.position.y = d * Math.sin(this.cameraRotation.x);
+    this.camera.position.z = d * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
     this.camera.lookAt(0, 0, -5);
   }
   
@@ -457,6 +506,10 @@ export class TerrainVisualizer extends BaseVisualizer {
     if (key === 'segments') {
       this.segmentsX = value;
       this.rebuildGeometry();
+    }
+    if (key === 'cameraDistance') {
+      this.cameraDistance = value;
+      this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (value - 10) / 5)));
     }
   }
 

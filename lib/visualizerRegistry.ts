@@ -122,6 +122,7 @@ VisualizerRegistry.register('terrain', 'Terrain', TerrainVisualizer, {
   decay: 0.95,
   cameraDistance: 9.5,
   autoRotation: 0.0005,
+  zoomSpeed: 0,
   hue: 0,
 });
 
