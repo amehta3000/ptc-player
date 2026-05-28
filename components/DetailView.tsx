@@ -125,6 +125,31 @@ export default function DetailView({
   const [shareCopied, setShareCopied] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMediaLoading, setIsMediaLoading] = useState(true);
+
+  // Track audio + cover image loading
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onWaiting = () => setIsMediaLoading(true);
+    const onCanPlay = () => setIsMediaLoading(false);
+    const onPlaying = () => setIsMediaLoading(false);
+    const onError = () => setIsMediaLoading(false);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('error', onError);
+    return () => {
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('error', onError);
+    };
+  }, [audioRef]);
+
+  // Reset to loading whenever the track changes
+  const currentMixSlug = usePlayerStore((s) => s.currentMix?.slug);
+  useEffect(() => { setIsMediaLoading(true); }, [currentMixSlug]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -717,16 +742,25 @@ export default function DetailView({
       >
         {/* Album art — toggles playlist */}
         <button
-          className="p-0 m-0 border-none bg-transparent flex-shrink-0"
+          className="p-0 m-0 border-none bg-transparent flex-shrink-0 relative"
           onClick={() => setShowPlaylist(!showPlaylist)}
           aria-label={showPlaylist ? 'Hide playlist' : 'Show playlist'}
         >
           <img
             src={currentMix.cover}
             alt={currentMix.title}
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover shadow-lg transition-all duration-500"
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded object-cover shadow-lg transition-all duration-500 ${isMediaLoading ? 'opacity-40' : 'opacity-100'}`}
             style={{ boxShadow: `0 0 8px ${accentColor}50` }}
+            onLoad={() => setIsMediaLoading(false)}
           />
+          {isMediaLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <svg className="w-5 h-5 animate-spin text-white/70" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          )}
         </button>
 
         {/* Track info + progress */}
