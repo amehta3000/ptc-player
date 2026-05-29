@@ -127,38 +127,38 @@ export default function DetailView({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMediaLoading, setIsMediaLoading] = useState(false);
 
-  // Audio loading events
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onWaiting = () => setIsMediaLoading(true);
-    const onCanPlay = () => setIsMediaLoading(false);
-    const onPlaying = () => setIsMediaLoading(false);
-    const onError = () => setIsMediaLoading(false);
-    audio.addEventListener('waiting', onWaiting);
-    audio.addEventListener('canplay', onCanPlay);
-    audio.addEventListener('playing', onPlaying);
-    audio.addEventListener('error', onError);
-    return () => {
-      audio.removeEventListener('waiting', onWaiting);
-      audio.removeEventListener('canplay', onCanPlay);
-      audio.removeEventListener('playing', onPlaying);
-      audio.removeEventListener('error', onError);
-    };
-  }, [audioRef]);
-
-  // Show spinner on track change; clear immediately if audio is already buffered
   const currentMixSlug = usePlayerStore((s) => s.currentMix?.slug);
+
+  // Show spinner on track change; attach fresh audio event listeners each time
   useEffect(() => {
-    const audio = audioRef.current;
-    if (audio && audio.readyState >= 3) {
-      setIsMediaLoading(false);
-      return;
-    }
+    if (!currentMixSlug) return;
     setIsMediaLoading(true);
-    const fallback = setTimeout(() => setIsMediaLoading(false), 5000);
-    return () => clearTimeout(fallback);
+
+    let active = true;
+    const audio = audioRef.current;
+    const fallback = setTimeout(() => { if (active) setIsMediaLoading(false); }, 10000);
+
+    if (!audio) return () => { active = false; clearTimeout(fallback); };
+
+    const onWaiting = () => { if (active) setIsMediaLoading(true); };
+    const onPlaying = () => { if (active) setIsMediaLoading(false); };
+    const onError   = () => { if (active) setIsMediaLoading(false); };
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('error',   onError);
+    return () => {
+      active = false;
+      clearTimeout(fallback);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('error',   onError);
+    };
   }, [currentMixSlug, audioRef]);
+
+  // Zustand isPlaying is the most reliable signal that audio is actually running
+  useEffect(() => {
+    if (isPlaying) setIsMediaLoading(false);
+  }, [isPlaying]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
