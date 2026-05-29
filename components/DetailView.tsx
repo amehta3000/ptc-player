@@ -125,9 +125,9 @@ export default function DetailView({
   const [shareCopied, setShareCopied] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMediaLoading, setIsMediaLoading] = useState(true);
+  const [isMediaLoading, setIsMediaLoading] = useState(false);
 
-  // Track audio + cover image loading
+  // Audio loading events
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -147,9 +147,18 @@ export default function DetailView({
     };
   }, [audioRef]);
 
-  // Reset to loading whenever the track changes
+  // Show spinner on track change; clear immediately if audio is already buffered
   const currentMixSlug = usePlayerStore((s) => s.currentMix?.slug);
-  useEffect(() => { setIsMediaLoading(true); }, [currentMixSlug]);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio && audio.readyState >= 3) {
+      setIsMediaLoading(false);
+      return;
+    }
+    setIsMediaLoading(true);
+    const fallback = setTimeout(() => setIsMediaLoading(false), 5000);
+    return () => clearTimeout(fallback);
+  }, [currentMixSlug, audioRef]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -751,7 +760,6 @@ export default function DetailView({
             alt={currentMix.title}
             className={`w-10 h-10 sm:w-12 sm:h-12 rounded object-cover shadow-lg transition-all duration-500 ${isMediaLoading ? 'opacity-40' : 'opacity-100'}`}
             style={{ boxShadow: `0 0 8px ${accentColor}50` }}
-            onLoad={() => setIsMediaLoading(false)}
           />
           {isMediaLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
