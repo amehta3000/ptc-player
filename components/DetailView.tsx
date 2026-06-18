@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
-import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS } from '../lib/exportManager';
+import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS, getOutputResolutionLabel } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import IntroSequence from './IntroSequence';
@@ -627,11 +627,37 @@ export default function DetailView({
                     </button>
                   </>
                 )}
-                {/* Export options: format + aspect ratio */}
+                {/* Export options: platform presets + format + aspect ratio */}
                 {showVisualizer && !recordingState.isRecording && !recordingState.isConverting && (
                   <>
                     <div className="border-t border-white/10" />
-                    <div className="px-3 py-2 flex items-center gap-2">
+                    {/* Platform quick-select */}
+                    <div className="px-3 pt-2.5 pb-1">
+                      <div className="text-[10px] text-white/40 uppercase tracking-wide mb-1.5">Platform</div>
+                      <div className="flex gap-1.5">
+                        {([
+                          { label: 'IG / TikTok', ratio: '9:16' as AspectRatio, format: 'mp4' as ExportFormat },
+                          { label: 'IG Portrait', ratio: '4:5' as AspectRatio, format: 'mp4' as ExportFormat },
+                          { label: 'IG Square', ratio: '1:1' as AspectRatio, format: 'mp4' as ExportFormat },
+                        ] as const).map(({ label, ratio, format }) => {
+                          const active = exportRatio === ratio && exportFormat === format;
+                          return (
+                            <button
+                              key={label}
+                              onClick={() => { setExportRatio(ratio); setExportFormat(format); }}
+                              className={`flex-1 text-[10px] px-1.5 py-1.5 rounded border transition-colors leading-tight ${
+                                active
+                                  ? 'bg-white/20 border-white/40 text-white'
+                                  : 'bg-white/5 border-white/10 text-white/55 hover:bg-white/10 hover:text-white/80'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="px-3 pb-2 flex items-center gap-2">
                       <select
                         value={exportFormat}
                         onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
@@ -651,6 +677,9 @@ export default function DetailView({
                           </option>
                         ))}
                       </select>
+                    </div>
+                    <div className="px-3 pb-2 text-right">
+                      <span className="text-[10px] text-white/35">{getOutputResolutionLabel(exportRatio)} · 60fps · {exportFormat.toUpperCase()}</span>
                     </div>
                   </>
                 )}

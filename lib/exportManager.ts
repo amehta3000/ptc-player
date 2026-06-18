@@ -18,6 +18,18 @@ export const ASPECT_RATIO_LABELS: Record<AspectRatio, string> = {
   '1:1': '1:1',
 };
 
+// Standard social media output resolutions — always export at these regardless of browser canvas size
+const SOCIAL_RESOLUTIONS: Partial<Record<AspectRatio, { w: number; h: number }>> = {
+  '9:16': { w: 1080, h: 1920 },
+  '4:5': { w: 1080, h: 1350 },
+  '1:1': { w: 1080, h: 1080 },
+};
+
+export function getOutputResolutionLabel(ratio: AspectRatio): string {
+  const res = SOCIAL_RESOLUTIONS[ratio];
+  return res ? `${res.w} × ${res.h}` : 'Browser native';
+}
+
 function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { sx: number; sy: number; sw: number; sh: number; outW: number; outH: number } {
   const cw = canvas.width;
   const ch = canvas.height;
@@ -49,7 +61,12 @@ function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { s
   sh = sh & ~1;
   sx = Math.round((cw - sw) / 2);
   sy = Math.round((ch - sh) / 2);
-  return { sx, sy, sw, sh, outW: sw, outH: sh };
+
+  // Always scale up to the social media target resolution so output is crisp on IG/TikTok
+  const social = SOCIAL_RESOLUTIONS[ratio];
+  const outW = social ? social.w : sw;
+  const outH = social ? social.h : sh;
+  return { sx, sy, sw, sh, outW, outH };
 }
 
 export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 'visualizer.png', ratio: AspectRatio = 'browser', darkMode: boolean = true, overlayDrawer?: OverlayDrawerFn): void {
@@ -107,7 +124,20 @@ async function transcodToMp4(webmBlob: Blob): Promise<Blob> {
   const ffmpeg = await getFFmpeg();
   const inputData = await fetchFile(webmBlob);
   await ffmpeg.writeFile('input.webm', inputData);
-  await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', 'output.mp4']);
+  await ffmpeg.exec([
+    '-i', 'input.webm',
+    '-c:v', 'libx264',
+    '-preset', 'medium',
+    '-crf', '18',
+    '-pix_fmt', 'yuv420p',   // required for broad platform compatibility (IG, TikTok)
+    '-color_primaries', 'bt709',
+    '-color_trc', 'bt709',
+    '-colorspace', 'bt709',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-movflags', '+faststart',
+    'output.mp4',
+  ]);
   const output = await ffmpeg.readFile('output.mp4');
   // Clean up
   await ffmpeg.deleteFile('input.webm');
@@ -162,8 +192,8 @@ export class VideoRecorder {
     drawFrame();
     const streamCanvas = this.offscreenCanvas;
 
-    // Capture canvas stream at 30fps
-    const canvasStream = streamCanvas.captureStream(30);
+    // Capture canvas stream at 60fps for smooth social media video
+    const canvasStream = streamCanvas.captureStream(60);
 
     // Capture audio from the audio context destination
     const audioDest = audioContext.createMediaStreamDestination();
@@ -181,7 +211,7 @@ export class VideoRecorder {
       .find((m) => MediaRecorder.isTypeSupported(m)) || 'video/webm';
 
     this.chunks = [];
-    this.mediaRecorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 5_000_000 });
+    this.mediaRecorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 8_000_000 });
 
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.chunks.push(e.data);
