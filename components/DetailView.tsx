@@ -187,12 +187,12 @@ export default function DetailView({
     setUiVisible(true);
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => {
-      // Only hide if not interacting with menus/controls/playlist
-      if (!toolsMenuOpen && !socialMenuOpen && !showPlaylist && !showControls) {
+      // Only hide once playback has started, and not while interacting with menus/controls/playlist
+      if (isPlaying && !toolsMenuOpen && !socialMenuOpen && !showPlaylist && !showControls) {
         setUiVisible(false);
       }
     }, IDLE_TIMEOUT);
-  }, [toolsMenuOpen, socialMenuOpen, showPlaylist, showControls]);
+  }, [isPlaying, toolsMenuOpen, socialMenuOpen, showPlaylist, showControls]);
 
   useEffect(() => {
     const events = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
@@ -205,15 +205,15 @@ export default function DetailView({
     };
   }, [resetIdleTimer]);
 
-  // Keep UI visible while menus/controls/playlist are open
+  // Keep UI visible while paused or while menus/controls/playlist are open
   useEffect(() => {
-    if (toolsMenuOpen || socialMenuOpen || showPlaylist || showControls) {
+    if (!isPlaying || toolsMenuOpen || socialMenuOpen || showPlaylist || showControls) {
       setUiVisible(true);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     } else {
       resetIdleTimer();
     }
-  }, [toolsMenuOpen, socialMenuOpen, showPlaylist, showControls, resetIdleTimer]);
+  }, [isPlaying, toolsMenuOpen, socialMenuOpen, showPlaylist, showControls, resetIdleTimer]);
 
   useEffect(() => {
     if (!socialMenuOpen) return;
