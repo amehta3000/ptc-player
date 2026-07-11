@@ -77,6 +77,7 @@ export default function DetailView({
 }: DetailViewProps) {
   const currentMix = usePlayerStore((s) => s.currentMix);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const userInitiatedPlayback = usePlayerStore((s) => s.userInitiatedPlayback);
   const progress = usePlayerStore((s) => s.progress);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
@@ -182,17 +183,20 @@ export default function DetailView({
   const IDLE_TIMEOUT = 3000;
   const [uiVisible, setUiVisible] = useState(true);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Autoplay on landing can start audio without the user ever touching play;
+  // that shouldn't count toward hiding the controls they haven't discovered yet.
+  const activelyPlaying = isPlaying && userInitiatedPlayback;
 
   const resetIdleTimer = useCallback(() => {
     setUiVisible(true);
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => {
-      // Only hide once playback has started, and not while interacting with menus/controls/playlist
-      if (isPlaying && !toolsMenuOpen && !socialMenuOpen && !showPlaylist && !showControls) {
+      // Only hide once the user has actually started playback, and not while interacting with menus/controls/playlist
+      if (activelyPlaying && !toolsMenuOpen && !socialMenuOpen && !showPlaylist && !showControls) {
         setUiVisible(false);
       }
     }, IDLE_TIMEOUT);
-  }, [isPlaying, toolsMenuOpen, socialMenuOpen, showPlaylist, showControls]);
+  }, [activelyPlaying, toolsMenuOpen, socialMenuOpen, showPlaylist, showControls]);
 
   useEffect(() => {
     const events = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
@@ -205,15 +209,15 @@ export default function DetailView({
     };
   }, [resetIdleTimer]);
 
-  // Keep UI visible while paused or while menus/controls/playlist are open
+  // Keep UI visible until the user has started playback, or while menus/controls/playlist are open
   useEffect(() => {
-    if (!isPlaying || toolsMenuOpen || socialMenuOpen || showPlaylist || showControls) {
+    if (!activelyPlaying || toolsMenuOpen || socialMenuOpen || showPlaylist || showControls) {
       setUiVisible(true);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     } else {
       resetIdleTimer();
     }
-  }, [isPlaying, toolsMenuOpen, socialMenuOpen, showPlaylist, showControls, resetIdleTimer]);
+  }, [activelyPlaying, toolsMenuOpen, socialMenuOpen, showPlaylist, showControls, resetIdleTimer]);
 
   useEffect(() => {
     if (!socialMenuOpen) return;

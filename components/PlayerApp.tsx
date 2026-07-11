@@ -393,6 +393,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         }
         await audio.play();
         setIsPlaying(true);
+        usePlayerStore.getState().setUserInitiatedPlayback(true);
         trackEvent('song_played', state.currentMix?.title);
       } catch (error) {
         console.log('Play failed:', error);

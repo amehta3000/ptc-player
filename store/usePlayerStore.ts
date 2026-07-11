@@ -11,6 +11,7 @@ interface PlayerState {
   // Playback
   currentMix: Mix | null;
   isPlaying: boolean;
+  userInitiatedPlayback: boolean;
   progress: number;
   currentTime: number;
   duration: number;
@@ -42,6 +43,7 @@ interface PlayerActions {
   // Playback actions
   setCurrentMix: (mix: Mix | null) => void;
   setIsPlaying: (playing: boolean) => void;
+  setUserInitiatedPlayback: (started: boolean) => void;
   setProgress: (progress: number) => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
@@ -110,6 +112,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   // Initial state
   currentMix: null,
   isPlaying: false,
+  userInitiatedPlayback: false,
   progress: 0,
   currentTime: 0,
   duration: 0,
@@ -136,6 +139,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   // Playback actions
   setCurrentMix: (mix) => set({ currentMix: mix }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
+  setUserInitiatedPlayback: (started) => set({ userInitiatedPlayback: started }),
   setProgress: (progress) => set({ progress }),
   setCurrentTime: (time) => set({ currentTime: time }),
   setDuration: (duration) => set({ duration }),
