@@ -56,7 +56,7 @@ export default function StudioView({
   onNewFile,
   hasEmbeddedCover,
 }: StudioViewProps) {
-  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const currentMix = usePlayerStore((s) => s.currentMix);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const progress = usePlayerStore((s) => s.progress);
   const currentTime = usePlayerStore((s) => s.currentTime);
@@ -92,8 +92,8 @@ export default function StudioView({
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 sm:px-6 py-3 z-20">
         <div className="min-w-0">
-          <div className="text-sm sm:text-base font-semibold truncate max-w-[50vw]">{currentTrack?.title}</div>
-          {currentTrack?.artist && <div className="text-xs text-white/50 truncate max-w-[50vw]">{currentTrack.artist}</div>}
+          <div className="text-sm sm:text-base font-semibold truncate max-w-[50vw]">{currentMix?.title}</div>
+          {currentMix?.artist && <div className="text-xs text-white/50 truncate max-w-[50vw]">{currentMix.artist}</div>}
         </div>
         <div className="flex items-center gap-2">
           {(isRecording || isConverting) && (
