@@ -6,19 +6,30 @@ interface VisualizerContainerProps {
 }
 
 export default function VisualizerContainer({ containerRef }: VisualizerContainerProps) {
-  const currentMix = usePlayerStore((s) => s.currentMix);
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
   const showVisualizer = usePlayerStore((s) => s.showVisualizer);
   const accentColor = usePlayerStore((s) => s.accentColor);
+  const dominantColor = usePlayerStore((s) => s.dominantColor);
 
-  if (!currentMix) return null;
+  if (!currentTrack) return null;
 
+  // When the visualizer is toggled off, show the embedded cover art if present,
+  // otherwise a simple gradient placeholder built from the extracted colors.
   if (!showVisualizer) {
+    if (currentTrack.cover) {
+      return (
+        <img
+          src={currentTrack.cover}
+          alt={currentTrack.title}
+          className="max-h-[90%] max-w-[90%] aspect-square object-cover rounded shadow-xl"
+          style={{ boxShadow: `0 0 0 3px ${accentColor}40` }}
+        />
+      );
+    }
     return (
-      <img
-        src={currentMix.cover}
-        alt={currentMix.title}
-        className="max-h-[90%] max-w-[90%] aspect-square object-cover rounded shadow-xl"
-        style={{ boxShadow: `0 0 0 3px ${accentColor}40` }}
+      <div
+        className="max-h-[90%] max-w-[90%] aspect-square w-80 rounded shadow-xl"
+        style={{ background: `linear-gradient(135deg, ${dominantColor}, ${accentColor})` }}
       />
     );
   }
