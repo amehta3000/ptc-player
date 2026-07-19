@@ -3,7 +3,7 @@ import { Mix, mixes } from '../data/mixes';
 
 type FilterType = 'all' | 'mix' | 'track';
 type RepeatMode = 'off' | 'all' | 'one';
-type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | /* 'chrysalis' | */ 'sonicGalaxy' | 'constellation' | 'raindrops' | 'sacredGeometry' | 'cassette' | 'plasma';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | /* 'chrysalis' | */ 'sonicGalaxy' | 'constellation' | 'raindrops' | 'sacredGeometry' | 'cassette' | 'plasma' | 'radial' | 'spokes' | 'ripples' | 'ridge';
 
 export type { FilterType, RepeatMode, VisualizerType };
 
@@ -80,7 +80,7 @@ interface PlayerActions {
   playPrevious: () => { action: 'restart' } | { action: 'previous'; mix: Mix } | null;
 }
 
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'sonicGalaxy', 'constellation', 'orb', 'plasma', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ripples', 'ridge', 'sonicGalaxy', 'constellation', 'orb', 'plasma', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',
@@ -94,6 +94,10 @@ export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   sacredGeometry: 'Sacred Geometry',
   cassette: 'Cassette',
   plasma: 'Plasma',
+  radial: 'Radial',
+  spokes: 'Spokes',
+  ripples: 'Ripples',
+  ridge: 'Ridge',
 };
 
 export const FONTS = [

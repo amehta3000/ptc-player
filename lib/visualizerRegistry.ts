@@ -15,6 +15,10 @@ import { CassetteVisualizer } from './visualizers/CassetteVisualizer';
 import { SacredGeometryVisualizer } from './visualizers/SacredGeometryVisualizer';
 import { ConstellationVisualizer } from './visualizers/ConstellationVisualizer';
 import { PlasmaVisualizer } from './visualizers/PlasmaVisualizer';
+import { RadialPlaneVisualizer } from './visualizers/RadialPlaneVisualizer';
+import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
+import { RippleFieldVisualizer } from './visualizers/RippleFieldVisualizer';
+import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -201,6 +205,65 @@ VisualizerRegistry.register('constellation', 'Constellation', ConstellationVisua
 }, {
   particleSize: 1.0,
   trail: 0.12,
+});
+
+VisualizerRegistry.register('radial', 'Radial', RadialPlaneVisualizer, {
+  amplitude: 3.0,
+  speed: 14,
+  decay: 0.92,
+  innerRadius: 1.2,
+  autoRotation: 0.001,
+  zoomSpeed: 0,
+  cameraDistance: 13,
+  hue: 0,
+  harmonyMode: 0,
+}, {
+  angularSegments: 96,
+  rings: 32,
+});
+
+VisualizerRegistry.register('spokes', 'Spokes', RadialSpokesVisualizer, {
+  amplitude: 2.8,
+  speed: 14,
+  decay: 1.0,
+  innerRadius: 1.3,
+  autoRotation: 0.0008,
+  zoomSpeed: 0,
+  cameraDistance: 14,
+  hue: 0,
+  harmonyMode: 0,
+}, {
+  spokeCount: 64,
+  samplesPerSpoke: 36,
+});
+
+VisualizerRegistry.register('ripples', 'Ripples', RippleFieldVisualizer, {
+  amplitude: 2.4,
+  speed: 10,
+  decay: 0.93,
+  ringWidth: 0.65,
+  autoRotation: 0.0008,
+  zoomSpeed: 0,
+  cameraDistance: 14,
+  hue: 0,
+  harmonyMode: 0,
+}, {
+  angularSegments: 72,
+  rings: 28,
+});
+
+VisualizerRegistry.register('ridge', 'Ridge', RidgeVisualizer, {
+  amplitude: 3.2,
+  speed: 12,
+  decay: 0.98,
+  autoRotation: 0,
+  zoomSpeed: 0,
+  cameraDistance: 13,
+  hue: 0,
+  harmonyMode: 2,
+}, {
+  samples: 72,
+  rows: 22,
 });
 
 VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
