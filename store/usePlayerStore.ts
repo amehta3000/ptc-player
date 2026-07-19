@@ -80,7 +80,7 @@ interface PlayerActions {
   playPrevious: () => { action: 'restart' } | { action: 'previous'; mix: Mix } | null;
 }
 
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ripples', 'ridge', 'sonicGalaxy', 'constellation', 'orb', 'plasma', 'bars', 'web', /* 'chrysalis', */ 'raindrops', 'sacredGeometry'];
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ripples', 'ridge', 'sonicGalaxy', 'constellation', 'orb', 'bars', /* 'plasma', 'web', 'chrysalis', */ 'raindrops', 'sacredGeometry'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',

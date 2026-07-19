@@ -75,6 +75,15 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
         value: this.config.innerRadius ?? 1.2
       },
       {
+        name: 'Ring Spacing',
+        key: 'outerRadius',
+        min: 3,
+        max: 15,
+        step: 0.5,
+        default: 9,
+        value: this.config.outerRadius ?? 9
+      },
+      {
         name: 'Auto Rotation',
         key: 'autoRotation',
         min: 0,
@@ -183,7 +192,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
    */
   private buildGeometry(): void {
     const innerRadius = this.config.innerRadius ?? 1.2;
-    const outerRadius = 9;
+    const outerRadius = this.config.outerRadius ?? 9;
     const A = this.angularSegments;
     const R = this.rings;
     const vertsPerRing = A + 1;
@@ -439,7 +448,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
   updateConfig(key: string, value: number): void {
     super.updateConfig(key, value);
 
-    if (key === 'innerRadius') {
+    if (key === 'innerRadius' || key === 'outerRadius') {
       this.buildGeometry();
     }
     if (key === 'cameraDistance') {

@@ -212,6 +212,7 @@ VisualizerRegistry.register('radial', 'Radial', RadialPlaneVisualizer, {
   speed: 14,
   decay: 0.92,
   innerRadius: 1.2,
+  outerRadius: 9,
   autoRotation: 0.001,
   zoomSpeed: 0,
   cameraDistance: 13,
