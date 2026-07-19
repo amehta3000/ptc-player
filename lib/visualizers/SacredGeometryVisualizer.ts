@@ -59,7 +59,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
       { name: 'Complexity', key: 'complexity', min: 1, max: 3, step: 1, default: 2, value: this.config.complexity ?? 2, labels: ['Simple', 'Medium', 'Complex'] },
       { name: 'Hue', key: 'hue', min: 0, max: 360, step: 1, default: 0, value: this.config.hue ?? 0 },
       { name: 'Fill Opacity', key: 'fillOpacity', min: 0, max: 1, step: 0.05, default: 0.25, value: this.config.fillOpacity ?? 0.25 },
-      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 1, value: this.config.harmonyMode ?? 1, labels: ['Mono', 'Analogous', 'Complement'] },
+      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 1, value: this.config.harmonyMode ?? 1, labels: ['Mono', 'Analog', 'Comp'] },
       { name: 'Symmetry', key: 'symmetry', min: 3, max: 12, step: 1, default: 6, value: this.config.symmetry ?? 6 },
     ];
   }

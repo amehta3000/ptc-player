@@ -103,7 +103,7 @@ export class ConstellationVisualizer extends BaseVisualizer {
       { name: 'Zoom Speed', key: 'zoomSpeed', min: 0, max: 0.02, step: 0.001, default: 0, value: this.config.zoomSpeed ?? 0 },
       { name: 'Trail', key: 'trail', min: 0, max: 0.95, step: 0.01, default: 0, value: this.config.trail ?? 0 },
       { name: 'Hue', key: 'hue', min: 0, max: 360, step: 1, default: 0, value: this.config.hue ?? 0 },
-      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 0, value: this.config.harmonyMode ?? 0, labels: ['Mono', 'Analogous', 'Complement'] },
+      { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 0, value: this.config.harmonyMode ?? 0, labels: ['Mono', 'Analog', 'Comp'] },
       { name: 'Gravity', key: 'gravity', min: 0, max: 10, step: 0.5, default: 7.0, value: this.config.gravity ?? 7.0 },
       { name: 'Connection Dist', key: 'connectionThreshold', min: 0.1, max: 2.0, step: 0.05, default: 0.6, value: this.config.connectionThreshold ?? 0.6 },
       { name: 'Edge Opacity', key: 'edgeOpacity', min: 0, max: 1, step: 0.05, default: 0.5, value: this.config.edgeOpacity ?? 0.5 },

@@ -30,44 +30,82 @@ export class OrbVisualizer extends BaseVisualizer {
   }
   
   getControls(): VisualizerControl[] {
-    return [
-      {
-        name: 'Shape',
-        key: 'shape',
-        min: 0,
-        max: 1,
-        step: 1,
-        default: 1,
-        value: this.config.shape ?? 1,
-        labels: ['Orb', 'Disco Ball']
-      },
-      {
-        name: 'Light Intensity',
-        key: 'lightIntensity',
-        min: 0.5,
-        max: 5,
-        step: 0.1,
-        default: 3.0,
-        value: this.config.lightIntensity ?? 3.0
-      },
-      {
-        name: 'Light Speed',
-        key: 'lightSpeed',
-        min: 0,
-        max: 2,
-        step: 0.05,
-        default: 0.25,
-        value: this.config.lightSpeed ?? 0.25
-      },
-      {
-        name: 'Ambient',
-        key: 'ambient',
-        min: 0,
-        max: 1,
-        step: 0.05,
-        default: 0.3,
-        value: this.config.ambient ?? 0.3
-      },
+    const isDisco = (this.config.shape ?? 1) === 1;
+
+    const controls: VisualizerControl[] = [];
+
+    // Hue/Harmony drive vertex colors, which only the Orb material shows —
+    // the Disco Ball's mirror material ignores them
+    if (!isDisco) {
+      controls.push(
+        {
+          name: 'Hue',
+          key: 'hue',
+          min: 0,
+          max: 360,
+          step: 1,
+          default: 0,
+          value: this.config.hue ?? 0
+        },
+        {
+          name: 'Harmony',
+          key: 'harmonyMode',
+          min: 0,
+          max: 2,
+          step: 1,
+          default: 0,
+          value: this.config.harmonyMode ?? 0,
+          labels: ['Mono', 'Analog', 'Comp']
+        }
+      );
+    }
+
+    controls.push({
+      name: 'Shape',
+      key: 'shape',
+      min: 0,
+      max: 1,
+      step: 1,
+      default: 1,
+      value: this.config.shape ?? 1,
+      labels: ['Orb', 'Disco']
+    });
+
+    // The point/ambient lights only exist for the Disco Ball; the Orb
+    // material is unlit, so these would be dead sliders there
+    if (isDisco) {
+      controls.push(
+        {
+          name: 'Light Intensity',
+          key: 'lightIntensity',
+          min: 0.5,
+          max: 5,
+          step: 0.1,
+          default: 3.0,
+          value: this.config.lightIntensity ?? 3.0
+        },
+        {
+          name: 'Light Speed',
+          key: 'lightSpeed',
+          min: 0,
+          max: 2,
+          step: 0.05,
+          default: 0.25,
+          value: this.config.lightSpeed ?? 0.25
+        },
+        {
+          name: 'Ambient',
+          key: 'ambient',
+          min: 0,
+          max: 1,
+          step: 0.05,
+          default: 0.3,
+          value: this.config.ambient ?? 0.3
+        }
+      );
+    }
+
+    controls.push(
       {
         name: 'Audio Intensity',
         key: 'freqMultiplier',
@@ -131,27 +169,10 @@ export class OrbVisualizer extends BaseVisualizer {
         default: 1,
         value: this.config.wireframe ?? 1,
         labels: ['Solid', 'Wire']
-      },
-      {
-        name: 'Hue',
-        key: 'hue',
-        min: 0,
-        max: 360,
-        step: 1,
-        default: 0,
-        value: this.config.hue ?? 0
-      },
-      {
-        name: 'Harmony',
-        key: 'harmonyMode',
-        min: 0,
-        max: 2,
-        step: 1,
-        default: 0,
-        value: this.config.harmonyMode ?? 0,
-        labels: ['Mono', 'Analogous', 'Complement']
-      },
-    ];
+      }
+    );
+
+    return controls;
   }
 
   getPresets(): VisualizerPreset[] {

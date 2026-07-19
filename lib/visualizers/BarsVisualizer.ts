@@ -22,7 +22,36 @@ export class BarsVisualizer extends BaseVisualizer {
   }
 
   getControls(): VisualizerControl[] {
-    return [
+    const palette = Math.round(this.config.palette ?? 0);
+
+    const controls: VisualizerControl[] = [];
+
+    // Hue shifts every palette except Monochrome; Harmony only shapes the Album palette
+    if (palette !== 6) {
+      controls.push({
+        name: 'Hue',
+        key: 'hue',
+        min: 0,
+        max: 360,
+        step: 1,
+        default: 0,
+        value: this.config.hue ?? 0
+      });
+    }
+    if (palette === 0) {
+      controls.push({
+        name: 'Harmony',
+        key: 'harmonyMode',
+        min: 0,
+        max: 2,
+        step: 1,
+        default: 0,
+        value: this.config.harmonyMode ?? 0,
+        labels: ['Mono', 'Analog', 'Comp']
+      });
+    }
+
+    controls.push(
       {
         name: 'Mode',
         key: 'mode',
@@ -40,26 +69,8 @@ export class BarsVisualizer extends BaseVisualizer {
         max: 6,
         step: 1,
         default: 0,
-        value: this.config.palette ?? 0
-      },
-      {
-        name: 'Hue',
-        key: 'hue',
-        min: 0,
-        max: 360,
-        step: 1,
-        default: 0,
-        value: this.config.hue ?? 0
-      },
-      {
-        name: 'Harmony',
-        key: 'harmonyMode',
-        min: 0,
-        max: 2,
-        step: 1,
-        default: 0,
-        value: this.config.harmonyMode ?? 0,
-        labels: ['Mono', 'Analogous', 'Complement']
+        value: palette,
+        labels: ['Album', 'Rainbow', 'Fire', 'Ocean', 'Neon', 'Sunset', 'Mono']
       },
       {
         name: 'Bar Height',
@@ -88,7 +99,9 @@ export class BarsVisualizer extends BaseVisualizer {
         default: 20,
         value: this.config.width ?? 20
       }
-    ];
+    );
+
+    return controls;
   }
 
   getPresets(): VisualizerPreset[] {

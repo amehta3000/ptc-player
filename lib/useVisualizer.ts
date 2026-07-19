@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AudioEngine } from './audioEngine';
-import { VisualizerManager } from './visualizerManager';
+import { VisualizerManager, MIRROR_CONFIG_KEY } from './visualizerManager';
 import { VisualizerRegistry } from './visualizerRegistry';
 import { ColorScheme, VisualizerControl, VisualizerPreset } from './visualizers/BaseVisualizer';
 import { VisualizerType, VISUALIZER_TYPES } from '../store/usePlayerStore';
@@ -130,7 +130,9 @@ export function useVisualizer({
     setCurrentConfig((prev) => ({ ...prev, [key]: value }));
 
     // Re-fetch full control list for keys that affect which controls are visible
-    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode']);
+    // (mirror toggles its offset slider; palette/colorMode/shape gate hue,
+    // harmony, and light controls)
+    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode', 'palette', 'colorMode', MIRROR_CONFIG_KEY]);
     if (refetchKeys.has(key)) {
       setControls(visualizerManagerRef.current.getCurrentControls());
     } else {

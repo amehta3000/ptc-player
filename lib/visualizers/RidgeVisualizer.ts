@@ -104,7 +104,7 @@ export class RidgeVisualizer extends BaseVisualizer {
         step: 1,
         default: 2,
         value: this.config.harmonyMode ?? 2,
-        labels: ['Mono', 'Analogous', 'Complement']
+        labels: ['Mono', 'Analog', 'Comp']
       }
     ];
   }

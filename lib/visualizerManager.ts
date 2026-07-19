@@ -7,9 +7,10 @@ import { AudioEngine, AudioAnalysis } from './audioEngine';
 import { BaseVisualizer, ColorScheme, VisualizerConfig, VisualizerControl } from './visualizers/BaseVisualizer';
 import { VisualizerRegistry, VisualizerType } from './visualizerRegistry';
 
-// Manager-level mirror control appended to every visualizer's control list.
-// The manager intercepts this key in updateConfig instead of forwarding it.
+// Manager-level mirror controls appended to every visualizer's control list.
+// The manager intercepts these keys in updateConfig instead of forwarding them.
 export const MIRROR_CONFIG_KEY = '__mirror';
+export const MIRROR_OFFSET_KEY = '__mirrorOffset';
 
 export class VisualizerManager {
   private audioEngine: AudioEngine;
@@ -22,7 +23,11 @@ export class VisualizerManager {
   private resizeObserver: ResizeObserver | null = null;
   // 0 = off, 1 = mirror X, 2 = mirror Y, 3 = both (kaleidoscope base)
   private mirrorMode: number = 0;
+  // Seam position as a fraction of the frame (0.5 = center). The mirrored
+  // strip tiles across the rest of the frame, kaleidoscope-style.
+  private mirrorOffset: number = 0.5;
   private mirrorCanvas: HTMLCanvasElement | null = null;
+  private scratchCanvas: HTMLCanvasElement | null = null;
   
   constructor(audioEngine: AudioEngine, container: HTMLDivElement) {
     this.audioEngine = audioEngine;
@@ -71,6 +76,10 @@ export class VisualizerManager {
   updateConfig(key: string, value: number): void {
     if (key === MIRROR_CONFIG_KEY) {
       this.setMirrorMode(value);
+      return;
+    }
+    if (key === MIRROR_OFFSET_KEY) {
+      this.mirrorOffset = Math.max(0.1, Math.min(0.9, value));
       return;
     }
     if (this.currentVisualizer) {
@@ -124,8 +133,11 @@ export class VisualizerManager {
    */
   getCurrentControls(): VisualizerControl[] {
     const controls = this.currentVisualizer?.getControls() || [];
-    // Mirror is global, so it leads the list (right under the visualizer picker)
-    return [
+
+    // Common controls lead the list (right under the visualizer picker):
+    // manager-level mirror controls, then hue/harmony hoisted from the
+    // visualizer's own list (when it offers them).
+    const common: VisualizerControl[] = [
       {
         name: 'Mirror',
         key: MIRROR_CONFIG_KEY,
@@ -136,8 +148,24 @@ export class VisualizerManager {
         value: this.mirrorMode,
         labels: ['Off', 'X', 'Y', 'XY'],
       },
-      ...controls,
     ];
+    if (this.mirrorMode > 0) {
+      common.push({
+        name: 'Mirror Offset',
+        key: MIRROR_OFFSET_KEY,
+        min: 0.1,
+        max: 0.9,
+        step: 0.01,
+        default: 0.5,
+        value: this.mirrorOffset,
+      });
+    }
+
+    const commonKeys = new Set(['hue', 'harmonyMode']);
+    const hoisted = controls.filter((c) => commonKeys.has(c.key));
+    const specific = controls.filter((c) => !commonKeys.has(c.key));
+
+    return [...common, ...hoisted, ...specific];
   }
 
   /**
@@ -211,43 +239,68 @@ export class VisualizerManager {
     const ctx = this.mirrorCanvas.getContext('2d');
     if (!ctx) return;
 
-    const halfW = w / 2;
-    const halfH = h / 2;
     ctx.clearRect(0, 0, w, h);
 
     if (this.mirrorMode === 1) {
-      // Left half, reflected onto the right
-      ctx.drawImage(src, 0, 0, halfW, h, 0, 0, halfW, h);
-      ctx.save();
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(src, 0, 0, halfW, h, 0, 0, halfW, h);
-      ctx.restore();
+      this.mirrorAxis(ctx, src, w, h, 'x');
     } else if (this.mirrorMode === 2) {
-      // Top half, reflected onto the bottom
-      ctx.drawImage(src, 0, 0, w, halfH, 0, 0, w, halfH);
-      ctx.save();
-      ctx.translate(0, h);
-      ctx.scale(1, -1);
-      ctx.drawImage(src, 0, 0, w, halfH, 0, 0, w, halfH);
-      ctx.restore();
+      this.mirrorAxis(ctx, src, w, h, 'y');
     } else {
-      // Top-left quadrant reflected into all four quadrants
-      ctx.drawImage(src, 0, 0, halfW, halfH, 0, 0, halfW, halfH);
+      // Both axes: mirror X into a scratch canvas, then mirror that in Y
+      if (!this.scratchCanvas) this.scratchCanvas = document.createElement('canvas');
+      if (this.scratchCanvas.width !== w || this.scratchCanvas.height !== h) {
+        this.scratchCanvas.width = w;
+        this.scratchCanvas.height = h;
+      }
+      const sctx = this.scratchCanvas.getContext('2d');
+      if (!sctx) return;
+      sctx.clearRect(0, 0, w, h);
+      this.mirrorAxis(sctx, src, w, h, 'x');
+      this.mirrorAxis(ctx, this.scratchCanvas, w, h, 'y');
+    }
+  }
+
+  /**
+   * Center-anchored mirror tiling: a strip (mirrorOffset fraction of the
+   * frame) is sampled from the middle of the source, drawn in place, and
+   * mirrored copies tile outward symmetrically in both directions —
+   * the original stays centered while reflections extend to the sides.
+   */
+  private mirrorAxis(
+    ctx: CanvasRenderingContext2D,
+    source: HTMLCanvasElement,
+    w: number,
+    h: number,
+    axis: 'x' | 'y'
+  ): void {
+    const total = axis === 'x' ? w : h;
+    const strip = Math.max(1, Math.round(total * this.mirrorOffset));
+    const start = (total - strip) / 2;
+
+    const kMin = -Math.ceil(start / strip);
+    const kMax = Math.floor((total - start) / strip);
+
+    for (let k = kMin; k <= kMax; k++) {
+      const pos = start + k * strip;
+      const flipped = ((k % 2) + 2) % 2 === 1;
       ctx.save();
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(src, 0, 0, halfW, halfH, 0, 0, halfW, halfH);
-      ctx.restore();
-      ctx.save();
-      ctx.translate(0, h);
-      ctx.scale(1, -1);
-      ctx.drawImage(src, 0, 0, halfW, halfH, 0, 0, halfW, halfH);
-      ctx.restore();
-      ctx.save();
-      ctx.translate(w, h);
-      ctx.scale(-1, -1);
-      ctx.drawImage(src, 0, 0, halfW, halfH, 0, 0, halfW, halfH);
+      if (axis === 'x') {
+        if (flipped) {
+          ctx.translate(pos + strip, 0);
+          ctx.scale(-1, 1);
+        } else {
+          ctx.translate(pos, 0);
+        }
+        ctx.drawImage(source, start, 0, strip, h, 0, 0, strip, h);
+      } else {
+        if (flipped) {
+          ctx.translate(0, pos + strip);
+          ctx.scale(1, -1);
+        } else {
+          ctx.translate(0, pos);
+        }
+        ctx.drawImage(source, 0, start, w, strip, 0, 0, w, strip);
+      }
       ctx.restore();
     }
   }
@@ -294,6 +347,7 @@ export class VisualizerManager {
       this.mirrorCanvas.remove();
       this.mirrorCanvas = null;
     }
+    this.scratchCanvas = null;
     if (this.currentVisualizer) {
       this.currentVisualizer.destroy();
       this.currentVisualizer = null;
