@@ -124,8 +124,8 @@ export class VisualizerManager {
    */
   getCurrentControls(): VisualizerControl[] {
     const controls = this.currentVisualizer?.getControls() || [];
+    // Mirror is global, so it leads the list (right under the visualizer picker)
     return [
-      ...controls,
       {
         name: 'Mirror',
         key: MIRROR_CONFIG_KEY,
@@ -134,8 +134,9 @@ export class VisualizerManager {
         step: 1,
         default: 0,
         value: this.mirrorMode,
-        labels: ['Off', 'Mirror X', 'Mirror Y', 'Kaleido'],
+        labels: ['Off', 'X', 'Y', 'XY'],
       },
+      ...controls,
     ];
   }
 
