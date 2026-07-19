@@ -273,9 +273,11 @@ VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
   rotationSpeed: 0.002,
   radius: 2.5,
   meshDetail: 6,
+  tendrils: 7,
   hue: 0,
   harmonyMode: 0,
 }, {
   radius: 2.0,
   meshDetail: 5,
+  tendrils: 5,
 });
