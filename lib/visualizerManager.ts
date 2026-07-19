@@ -261,10 +261,10 @@ export class VisualizerManager {
   }
 
   /**
-   * Take the strip up to the seam (mirrorOffset fraction of the frame) and
-   * tile it across the rest of the frame, flipping every other copy.
-   * At offset 0.5 this is a plain center mirror; other offsets tile
-   * kaleidoscope-style.
+   * Center-anchored mirror tiling: a strip (mirrorOffset fraction of the
+   * frame) is sampled from the middle of the source, drawn in place, and
+   * mirrored copies tile outward symmetrically in both directions —
+   * the original stays centered while reflections extend to the sides.
    */
   private mirrorAxis(
     ctx: CanvasRenderingContext2D,
@@ -275,9 +275,14 @@ export class VisualizerManager {
   ): void {
     const total = axis === 'x' ? w : h;
     const strip = Math.max(1, Math.round(total * this.mirrorOffset));
+    const start = (total - strip) / 2;
 
-    for (let k = 0, pos = 0; pos < total; k++, pos += strip) {
-      const flipped = k % 2 === 1;
+    const kMin = -Math.ceil(start / strip);
+    const kMax = Math.floor((total - start) / strip);
+
+    for (let k = kMin; k <= kMax; k++) {
+      const pos = start + k * strip;
+      const flipped = ((k % 2) + 2) % 2 === 1;
       ctx.save();
       if (axis === 'x') {
         if (flipped) {
@@ -286,7 +291,7 @@ export class VisualizerManager {
         } else {
           ctx.translate(pos, 0);
         }
-        ctx.drawImage(source, 0, 0, strip, h, 0, 0, strip, h);
+        ctx.drawImage(source, start, 0, strip, h, 0, 0, strip, h);
       } else {
         if (flipped) {
           ctx.translate(0, pos + strip);
@@ -294,7 +299,7 @@ export class VisualizerManager {
         } else {
           ctx.translate(0, pos);
         }
-        ctx.drawImage(source, 0, 0, w, strip, 0, 0, w, strip);
+        ctx.drawImage(source, 0, start, w, strip, 0, 0, w, strip);
       }
       ctx.restore();
     }
