@@ -102,11 +102,15 @@ export function extractColors(imgSrc: string): Promise<ExtractedColors> {
           : DEFAULT_COLORS.accent;
 
         resolve({ dominant, accent });
-      } catch {
+      } catch (err) {
+        console.warn('colorExtractor: pixel read failed (likely missing CORS header on image host), using default colors', err);
         resolve(DEFAULT_COLORS);
       }
     };
 
-    img.onerror = () => resolve(DEFAULT_COLORS);
+    img.onerror = () => {
+      console.warn(`colorExtractor: failed to load ${imgSrc} (network or CORS), using default colors`);
+      resolve(DEFAULT_COLORS);
+    };
   });
 }

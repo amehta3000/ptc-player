@@ -199,13 +199,16 @@ export abstract class BaseVisualizer {
 
   /**
    * Shift the hue of a CSS rgb() color string by degrees (0-360).
+   * Greyscale/near-grey colors (e.g. B&W album art or the extraction
+   * fallback) have no hue to rotate, so a shift would be invisible —
+   * synthesize saturation instead so the hue control always has an effect.
    */
   protected shiftHue(cssColor: string, degrees: number): string {
     if (!degrees) return cssColor;
     const { r, g, b } = this.parseRGB(cssColor);
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     let h = 0, s = 0;
-    const l = (max + min) / 2;
+    let l = (max + min) / 2;
     if (max !== min) {
       const d = max - min;
       s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -214,7 +217,10 @@ export abstract class BaseVisualizer {
       else h = ((r - g) / d + 4) / 6;
     }
     h = (h + degrees / 360 + 1) % 1;
-    if (s === 0) { const v = Math.round(l * 255); return `rgb(${v},${v},${v})`; }
+    if (s < 0.15) {
+      s = 0.6;
+      l = Math.min(0.7, Math.max(0.3, l));
+    }
     const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
     const p = 2 * l - q;
     const h2r = (t: number): number => {
