@@ -130,8 +130,9 @@ export function useVisualizer({
     setCurrentConfig((prev) => ({ ...prev, [key]: value }));
 
     // Re-fetch full control list for keys that affect which controls are visible
-    // (MIRROR_CONFIG_KEY toggles the conditional Mirror Offset slider)
-    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode', MIRROR_CONFIG_KEY]);
+    // (mirror toggles its offset slider; palette/colorMode/shape gate hue,
+    // harmony, and light controls)
+    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode', 'palette', 'colorMode', MIRROR_CONFIG_KEY]);
     if (refetchKeys.has(key)) {
       setControls(visualizerManagerRef.current.getCurrentControls());
     } else {

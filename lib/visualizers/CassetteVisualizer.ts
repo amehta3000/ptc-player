@@ -126,7 +126,7 @@ export class CassetteVisualizer extends BaseVisualizer {
         step: 1,
         default: 0,
         value: this.config.harmonyMode ?? 0,
-        labels: ['Mono', 'Analogous', 'Complement'],
+        labels: ['Mono', 'Analog', 'Comp'],
       },
     ];
   }

@@ -133,8 +133,11 @@ export class VisualizerManager {
    */
   getCurrentControls(): VisualizerControl[] {
     const controls = this.currentVisualizer?.getControls() || [];
-    // Mirror is global, so it leads the list (right under the visualizer picker)
-    const mirrorControls: VisualizerControl[] = [
+
+    // Common controls lead the list (right under the visualizer picker):
+    // manager-level mirror controls, then hue/harmony hoisted from the
+    // visualizer's own list (when it offers them).
+    const common: VisualizerControl[] = [
       {
         name: 'Mirror',
         key: MIRROR_CONFIG_KEY,
@@ -147,7 +150,7 @@ export class VisualizerManager {
       },
     ];
     if (this.mirrorMode > 0) {
-      mirrorControls.push({
+      common.push({
         name: 'Mirror Offset',
         key: MIRROR_OFFSET_KEY,
         min: 0.1,
@@ -157,7 +160,12 @@ export class VisualizerManager {
         value: this.mirrorOffset,
       });
     }
-    return [...mirrorControls, ...controls];
+
+    const commonKeys = new Set(['hue', 'harmonyMode']);
+    const hoisted = controls.filter((c) => commonKeys.has(c.key));
+    const specific = controls.filter((c) => !commonKeys.has(c.key));
+
+    return [...common, ...hoisted, ...specific];
   }
 
   /**

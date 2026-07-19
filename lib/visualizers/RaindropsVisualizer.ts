@@ -93,7 +93,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
         value: this.config.maxRipples ?? 64
       },
       {
-        name: 'Drop Rate',
+        // Higher threshold = fewer drops, so name it for what it is
+        name: 'Drop Threshold',
         key: 'bassThreshold',
         min: 0.02,
         max: 0.4,
@@ -162,8 +163,12 @@ export class RaindropsVisualizer extends BaseVisualizer {
         step: 1,
         default: 0,
         value: this.config.hue ?? 0
-      },
-      {
+      }
+    );
+
+    // Harmony only shapes the Album palette; Rainbow ignores it
+    if ((this.config.colorMode ?? 0) === 0) {
+      controls.push({
         name: 'Harmony',
         key: 'harmonyMode',
         min: 0,
@@ -171,9 +176,9 @@ export class RaindropsVisualizer extends BaseVisualizer {
         step: 1,
         default: 0,
         value: this.config.harmonyMode ?? 0,
-        labels: ['Mono', 'Analogous', 'Complement']
-      }
-    );
+        labels: ['Mono', 'Analog', 'Comp']
+      });
+    }
 
     return controls;
   }

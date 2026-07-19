@@ -2,6 +2,9 @@ import React from 'react';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
 import { usePlayerStore, VISUALIZER_TYPES, VISUALIZER_NAMES, VisualizerType } from '../store/usePlayerStore';
 
+// Controls that appear in every visualizer, ordered first by the manager
+const COMMON_CONTROL_KEYS = new Set(['__mirror', '__mirrorOffset', 'hue', 'harmonyMode']);
+
 interface VisualizerControlsProps {
   controls: VisualizerControl[];
   presets: VisualizerPreset[];
@@ -81,8 +84,16 @@ export default function VisualizerControls({
         </div>
       )}
 
-      {controls.map((control) => (
+      {controls.map((control, idx) => (
         <div key={control.key}>
+          {/* Divider between the leading common controls (mirror/hue/harmony) and visualizer-specific ones */}
+          {idx > 0 && COMMON_CONTROL_KEYS.has(controls[idx - 1].key) && !COMMON_CONTROL_KEYS.has(control.key) && (
+            <div className="flex items-center gap-2 pt-1 pb-2">
+              <div className="flex-1 border-t border-white/10" />
+              <span className="text-[9px] uppercase tracking-widest text-white/30">{visualizerName}</span>
+              <div className="flex-1 border-t border-white/10" />
+            </div>
+          )}
           <label className="flex justify-between text-xs text-white/70 mb-1">
             <span>{control.name}</span>
             {!control.labels && control.key !== 'hue' && (
@@ -103,7 +114,7 @@ export default function VisualizerControls({
                 <button
                   key={i}
                   onClick={() => onUpdateConfig(control.key, i)}
-                  className={`px-2 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+                  className={`px-1.5 py-1 rounded text-[10px] font-medium transition-all duration-200 ${
                     Math.round(control.value) === i
                       ? 'bg-white/20 text-white border border-white/30'
                       : 'bg-white/5 text-white/50 border border-white/5 hover:bg-white/10 hover:text-white/70'
