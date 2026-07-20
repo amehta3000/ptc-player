@@ -7,7 +7,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
 
-export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1';
+export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1' | '16:9';
 export type OverlayDrawerFn = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 export type ExportFormat = 'webm' | 'mp4';
 
@@ -16,7 +16,29 @@ export const ASPECT_RATIO_LABELS: Record<AspectRatio, string> = {
   '9:16': '9:16',
   '4:5': '4:5',
   '1:1': '1:1',
+  '16:9': '16:9',
 };
+
+// Platform presets: each one bundles the crop + container a network expects.
+// MP4 here is H.264 + AAC with faststart — accepted by all major socials.
+export interface ExportPreset {
+  id: string;
+  label: string;
+  ratio: AspectRatio;
+  format: ExportFormat;
+}
+
+export const EXPORT_PRESETS: ExportPreset[] = [
+  { id: 'tiktok',    label: 'TikTok / Reels · 9:16 MP4',      ratio: '9:16',    format: 'mp4'  },
+  { id: 'ig-post',   label: 'Instagram Post · 1:1 MP4',       ratio: '1:1',     format: 'mp4'  },
+  { id: 'ig-tall',   label: 'Instagram Portrait · 4:5 MP4',   ratio: '4:5',     format: 'mp4'  },
+  { id: 'youtube',   label: 'YouTube · 16:9 MP4',             ratio: '16:9',    format: 'mp4'  },
+  { id: 'screen',    label: 'This Screen · WebM (fast)',      ratio: 'browser', format: 'webm' },
+];
+
+export function getExportPreset(id: string): ExportPreset {
+  return EXPORT_PRESETS.find((p) => p.id === id) ?? EXPORT_PRESETS[0];
+}
 
 function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { sx: number; sy: number; sw: number; sh: number; outW: number; outH: number } {
   const cw = canvas.width;
@@ -26,7 +48,7 @@ function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { s
     return { sx: 0, sy: 0, sw: cw, sh: ch, outW: cw, outH: ch };
   }
 
-  const ratioMap: Record<string, number> = { '9:16': 9 / 16, '4:5': 4 / 5, '1:1': 1 };
+  const ratioMap: Record<string, number> = { '9:16': 9 / 16, '4:5': 4 / 5, '1:1': 1, '16:9': 16 / 9 };
   const target = ratioMap[ratio];
   const current = cw / ch;
 
@@ -77,6 +99,8 @@ export interface RecordingState {
   isRecording: boolean;
   isConverting: boolean;
   duration: number;
+  /** MP4 transcode progress 0–1; undefined while FFmpeg is still loading */
+  conversionProgress?: number;
 }
 
 export const MAX_RECORDING_SECONDS = Infinity;
@@ -103,16 +127,35 @@ async function getFFmpeg(): Promise<FFmpeg> {
   return ffmpegLoading;
 }
 
-async function transcodToMp4(webmBlob: Blob): Promise<Blob> {
+async function transcodToMp4(
+  webmBlob: Blob,
+  durationSeconds?: number,
+  onProgress?: (progress: number) => void
+): Promise<Blob> {
   const ffmpeg = await getFFmpeg();
-  const inputData = await fetchFile(webmBlob);
-  await ffmpeg.writeFile('input.webm', inputData);
-  await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', 'output.mp4']);
-  const output = await ffmpeg.readFile('output.mp4');
-  // Clean up
-  await ffmpeg.deleteFile('input.webm');
-  await ffmpeg.deleteFile('output.mp4');
-  return new Blob([new Uint8Array(output as Uint8Array)], { type: 'video/mp4' });
+
+  // MediaRecorder WebM has no duration header, so ffmpeg's own progress ratio
+  // is unreliable — derive it from the transcoded timestamp vs the known
+  // recording length instead.
+  const progressHandler = ({ time }: { progress: number; time: number }) => {
+    if (!durationSeconds || !onProgress) return;
+    const seconds = time / 1_000_000; // time arrives in microseconds
+    onProgress(Math.max(0, Math.min(1, seconds / durationSeconds)));
+  };
+  ffmpeg.on('progress', progressHandler);
+
+  try {
+    const inputData = await fetchFile(webmBlob);
+    await ffmpeg.writeFile('input.webm', inputData);
+    await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', 'output.mp4']);
+    const output = await ffmpeg.readFile('output.mp4');
+    // Clean up
+    await ffmpeg.deleteFile('input.webm');
+    await ffmpeg.deleteFile('output.mp4');
+    return new Blob([new Uint8Array(output as Uint8Array)], { type: 'video/mp4' });
+  } finally {
+    ffmpeg.off('progress', progressHandler);
+  }
 }
 
 export class VideoRecorder {
@@ -210,10 +253,14 @@ export class VideoRecorder {
       this.mediaRecorder = null;
 
       if (format === 'mp4') {
-        // Transcode WebM → MP4
+        // Transcode WebM → MP4, reporting progress against the recorded length
+        const recordedSeconds = Math.max(0.1, (Date.now() - this.startTime) / 1000);
         this.conversionCancelled = false;
         this.onStateChange({ isRecording: false, isConverting: true, duration: 0 });
-        transcodToMp4(webmBlob)
+        transcodToMp4(webmBlob, recordedSeconds, (p) => {
+          if (this.conversionCancelled) return;
+          this.onStateChange({ isRecording: false, isConverting: true, duration: 0, conversionProgress: p });
+        })
           .then((mp4Blob) => {
             if (this.conversionCancelled) return;
             const url = URL.createObjectURL(mp4Blob);

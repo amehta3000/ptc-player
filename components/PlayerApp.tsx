@@ -1,18 +1,23 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useVisualizer } from '../lib/useVisualizer';
+import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
 import { trackEvent, trackGAEvent } from '../lib/analytics';
 import { OverlayDrawerFn } from '../lib/exportManager';
-import { mixes, getMixBySlug } from '../data/mixes';
+import { Mix, mixes, getMixBySlug } from '../data/mixes';
 import { buildShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
 
 interface PlayerAppProps {
   initialSlug?: string;
+  /** Studio mode: play this uploaded track instead of the catalog */
+  studioMix?: Mix;
+  onStudioNewTrack?: () => void;
 }
 
-export default function PlayerApp({ initialSlug }: PlayerAppProps) {
+export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: PlayerAppProps) {
+  const studioMode = !!studioMix;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
   const isInitialLoad = useRef(true);
@@ -208,6 +213,12 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     const onDurationChange = () => setDuration(audio.duration);
     const onEnded = () => {
       trackEvent('song_completed', currentMix.title);
+      if (studioMode) {
+        // Studio: loop the uploaded track so the visual keeps running
+        audio.currentTime = 0;
+        audio.play().catch(() => setIsPlaying(false));
+        return;
+      }
       const next = usePlayerStore.getState().playNext();
       if (next) {
         handleMixSelect(next);
@@ -256,26 +267,18 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     return () => clearTimeout(timer);
   }, [currentMix]);
 
-  // Font loading
-  useEffect(() => {
-    const fontFamily = currentFont.replace(/ /g, '+');
-    const link = document.createElement('link');
-    link.href = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@400;700&display=swap`;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    return () => { document.head.removeChild(link); };
-  }, [currentFont]);
+  // Font loading + Cmd/Ctrl+D debug shortcut (shared with Studio)
+  useFontTools();
 
-  // Initialize first track on mount
+  // Initialize first track on mount (studio: the uploaded track, no URL rewrite)
   useEffect(() => {
-    if (currentMix) return;
-    const targetMix = initialSlug ? getMixBySlug(initialSlug) : mixes[0];
+    const targetMix = studioMix ?? (currentMix ? null : initialSlug ? getMixBySlug(initialSlug) : mixes[0]);
     if (!targetMix) return;
     (async () => {
       setCurrentMix(targetMix);
       setShowDetail(true);
       setShowVisualizer(true);
-      if (targetMix.slug) {
+      if (!studioMix && targetMix.slug) {
         window.history.replaceState({}, '', `/track/${targetMix.slug}`);
       }
       const colors = await extractColors(targetMix.cover);
@@ -309,18 +312,6 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     });
     trackEvent('share_link_copied', currentMix.title);
   }, [currentMix, visualizerType, visualizerControls]);
-
-  // Debug mode keyboard shortcut (Cmd/Ctrl + D)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-        e.preventDefault();
-        setShowDebug(!usePlayerStore.getState().showDebug);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setShowDebug]);
 
   // Keyboard shortcuts for volume and spacebar
   useEffect(() => {
@@ -402,11 +393,20 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
   }, [setIsPlaying, audioContextRef]);
 
   const playNext = useCallback(() => {
+    if (studioMode) {
+      // Only one track in the studio — restart it
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      return;
+    }
     const next = usePlayerStore.getState().playNext();
     if (next) handleMixSelect(next);
-  }, [handleMixSelect]);
+  }, [handleMixSelect, studioMode]);
 
   const playPrevious = useCallback(() => {
+    if (studioMode) {
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      return;
+    }
     const result = usePlayerStore.getState().playPrevious();
     if (!result) return;
     if (result.action === 'restart') {
@@ -414,7 +414,7 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
     } else {
       handleMixSelect(result.mix);
     }
-  }, [handleMixSelect]);
+  }, [handleMixSelect, studioMode]);
 
   const handleRandomize = useCallback(() => {
     const newType = randomize();
@@ -453,6 +453,8 @@ export default function PlayerApp({ initialSlug }: PlayerAppProps) {
         introTimeout={introTimeout}
         introForceOut={introForceOut}
         onIntroDismiss={handleIntroDismiss}
+        studioMode={studioMode}
+        onStudioNewTrack={onStudioNewTrack}
       />
     </div>
   );

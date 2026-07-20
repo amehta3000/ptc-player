@@ -1,8 +1,12 @@
 /**
  * Radial Visualizer
- * Polar wireframe disc with a center hole. The frequency spectrum wraps
- * around the hole (mirrored so the seam is invisible) and each new frame
- * ripples outward through rings of history, decaying as it travels.
+ * Polar disc of concentric rings. The frequency spectrum wraps around the
+ * center (mirrored so the seam is invisible) and each new frame ripples
+ * outward through rings of history, decaying as it travels.
+ *
+ * Two render styles share the same motion: clean ring outlines (Lines), or
+ * solid ribbon rings with lighting (Solid, the former Ripples visualizer).
+ * The center hole can close completely at innerRadius 0.
  */
 
 import * as THREE from 'three';
@@ -14,7 +18,8 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
   private camera: THREE.PerspectiveCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
   private geometry: THREE.BufferGeometry | null = null;
-  private lines: THREE.LineSegments | null = null;
+  private ringsObject: THREE.LineSegments | THREE.Mesh | null = null;
+  private accentLight: THREE.DirectionalLight | null = null;
   private history: number[][] = [];
   private lastUpdateTime: number = 0;
   private rings: number = 44;
@@ -36,8 +41,22 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
     return 'Radial';
   }
 
+  private isSolid(): boolean {
+    return Math.round(this.config.ringStyle ?? 0) === 1;
+  }
+
   getControls(): VisualizerControl[] {
-    return [
+    const controls: VisualizerControl[] = [
+      {
+        name: 'Style',
+        key: 'ringStyle',
+        min: 0,
+        max: 1,
+        step: 1,
+        default: 0,
+        value: this.config.ringStyle ?? 0,
+        labels: ['Lines', 'Solid']
+      },
       {
         name: 'Wave Amplitude',
         key: 'amplitude',
@@ -68,7 +87,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
       {
         name: 'Center Hole',
         key: 'innerRadius',
-        min: 0.2,
+        min: 0,
         max: 3,
         step: 0.1,
         default: 1.2,
@@ -83,6 +102,22 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
         default: 9,
         value: this.config.outerRadius ?? 9
       },
+    ];
+
+    // Ribbon width only matters in Solid style
+    if (this.isSolid()) {
+      controls.push({
+        name: 'Ring Width',
+        key: 'ringWidth',
+        min: 0.1,
+        max: 1.0,
+        step: 0.05,
+        default: 0.65,
+        value: this.config.ringWidth ?? 0.65
+      });
+    }
+
+    controls.push(
       {
         name: 'Auto Rotation',
         key: 'autoRotation',
@@ -120,7 +155,9 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
         value: this.config.harmonyMode ?? 0,
         labels: ['Mono', 'Analog', 'Comp']
       }
-    ];
+    );
+
+    return controls;
   }
 
   init(): void {
@@ -158,16 +195,17 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
       this.history.push(new Array(this.angularSegments).fill(0));
     }
 
+    // Lights only affect the Solid style; the line material is unlit
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    this.scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    directionalLight.position.set(5, 10, 5);
+    this.scene.add(directionalLight);
+    this.accentLight = new THREE.DirectionalLight(new THREE.Color(this.colors.accent), 0.35);
+    this.accentLight.position.set(-5, 5, -5);
+    this.scene.add(this.accentLight);
+
     this.buildGeometry();
-
-    const material = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9
-    });
-
-    this.lines = new THREE.LineSegments(this.geometry!, material);
-    this.scene.add(this.lines);
 
     this.lastUpdateTime = Date.now();
 
@@ -185,53 +223,139 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
   }
 
   /**
-   * Build the polar grid: `rings` concentric ring outlines from innerRadius
-   * to outerRadius, each with angularSegments + 1 vertices (the extra vertex
-   * duplicates angle 0 to close the seam). Only circumferential line
-   * segments are drawn — clean concentric circles, no radial lines.
+   * Rebuild the ring geometry for the current style.
+   *
+   * Lines: `rings` concentric ring outlines, each with angularSegments + 1
+   * vertices (the extra vertex duplicates angle 0 to close the seam), drawn
+   * as circumferential line segments only.
+   *
+   * Solid: each ring is a flat annular ribbon (inner + outer edge) whose
+   * width is a fraction of the ring spacing, lit and double-sided.
    */
   private buildGeometry(): void {
+    if (!this.scene) return;
+
+    // Tear down the previous object
+    if (this.ringsObject) {
+      this.scene.remove(this.ringsObject);
+      (this.ringsObject.material as THREE.Material).dispose();
+      this.ringsObject = null;
+    }
+    if (this.geometry) {
+      this.geometry.dispose();
+      this.geometry = null;
+    }
+
     const innerRadius = this.config.innerRadius ?? 1.2;
     const outerRadius = this.config.outerRadius ?? 9;
     const A = this.angularSegments;
     const R = this.rings;
-    const vertsPerRing = A + 1;
-    const vertexCount = R * vertsPerRing;
-
-    const positions = new Float32Array(vertexCount * 3);
-    const colors = new Float32Array(vertexCount * 3);
     const dominantRGB = this.parseRGB(this.colors.dominant);
-
-    for (let j = 0; j < R; j++) {
-      const radius = innerRadius + (j / (R - 1)) * (outerRadius - innerRadius);
-      for (let i = 0; i <= A; i++) {
-        const theta = ((i % A) / A) * Math.PI * 2;
-        const index = j * vertsPerRing + i;
-        positions[index * 3] = Math.cos(theta) * radius;
-        positions[index * 3 + 1] = 0;
-        positions[index * 3 + 2] = Math.sin(theta) * radius;
-        colors[index * 3] = dominantRGB.r;
-        colors[index * 3 + 1] = dominantRGB.g;
-        colors[index * 3 + 2] = dominantRGB.b;
-      }
-    }
-
-    const indices: number[] = [];
-    for (let j = 0; j < R; j++) {
-      for (let i = 0; i < A; i++) {
-        const a = j * vertsPerRing + i;
-        indices.push(a, a + 1);
-      }
-    }
-
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setIndex(indices);
 
-    if (this.geometry) this.geometry.dispose();
+    if (this.isSolid()) {
+      const step = (outerRadius - innerRadius) / R;
+      const width = step * (this.config.ringWidth ?? 0.65);
+      const vertsPerEdge = A + 1;
+      const vertsPerRing = vertsPerEdge * 2;
+      const vertexCount = R * vertsPerRing;
+
+      const positions = new Float32Array(vertexCount * 3);
+      const colors = new Float32Array(vertexCount * 3);
+
+      for (let r = 0; r < R; r++) {
+        const rInner = innerRadius + r * step;
+        const rOuter = rInner + width;
+        const base = r * vertsPerRing;
+        for (let i = 0; i <= A; i++) {
+          const theta = ((i % A) / A) * Math.PI * 2;
+          const cos = Math.cos(theta);
+          const sin = Math.sin(theta);
+
+          const inner = base + i;
+          positions[inner * 3] = cos * rInner;
+          positions[inner * 3 + 1] = 0;
+          positions[inner * 3 + 2] = sin * rInner;
+
+          const outer = base + vertsPerEdge + i;
+          positions[outer * 3] = cos * rOuter;
+          positions[outer * 3 + 1] = 0;
+          positions[outer * 3 + 2] = sin * rOuter;
+
+          for (const index of [inner, outer]) {
+            colors[index * 3] = dominantRGB.r;
+            colors[index * 3 + 1] = dominantRGB.g;
+            colors[index * 3 + 2] = dominantRGB.b;
+          }
+        }
+      }
+
+      const indices: number[] = [];
+      for (let r = 0; r < R; r++) {
+        const base = r * vertsPerRing;
+        for (let i = 0; i < A; i++) {
+          const a = base + i;
+          const b = a + 1;
+          const c = base + vertsPerEdge + i;
+          const d = c + 1;
+          indices.push(a, c, b, b, c, d);
+        }
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+
+      const material = new THREE.MeshPhongMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
+        shininess: 10,
+        flatShading: false
+      });
+      this.ringsObject = new THREE.Mesh(geometry, material);
+    } else {
+      const vertsPerRing = A + 1;
+      const vertexCount = R * vertsPerRing;
+      const positions = new Float32Array(vertexCount * 3);
+      const colors = new Float32Array(vertexCount * 3);
+
+      for (let j = 0; j < R; j++) {
+        const radius = innerRadius + (j / (R - 1)) * (outerRadius - innerRadius);
+        for (let i = 0; i <= A; i++) {
+          const theta = ((i % A) / A) * Math.PI * 2;
+          const index = j * vertsPerRing + i;
+          positions[index * 3] = Math.cos(theta) * radius;
+          positions[index * 3 + 1] = 0;
+          positions[index * 3 + 2] = Math.sin(theta) * radius;
+          colors[index * 3] = dominantRGB.r;
+          colors[index * 3 + 1] = dominantRGB.g;
+          colors[index * 3 + 2] = dominantRGB.b;
+        }
+      }
+
+      const indices: number[] = [];
+      for (let j = 0; j < R; j++) {
+        for (let i = 0; i < A; i++) {
+          const a = j * vertsPerRing + i;
+          indices.push(a, a + 1);
+        }
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.setIndex(indices);
+
+      const material = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9
+      });
+      this.ringsObject = new THREE.LineSegments(geometry, material);
+    }
+
     this.geometry = geometry;
-    if (this.lines) this.lines.geometry = geometry;
+    this.scene.add(this.ringsObject);
   }
 
   private setupCameraControls(element: HTMLDivElement): void {
@@ -377,11 +501,15 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
 
     this.updateCameraPosition();
 
-    // Push a new ring of audio into the center; older rings travel outward
+    // Push a new ring of audio into the center; older rings travel outward.
+    // Solid style gets extra smoothing for the calm water-ring look.
     if (currentTime - this.lastUpdateTime >= updateInterval) {
       this.history.pop();
       const resampled = this.resampleMirrored(audioData, this.angularSegments);
-      const wave = this.smoothWrap(resampled.map(v => (v / 255) * amplitude), 2);
+      const wave = this.smoothWrap(
+        resampled.map(v => (v / 255) * amplitude),
+        this.isSolid() ? 3 : 2
+      );
       this.history.unshift(wave);
       this.lastUpdateTime = currentTime;
     }
@@ -399,31 +527,69 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
 
     const A = this.angularSegments;
     const R = this.rings;
-    const vertsPerRing = A + 1;
 
     const decayFactors: number[] = [];
     for (let j = 0; j < R; j++) {
       decayFactors[j] = Math.pow(decay, j);
     }
 
-    for (let j = 0; j < R; j++) {
-      const ring = this.history[j];
-      const decayFactor = decayFactors[j];
-      for (let i = 0; i <= A; i++) {
-        const index = j * vertsPerRing + i;
-        const waveHeight = (ring?.[i % A] || 0) * decayFactor;
-        positions.setY(index, waveHeight);
+    if (this.isSolid()) {
+      const vertsPerEdge = A + 1;
+      const vertsPerRing = vertsPerEdge * 2;
+      const widthFrac = this.config.ringWidth ?? 0.65;
 
-        const heightIntensity = Math.min(1, Math.abs(waveHeight) / amplitude);
-        const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
-        const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
-        const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
-        colorAttr.setXYZ(index, r, g, b);
+      for (let r = 0; r < R; r++) {
+        const ring = this.history[r];
+        const nextRing = this.history[r + 1];
+        const decayFactor = decayFactors[r];
+        const nextDecay = decayFactors[Math.min(r + 1, R - 1)];
+        const base = r * vertsPerRing;
+
+        for (let i = 0; i <= A; i++) {
+          const angleIdx = i % A;
+          const h = (ring?.[angleIdx] || 0) * decayFactor;
+          // Tilt the ribbon toward the next ring's height so the surface
+          // reads as a continuous slope under lighting
+          const hNext = (nextRing?.[angleIdx] || 0) * nextDecay;
+          const hOuter = h + (hNext - h) * widthFrac;
+
+          positions.setY(base + i, h);
+          positions.setY(base + vertsPerEdge + i, hOuter);
+
+          const heightIntensity = Math.min(1, Math.abs(h) / amplitude);
+          const cr = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
+          const cg = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
+          const cb = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
+          colorAttr.setXYZ(base + i, cr, cg, cb);
+          colorAttr.setXYZ(base + vertsPerEdge + i, cr, cg, cb);
+        }
       }
-    }
 
-    positions.needsUpdate = true;
-    colorAttr.needsUpdate = true;
+      positions.needsUpdate = true;
+      colorAttr.needsUpdate = true;
+      this.geometry.computeVertexNormals();
+    } else {
+      const vertsPerRing = A + 1;
+
+      for (let j = 0; j < R; j++) {
+        const ring = this.history[j];
+        const decayFactor = decayFactors[j];
+        for (let i = 0; i <= A; i++) {
+          const index = j * vertsPerRing + i;
+          const waveHeight = (ring?.[i % A] || 0) * decayFactor;
+          positions.setY(index, waveHeight);
+
+          const heightIntensity = Math.min(1, Math.abs(waveHeight) / amplitude);
+          const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
+          const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
+          const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
+          colorAttr.setXYZ(index, r, g, b);
+        }
+      }
+
+      positions.needsUpdate = true;
+      colorAttr.needsUpdate = true;
+    }
   }
 
   render(): void {
@@ -433,6 +599,9 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
 
   updateColors(colors: ColorScheme): void {
     super.updateColors(colors);
+    if (this.accentLight) {
+      this.accentLight.color.set(new THREE.Color(colors.accent));
+    }
     if (this.geometry) {
       const colorAttr = this.geometry.attributes.color;
       if (colorAttr) {
@@ -448,7 +617,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
   updateConfig(key: string, value: number): void {
     super.updateConfig(key, value);
 
-    if (key === 'innerRadius' || key === 'outerRadius') {
+    if (key === 'innerRadius' || key === 'outerRadius' || key === 'ringWidth' || key === 'ringStyle') {
       this.buildGeometry();
     }
     if (key === 'cameraDistance') {
@@ -483,15 +652,17 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
     if (this.geometry) {
       this.geometry.dispose();
     }
-    if (this.lines && this.lines.material) {
-      (this.lines.material as THREE.Material).dispose();
+    if (this.ringsObject && this.ringsObject.material) {
+      (this.ringsObject.material as THREE.Material).dispose();
     }
+    this.accentLight?.dispose();
 
     this.scene = null;
     this.camera = null;
     this.renderer = null;
     this.geometry = null;
-    this.lines = null;
+    this.ringsObject = null;
+    this.accentLight = null;
     this.history = [];
 
     this.container.innerHTML = '';

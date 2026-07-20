@@ -17,7 +17,6 @@ import { ConstellationVisualizer } from './visualizers/ConstellationVisualizer';
 import { PlasmaVisualizer } from './visualizers/PlasmaVisualizer';
 import { RadialPlaneVisualizer } from './visualizers/RadialPlaneVisualizer';
 import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
-import { RippleFieldVisualizer } from './visualizers/RippleFieldVisualizer';
 import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 
 // Re-export the canonical type from the store
@@ -208,11 +207,13 @@ VisualizerRegistry.register('constellation', 'Constellation', ConstellationVisua
 });
 
 VisualizerRegistry.register('radial', 'Radial', RadialPlaneVisualizer, {
+  ringStyle: 0,
   amplitude: 3.0,
   speed: 14,
   decay: 0.92,
   innerRadius: 1.2,
   outerRadius: 9,
+  ringWidth: 0.65,
   autoRotation: 0.001,
   zoomSpeed: 0,
   cameraDistance: 13,
@@ -238,10 +239,15 @@ VisualizerRegistry.register('spokes', 'Spokes', RadialSpokesVisualizer, {
   samplesPerSpoke: 36,
 });
 
-VisualizerRegistry.register('ripples', 'Ripples', RippleFieldVisualizer, {
+// Ripples merged into Radial (Solid style). This alias keeps old share
+// links working; it is not in the VISUALIZER_TYPES cycle.
+VisualizerRegistry.register('ripples', 'Ripples', RadialPlaneVisualizer, {
+  ringStyle: 1,
   amplitude: 2.4,
   speed: 10,
   decay: 0.93,
+  innerRadius: 0.35,
+  outerRadius: 9,
   ringWidth: 0.65,
   autoRotation: 0.0008,
   zoomSpeed: 0,
