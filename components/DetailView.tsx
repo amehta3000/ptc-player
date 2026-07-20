@@ -387,7 +387,7 @@ export default function DetailView({
             <a
               href="/studio"
               className={`px-3 h-9 rounded-full flex items-center gap-2 text-xs font-medium transition-all hover:scale-105 hover:bg-gradient-to-br hover:from-fuchsia-600 hover:to-orange-500 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`}
-              title="Studio — visualize your own track"
+              title="Studio: visualize your own track"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-2v13M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -586,7 +586,7 @@ export default function DetailView({
               }`}
               title={recordingState.isRecording
                 ? 'Stop Recording'
-                : 'Converting to MP4 — FFmpeg runs in your browser, so this can take about as long as the clip. Click to cancel.'}
+                : 'Converting to MP4. FFmpeg runs in your browser, so this can take about as long as the clip. Click to cancel.'}
             >
               {recordingState.isRecording ? (
                 <>
@@ -700,12 +700,12 @@ export default function DetailView({
                       ) : recordingState.isConverting ? (
                         <span
                           className="flex items-center gap-3"
-                          title="FFmpeg runs in your browser — conversion can take about as long as the clip itself"
+                          title="FFmpeg runs in your browser, so conversion can take about as long as the clip itself"
                         >
                           <span className="w-4 h-4 flex-shrink-0 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
                           {recordingState.conversionProgress != null
-                            ? `Converting MP4 — ${Math.round(recordingState.conversionProgress * 100)}%`
-                            : 'Converting MP4 — preparing…'}
+                            ? `Converting MP4: ${Math.round(recordingState.conversionProgress * 100)}%`
+                            : 'Converting MP4: preparing…'}
                         </span>
                       ) : (
                         <>

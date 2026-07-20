@@ -29,7 +29,7 @@ export default function TrackMenu({ mix, position = 'below' }: TrackMenuProps) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${mix.title} — Part Time Chiller`,
+          title: `${mix.title} | Part Time Chiller`,
           text: mix.description,
           url: shareUrl,
         });

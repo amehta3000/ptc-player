@@ -41,7 +41,7 @@ export default function StudioApp() {
   const acceptAudioFile = useCallback((file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith('audio/') && !/\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(file.name)) {
-      setError('That doesn’t look like an audio file — try an MP3, M4A, WAV, OGG, or FLAC.');
+      setError('That doesn’t look like an audio file. Try an MP3, M4A, WAV, OGG, or FLAC.');
       return;
     }
     setError(null);
@@ -134,7 +134,7 @@ export default function StudioApp() {
           <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2">Make your music move</h1>
           <p className="text-sm text-white/60 text-center mb-2">
             PTC Studio is a visual toy for artists. Drop in a track, let a dozen
-            audio-reactive visualizers vibe to it — sculpt the look until it feels
+            audio-reactive visualizers vibe to it, and sculpt the look until it feels
             like your sound.
           </p>
           <p className="text-sm text-white/60 text-center mb-8">
@@ -224,7 +224,7 @@ export default function StudioApp() {
           </button>
 
           <p className="text-[11px] text-white/40 text-center mt-4">
-            Everything runs right here in your browser — your music never leaves your device.
+            Everything runs right here in your browser. Your music never leaves your device.
           </p>
         </div>
       </div>
