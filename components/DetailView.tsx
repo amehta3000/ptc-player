@@ -382,7 +382,8 @@ export default function DetailView({
                 Exit Studio
               </a>
             </>
-          ) : (
+          ) : showDebug ? (
+            // Studio entrance — hidden until launch; Ctrl/Cmd+D reveals it
             <a
               href="/studio"
               className={`px-3 h-9 rounded-full flex items-center gap-2 text-xs font-medium transition-all hover:scale-105 hover:bg-gradient-to-br hover:from-fuchsia-600 hover:to-orange-500 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`}
@@ -393,7 +394,7 @@ export default function DetailView({
               </svg>
               Studio
             </a>
-          )}
+          ) : null}
           {!studioMode && <a href="https://instagram.com/parttimechiller" target="_blank" rel="noopener noreferrer"
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="Instagram">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -462,7 +463,8 @@ export default function DetailView({
               </>
               ) : (
               <>
-              <a
+              {/* Studio entrance — hidden until launch; Ctrl/Cmd+D reveals it */}
+              {showDebug && <a
                 href="/studio"
                 className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
               >
@@ -470,7 +472,7 @@ export default function DetailView({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-2v13M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 Studio
-              </a>
+              </a>}
               <a
                 href="https://instagram.com/parttimechiller"
                 target="_blank"
