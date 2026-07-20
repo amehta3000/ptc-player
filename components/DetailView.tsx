@@ -523,11 +523,11 @@ export default function DetailView({
         </div>
 
         <div className="flex items-center gap-2.5 flex-1 sm:flex-none justify-center sm:justify-end">
-          {/* Share — catalog tracks only; an uploaded track has no shareable URL */}
-          {!studioMode && <button
+          {/* Share: catalog tracks share track + visual; studio shares the visual setup */}
+          <button
             onClick={() => { onShare(); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}
             className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
-            title="Share this vibe"
+            title={studioMode ? 'Share this vibe (your visual setup, without the track)' : 'Share this vibe'}
           >
             {shareCopied ? (
               <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -538,7 +538,7 @@ export default function DetailView({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
               </svg>
             )}
-          </button>}
+          </button>
           {/* View navigator: < Name > */}
           <div className="flex items-center">
             <button
@@ -620,8 +620,7 @@ export default function DetailView({
             </button>
             {toolsMenuOpen && (
               <div className="absolute right-0 top-full mt-2 z-[60] w-56 rounded-lg backdrop-blur-xl bg-black/85 border border-white/15 shadow-xl overflow-hidden">
-                {/* Share link — catalog tracks only */}
-                {!studioMode && <>
+                {/* Share link: studio variant shares the visual setup only */}
                 <button
                   onClick={() => {
                     onShare();
@@ -629,6 +628,7 @@ export default function DetailView({
                     setTimeout(() => setShareCopied(false), 2000);
                   }}
                   className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+                  title={studioMode ? 'Copies a link to this visual setup; the receiver adds their own track' : undefined}
                 >
                   {shareCopied ? (
                     <svg className="w-4 h-4 flex-shrink-0 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -642,7 +642,6 @@ export default function DetailView({
                   {shareCopied ? 'Link copied!' : 'Share this vibe'}
                 </button>
                 <div className="border-t border-white/10" />
-                </>}
                 {/* Dark/Light mode toggle */}
                 <button
                   onClick={() => { onToggleDarkMode(); setToolsMenuOpen(false); }}

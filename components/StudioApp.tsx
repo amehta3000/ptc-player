@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PlayerApp from './PlayerApp';
 import { Mix } from '../data/mixes';
 import { usePlayerStore, FONTS } from '../store/usePlayerStore';
@@ -29,6 +29,13 @@ export default function StudioApp() {
   // everywhere, Cmd/Ctrl+D reveals the font selector
   const { currentFont, setCurrentFont, showDebug } = useFontTools();
   const [mix, setMix] = useState<Mix | null>(null);
+  // A shared vibe link carries the visual setup in ?viz=; PlayerApp applies
+  // it once a track is loaded, we just let the visitor know it's waiting.
+  // Detected after mount because the static export has no query string.
+  const [hasSharedVibe, setHasSharedVibe] = useState(false);
+  useEffect(() => {
+    setHasSharedVibe(new URLSearchParams(window.location.search).has('viz'));
+  }, []);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -141,6 +148,13 @@ export default function StudioApp() {
             Then hit record and walk away with a clip cut for TikTok, Reels,
             Instagram, or YouTube. Your music, promoted your way.
           </p>
+
+          {hasSharedVibe && (
+            <div className="mb-6 rounded-xl border border-fuchsia-400/30 bg-fuchsia-400/10 px-4 py-3 text-center">
+              <p className="text-sm text-fuchsia-200">Someone shared a vibe with you.</p>
+              <p className="text-xs text-fuchsia-200/70 mt-1">Add a track and it will play inside their visual setup.</p>
+            </div>
+          )}
 
           {/* Audio dropzone */}
           <div
