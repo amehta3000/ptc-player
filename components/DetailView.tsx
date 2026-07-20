@@ -582,7 +582,9 @@ export default function DetailView({
                   ? 'bg-red-600 hover:bg-red-700 text-white'
                   : 'bg-amber-600 hover:bg-amber-700 text-white'
               }`}
-              title={recordingState.isRecording ? 'Stop Recording' : 'Cancel Conversion'}
+              title={recordingState.isRecording
+                ? 'Stop Recording'
+                : 'Converting to MP4 — FFmpeg runs in your browser, so this can take about as long as the clip. Click to cancel.'}
             >
               {recordingState.isRecording ? (
                 <>
@@ -592,7 +594,11 @@ export default function DetailView({
               ) : (
                 <>
                   <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="text-xs">MP4…</span>
+                  <span className="text-xs font-mono tabular-nums">
+                    {recordingState.conversionProgress != null
+                      ? `MP4 ${Math.round(recordingState.conversionProgress * 100)}%`
+                      : 'MP4…'}
+                  </span>
                 </>
               )}
             </button>
@@ -690,10 +696,15 @@ export default function DetailView({
                           Stop Recording ({Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')})
                         </>
                       ) : recordingState.isConverting ? (
-                        <>
+                        <span
+                          className="flex items-center gap-3"
+                          title="FFmpeg runs in your browser — conversion can take about as long as the clip itself"
+                        >
                           <span className="w-4 h-4 flex-shrink-0 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
-                          Converting MP4…
-                        </>
+                          {recordingState.conversionProgress != null
+                            ? `Converting MP4 — ${Math.round(recordingState.conversionProgress * 100)}%`
+                            : 'Converting MP4 — preparing…'}
+                        </span>
                       ) : (
                         <>
                           <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
