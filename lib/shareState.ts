@@ -8,8 +8,7 @@ export interface ShareState {
   d: boolean;
 }
 
-export function buildShareUrl(
-  mixSlug: string,
+function encodeShareState(
   vizType: VisualizerType,
   controls: VisualizerControl[],
   darkMode: boolean
@@ -24,13 +23,36 @@ export function buildShareUrl(
   });
 
   const state: ShareState = { v: vizType, c: deltas, d: darkMode };
-  const encoded = btoa(JSON.stringify(state))
+  return btoa(JSON.stringify(state))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');
+}
 
+export function buildShareUrl(
+  mixSlug: string,
+  vizType: VisualizerType,
+  controls: VisualizerControl[],
+  darkMode: boolean
+): string {
+  const encoded = encodeShareState(vizType, controls, darkMode);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return `${origin}/track/${mixSlug}?viz=${encoded}`;
+}
+
+/**
+ * Studio share: captures the visual setup only (visualizer, controls,
+ * mirror, dark mode). The receiver uploads their own track and the vibe
+ * loads around it.
+ */
+export function buildStudioShareUrl(
+  vizType: VisualizerType,
+  controls: VisualizerControl[],
+  darkMode: boolean
+): string {
+  const encoded = encodeShareState(vizType, controls, darkMode);
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/studio?viz=${encoded}`;
 }
 
 export function parseShareParam(param: string): ShareState | null {

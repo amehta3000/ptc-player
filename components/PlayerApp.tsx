@@ -6,7 +6,7 @@ import { extractColors } from '../lib/colorExtractor';
 import { trackEvent, trackGAEvent } from '../lib/analytics';
 import { OverlayDrawerFn } from '../lib/exportManager';
 import { Mix, mixes, getMixBySlug } from '../data/mixes';
-import { buildShareUrl, parseShareParam } from '../lib/shareState';
+import { buildShareUrl, buildStudioShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
 
 interface PlayerAppProps {
@@ -297,10 +297,13 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build and copy the share URL for the current track + visualizer state
+  // Build and copy the share URL. Catalog tracks share track + visual state;
+  // the studio shares just the visual setup (the receiver adds their own track).
   const handleShare = useCallback(() => {
     if (!currentMix?.slug) return;
-    const url = buildShareUrl(currentMix.slug, visualizerType, visualizerControls, darkMode);
+    const url = studioMode
+      ? buildStudioShareUrl(visualizerType, visualizerControls, darkMode)
+      : buildShareUrl(currentMix.slug, visualizerType, visualizerControls, darkMode);
     navigator.clipboard.writeText(url).catch(() => {
       // Fallback for browsers that block clipboard API
       const input = document.createElement('input');
@@ -311,7 +314,7 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
       document.body.removeChild(input);
     });
     trackEvent('share_link_copied', currentMix.title);
-  }, [currentMix, visualizerType, visualizerControls]);
+  }, [currentMix, visualizerType, visualizerControls, darkMode, studioMode]);
 
   // Keyboard shortcuts for volume and spacebar
   useEffect(() => {
