@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useVisualizer } from '../lib/useVisualizer';
+import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
 import { trackEvent, trackGAEvent } from '../lib/analytics';
 import { OverlayDrawerFn } from '../lib/exportManager';
@@ -266,15 +267,8 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     return () => clearTimeout(timer);
   }, [currentMix]);
 
-  // Font loading
-  useEffect(() => {
-    const fontFamily = currentFont.replace(/ /g, '+');
-    const link = document.createElement('link');
-    link.href = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@400;700&display=swap`;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    return () => { document.head.removeChild(link); };
-  }, [currentFont]);
+  // Font loading + Cmd/Ctrl+D debug shortcut (shared with Studio)
+  useFontTools();
 
   // Initialize first track on mount (studio: the uploaded track, no URL rewrite)
   useEffect(() => {
@@ -318,18 +312,6 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     });
     trackEvent('share_link_copied', currentMix.title);
   }, [currentMix, visualizerType, visualizerControls]);
-
-  // Debug mode keyboard shortcut (Cmd/Ctrl + D)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-        e.preventDefault();
-        setShowDebug(!usePlayerStore.getState().showDebug);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setShowDebug]);
 
   // Keyboard shortcuts for volume and spacebar
   useEffect(() => {

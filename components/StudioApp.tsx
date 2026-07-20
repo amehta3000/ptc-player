@@ -1,7 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
 import PlayerApp from './PlayerApp';
 import { Mix } from '../data/mixes';
-import { usePlayerStore } from '../store/usePlayerStore';
+import { usePlayerStore, FONTS } from '../store/usePlayerStore';
+import { useFontTools } from '../lib/useFontTools';
 
 // Default cover when the user doesn't upload artwork — a warm gradient the
 // color extractor can pull real dominant/accent colors from (data URIs are
@@ -24,6 +25,9 @@ function fileTitle(file: File): string {
 }
 
 export default function StudioApp() {
+  // Same typography system as the main player: current font applied
+  // everywhere, Cmd/Ctrl+D reveals the font selector
+  const { currentFont, setCurrentFont, showDebug } = useFontTools();
   const [mix, setMix] = useState<Mix | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -93,13 +97,29 @@ export default function StudioApp() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col" style={{ fontFamily: currentFont }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 sm:px-6 pt-4 pb-3">
-        <a href="/" className="flex items-center gap-3">
-          <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className="h-10 w-10" />
-          <span className="text-lg font-bold">PTC Studio</span>
-        </a>
+        <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3">
+            <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className="h-10 w-10" />
+            <span className="text-lg font-bold">PTC Studio</span>
+          </a>
+          {showDebug && (
+            <select
+              value={currentFont}
+              onChange={(e) => setCurrentFont(e.target.value)}
+              className="ml-2 px-2 py-1 text-xs rounded border border-neutral-700 bg-black/50 backdrop-blur hover:border-white transition-colors cursor-pointer focus:outline-none focus:border-white"
+              title="Select Font (Debug Mode)"
+            >
+              {FONTS.map(font => (
+                <option key={font} value={font} style={{ fontFamily: font }}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <a
           href="/"
           className="px-3 h-9 rounded-full flex items-center text-xs font-medium bg-neutral-800 text-white hover:bg-neutral-700 transition-all"
