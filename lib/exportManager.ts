@@ -7,7 +7,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
 
-export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1';
+export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1' | '16:9';
 export type OverlayDrawerFn = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 export type ExportFormat = 'webm' | 'mp4';
 
@@ -16,7 +16,29 @@ export const ASPECT_RATIO_LABELS: Record<AspectRatio, string> = {
   '9:16': '9:16',
   '4:5': '4:5',
   '1:1': '1:1',
+  '16:9': '16:9',
 };
+
+// Platform presets: each one bundles the crop + container a network expects.
+// MP4 here is H.264 + AAC with faststart — accepted by all major socials.
+export interface ExportPreset {
+  id: string;
+  label: string;
+  ratio: AspectRatio;
+  format: ExportFormat;
+}
+
+export const EXPORT_PRESETS: ExportPreset[] = [
+  { id: 'tiktok',    label: 'TikTok / Reels · 9:16 MP4',      ratio: '9:16',    format: 'mp4'  },
+  { id: 'ig-post',   label: 'Instagram Post · 1:1 MP4',       ratio: '1:1',     format: 'mp4'  },
+  { id: 'ig-tall',   label: 'Instagram Portrait · 4:5 MP4',   ratio: '4:5',     format: 'mp4'  },
+  { id: 'youtube',   label: 'YouTube · 16:9 MP4',             ratio: '16:9',    format: 'mp4'  },
+  { id: 'screen',    label: 'This Screen · WebM (fast)',      ratio: 'browser', format: 'webm' },
+];
+
+export function getExportPreset(id: string): ExportPreset {
+  return EXPORT_PRESETS.find((p) => p.id === id) ?? EXPORT_PRESETS[0];
+}
 
 function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { sx: number; sy: number; sw: number; sh: number; outW: number; outH: number } {
   const cw = canvas.width;
@@ -26,7 +48,7 @@ function getExportDimensions(canvas: HTMLCanvasElement, ratio: AspectRatio): { s
     return { sx: 0, sy: 0, sw: cw, sh: ch, outW: cw, outH: ch };
   }
 
-  const ratioMap: Record<string, number> = { '9:16': 9 / 16, '4:5': 4 / 5, '1:1': 1 };
+  const ratioMap: Record<string, number> = { '9:16': 9 / 16, '4:5': 4 / 5, '1:1': 1, '16:9': 16 / 9 };
   const target = ratioMap[ratio];
   const current = cw / ch;
 

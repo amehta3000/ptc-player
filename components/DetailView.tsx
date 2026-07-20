@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
-import { RecordingState, AspectRatio, ExportFormat, ASPECT_RATIO_LABELS } from '../lib/exportManager';
+import { RecordingState, AspectRatio, ExportFormat, EXPORT_PRESETS, getExportPreset } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
 import VisualizerContainer from './VisualizerContainer';
 import IntroSequence from './IntroSequence';
@@ -36,6 +36,9 @@ interface DetailViewProps {
   introTimeout?: number;
   introForceOut?: boolean;
   onIntroDismiss: () => void;
+  /** Studio mode: uploaded track, no catalog/playlist/share, "New Track" flow */
+  studioMode?: boolean;
+  onStudioNewTrack?: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -74,6 +77,8 @@ export default function DetailView({
   onToggleRecording,
   onCancelConversion,
   recordingState,
+  studioMode = false,
+  onStudioNewTrack,
 }: DetailViewProps) {
   const currentMix = usePlayerStore((s) => s.currentMix);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -120,8 +125,9 @@ export default function DetailView({
 
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const socialMenuRef = useRef<HTMLDivElement>(null);
-  const [exportRatio, setExportRatio] = useState<AspectRatio>('browser');
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('webm');
+  const [exportPresetId, setExportPresetId] = useState(studioMode ? 'tiktok' : 'screen');
+  const exportRatio: AspectRatio = getExportPreset(exportPresetId).ratio;
+  const exportFormat: ExportFormat = getExportPreset(exportPresetId).format;
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
@@ -335,9 +341,9 @@ export default function DetailView({
 
       {/* Header */}
       <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowPlaylist(!showPlaylist)}>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => (studioMode ? onStudioNewTrack?.() : setShowPlaylist(!showPlaylist))}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
-          <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>Part Time Chiller</span>
+          <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>{studioMode ? 'PTC Studio' : 'Part Time Chiller'}</span>
           {showDebug && (
             <select
               value={currentFont}
@@ -356,25 +362,57 @@ export default function DetailView({
 
         {/* Social media icons — desktop */}
         <div className="hidden sm:flex items-center gap-2">
-          <a href="https://instagram.com/parttimechiller" target="_blank" rel="noopener noreferrer"
+          {studioMode ? (
+            <>
+              <button
+                onClick={onStudioNewTrack}
+                className={`px-3 h-9 rounded-full flex items-center gap-2 text-xs font-medium transition-all hover:scale-105 ${darkMode ? 'bg-neutral-800 text-white hover:bg-neutral-700' : 'bg-neutral-200 text-neutral-800 hover:bg-neutral-300'}`}
+                title="Upload a different track"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+                </svg>
+                New Track
+              </button>
+              <a
+                href="/"
+                className={`px-3 h-9 rounded-full flex items-center gap-2 text-xs font-medium transition-all hover:scale-105 ${darkMode ? 'bg-neutral-800 text-white hover:bg-neutral-700' : 'bg-neutral-200 text-neutral-800 hover:bg-neutral-300'}`}
+                title="Back to Part Time Chiller"
+              >
+                Exit Studio
+              </a>
+            </>
+          ) : (
+            <a
+              href="/studio"
+              className={`px-3 h-9 rounded-full flex items-center gap-2 text-xs font-medium transition-all hover:scale-105 hover:bg-gradient-to-br hover:from-fuchsia-600 hover:to-orange-500 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`}
+              title="Studio — visualize your own track"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-2v13M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Studio
+            </a>
+          )}
+          {!studioMode && <a href="https://instagram.com/parttimechiller" target="_blank" rel="noopener noreferrer"
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="Instagram">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
             </svg>
-          </a>
-          <a href="https://youtube.com/@parttimechiller" target="_blank" rel="noopener noreferrer"
+          </a>}
+          {!studioMode && <a href="https://youtube.com/@parttimechiller" target="_blank" rel="noopener noreferrer"
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-red-600 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="YouTube">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
-          </a>
-          <a href="https://open.spotify.com/user/ameet3000?si=833fb8c8623241a1" target="_blank" rel="noopener noreferrer"
+          </a>}
+          {!studioMode && <a href="https://open.spotify.com/user/ameet3000?si=833fb8c8623241a1" target="_blank" rel="noopener noreferrer"
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-green-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`} title="Spotify">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
             </svg>
-          </a>
-          <button
+          </a>}
+          {!studioMode && <button
             onClick={onShowAbout}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-sky-500 hover:scale-110 hover:text-white ${darkMode ? 'bg-neutral-800 text-white' : 'bg-neutral-200 text-neutral-800'}`}
             title="About"
@@ -383,7 +421,7 @@ export default function DetailView({
               <circle cx="12" cy="12" r="10" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4M12 8h.01" />
             </svg>
-          </button>
+          </button>}
         </div>
 
         {/* Social media overflow menu — mobile only */}
@@ -401,6 +439,38 @@ export default function DetailView({
           </button>
           {socialMenuOpen && (
             <div className="absolute right-0 top-full mt-2 z-50 w-44 rounded-lg backdrop-blur-xl bg-black/80 border border-white/15 shadow-xl overflow-hidden">
+              {studioMode ? (
+              <>
+              <button
+                onClick={() => { onStudioNewTrack?.(); setSocialMenuOpen(false); }}
+                className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+                </svg>
+                New Track
+              </button>
+              <a
+                href="/"
+                className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3 border-t border-white/10"
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                Exit Studio
+              </a>
+              </>
+              ) : (
+              <>
+              <a
+                href="/studio"
+                className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-2v13M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Studio
+              </a>
               <a
                 href="https://instagram.com/parttimechiller"
                 target="_blank"
@@ -444,13 +514,15 @@ export default function DetailView({
                 </svg>
                 About
               </button>
+              </>
+              )}
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-2.5 flex-1 sm:flex-none justify-center sm:justify-end">
-          {/* Share */}
-          <button
+          {/* Share — catalog tracks only; an uploaded track has no shareable URL */}
+          {!studioMode && <button
             onClick={() => { onShare(); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}
             className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${darkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'}`}
             title="Share this vibe"
@@ -464,7 +536,7 @@ export default function DetailView({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
               </svg>
             )}
-          </button>
+          </button>}
           {/* View navigator: < Name > */}
           <div className="flex items-center">
             <button
@@ -540,7 +612,8 @@ export default function DetailView({
             </button>
             {toolsMenuOpen && (
               <div className="absolute right-0 top-full mt-2 z-[60] w-56 rounded-lg backdrop-blur-xl bg-black/85 border border-white/15 shadow-xl overflow-hidden">
-                {/* Share link */}
+                {/* Share link — catalog tracks only */}
+                {!studioMode && <>
                 <button
                   onClick={() => {
                     onShare();
@@ -561,6 +634,7 @@ export default function DetailView({
                   {shareCopied ? 'Link copied!' : 'Share this vibe'}
                 </button>
                 <div className="border-t border-white/10" />
+                </>}
                 {/* Dark/Light mode toggle */}
                 <button
                   onClick={() => { onToggleDarkMode(); setToolsMenuOpen(false); }}
@@ -631,27 +705,20 @@ export default function DetailView({
                     </button>
                   </>
                 )}
-                {/* Export options: format + aspect ratio */}
+                {/* Export preset: platform-labeled crop + format */}
                 {showVisualizer && !recordingState.isRecording && !recordingState.isConverting && (
                   <>
                     <div className="border-t border-white/10" />
-                    <div className="px-3 py-2 flex items-center gap-2">
+                    <div className="px-3 py-2">
                       <select
-                        value={exportFormat}
-                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-                        className="flex-1 bg-white/10 text-white/80 text-xs rounded px-2 py-1.5 border border-white/10 cursor-pointer focus:outline-none"
+                        value={exportPresetId}
+                        onChange={(e) => setExportPresetId(e.target.value)}
+                        className="w-full bg-white/10 text-white/80 text-xs rounded px-2 py-1.5 border border-white/10 cursor-pointer focus:outline-none"
+                        title="Recording format"
                       >
-                        <option value="webm" className="bg-neutral-900 text-white">WebM</option>
-                        <option value="mp4" className="bg-neutral-900 text-white">MP4</option>
-                      </select>
-                      <select
-                        value={exportRatio}
-                        onChange={(e) => setExportRatio(e.target.value as AspectRatio)}
-                        className="flex-1 bg-white/10 text-white/80 text-xs rounded px-2 py-1.5 border border-white/10 cursor-pointer focus:outline-none"
-                      >
-                        {(Object.keys(ASPECT_RATIO_LABELS) as AspectRatio[]).map((r) => (
-                          <option key={r} value={r} className="bg-neutral-900 text-white">
-                            {ASPECT_RATIO_LABELS[r]}
+                        {EXPORT_PRESETS.map((p) => (
+                          <option key={p.id} value={p.id} className="bg-neutral-900 text-white">
+                            {p.label}
                           </option>
                         ))}
                       </select>
@@ -697,7 +764,7 @@ export default function DetailView({
       {/* Playlist Drawer */}
       <div
         className={`absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 w-[calc(100vw-1rem)] sm:w-[90%] sm:max-w-[60%] rounded-t-lg backdrop-blur-xl bg-black/60 border border-b-0 border-white/10 max-h-[60vh] overflow-y-auto transition-all duration-300 ${
-          showPlaylist ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
+          showPlaylist && !studioMode ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
         }`}
       >
         <div className="sticky top-0 z-10 p-3 pb-2 backdrop-blur-xl bg-black/80 border-b border-white/10 flex items-center justify-between">
@@ -756,7 +823,7 @@ export default function DetailView({
         {/* Album art — toggles playlist */}
         <button
           className="p-0 m-0 border-none bg-transparent flex-shrink-0 relative"
-          onClick={() => setShowPlaylist(!showPlaylist)}
+          onClick={() => !studioMode && setShowPlaylist(!showPlaylist)}
           aria-label={showPlaylist ? 'Hide playlist' : 'Show playlist'}
         >
           <img
