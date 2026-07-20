@@ -124,17 +124,22 @@ export default function StudioApp() {
           href="/"
           className="px-3 h-9 rounded-full flex items-center text-xs font-medium bg-neutral-800 text-white hover:bg-neutral-700 transition-all"
         >
-          Back to player
+          Back to Part Time Chiller
         </a>
       </div>
 
       {/* Upload card */}
       <div className="flex-1 flex items-center justify-center px-4 pb-16">
         <div className="w-full max-w-lg">
-          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2">Create your own visual</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2">Make your music move</h1>
+          <p className="text-sm text-white/60 text-center mb-2">
+            PTC Studio is a visual toy for artists. Drop in a track, let a dozen
+            audio-reactive visualizers vibe to it — sculpt the look until it feels
+            like your sound.
+          </p>
           <p className="text-sm text-white/60 text-center mb-8">
-            Upload a track, play with the visualizers, then record a video sized for
-            TikTok, Reels, Instagram, or YouTube. Your music never leaves your browser.
+            Then hit record and walk away with a clip cut for TikTok, Reels,
+            Instagram, or YouTube. Your music, promoted your way.
           </p>
 
           {/* Audio dropzone */}
@@ -219,7 +224,7 @@ export default function StudioApp() {
           </button>
 
           <p className="text-[11px] text-white/40 text-center mt-4">
-            Everything runs locally in your browser — nothing is uploaded to a server.
+            Everything runs right here in your browser — your music never leaves your device.
           </p>
         </div>
       </div>

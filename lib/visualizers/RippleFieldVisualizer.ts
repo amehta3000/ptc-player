@@ -69,8 +69,8 @@ export class RippleFieldVisualizer extends BaseVisualizer {
       {
         name: 'Ring Width',
         key: 'ringWidth',
-        min: 0.3,
-        max: 0.95,
+        min: 0.1,
+        max: 1.0,
         step: 0.05,
         default: 0.65,
         value: this.config.ringWidth ?? 0.65
