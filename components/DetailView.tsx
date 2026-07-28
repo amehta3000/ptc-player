@@ -3,6 +3,7 @@ import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../st
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
 import { RecordingState, AspectRatio, ExportFormat, EXPORT_PRESETS, getExportPreset } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
+import MobileVizControls from './MobileVizControls';
 import VisualizerContainer from './VisualizerContainer';
 import IntroSequence from './IntroSequence';
 import { trackEvent } from '../lib/analytics';
@@ -133,6 +134,17 @@ export default function DetailView({
   const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMediaLoading, setIsMediaLoading] = useState(false);
+
+  // Mobile control sheet (feature flag): only kicks in below the sm breakpoint
+  const mobileControlsV2 = usePlayerStore((s) => s.mobileControlsV2);
+  const setMobileControlsV2 = usePlayerStore((s) => s.setMobileControlsV2);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobileViewport(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const currentMixSlug = usePlayerStore((s) => s.currentMix?.slug);
 
@@ -658,6 +670,19 @@ export default function DetailView({
                   )}
                   {darkMode ? 'Light Mode' : 'Dark Mode'}
                 </button>
+                {/* Mobile controls beta toggle, only meaningful on small screens */}
+                <div className="sm:hidden">
+                  <div className="border-t border-white/10" />
+                  <button
+                    onClick={() => { setMobileControlsV2(!mobileControlsV2); setToolsMenuOpen(false); }}
+                    className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                    </svg>
+                    {mobileControlsV2 ? 'Classic Controls' : 'New Controls (Beta)'}
+                  </button>
+                </div>
                 {/* Screenshot */}
                 {showVisualizer && (
                   <>
@@ -743,19 +768,33 @@ export default function DetailView({
         </div>
       </div>
 
-      {/* Control Panel */}
+      {/* Control Panel: classic side panel, or the mobile sheet behind the feature flag */}
       {showControls && showVisualizer && (
-        <VisualizerControls
-          controls={visualizerControls}
-          presets={visualizerPresets}
-          onUpdateConfig={onUpdateConfig}
-          onReset={onResetConfig}
-          onApplyPreset={onApplyPreset}
-          onRandomizeControls={onRandomizeControls}
-          onRandomize={onRandomize}
-          visualizerName={visualizerName}
-          onChangeVisualizer={(type) => setVisualizerType(type)}
-        />
+        isMobileViewport && mobileControlsV2 ? (
+          <MobileVizControls
+            controls={visualizerControls}
+            presets={visualizerPresets}
+            onUpdateConfig={onUpdateConfig}
+            onReset={onResetConfig}
+            onApplyPreset={onApplyPreset}
+            onRandomizeControls={onRandomizeControls}
+            onRandomize={onRandomize}
+            visualizerName={visualizerName}
+            onChangeVisualizer={(type) => setVisualizerType(type)}
+          />
+        ) : (
+          <VisualizerControls
+            controls={visualizerControls}
+            presets={visualizerPresets}
+            onUpdateConfig={onUpdateConfig}
+            onReset={onResetConfig}
+            onApplyPreset={onApplyPreset}
+            onRandomizeControls={onRandomizeControls}
+            onRandomize={onRandomize}
+            visualizerName={visualizerName}
+            onChangeVisualizer={(type) => setVisualizerType(type)}
+          />
+        )
       )}
 
       {/* Full-viewport visualizer layer (behind UI) */}

@@ -30,6 +30,8 @@ interface PlayerState {
   darkMode: boolean;
   visualizerType: VisualizerType;
   currentFont: string;
+  /** Feature flag: Apple-Photos-style mobile control sheet instead of the classic panel */
+  mobileControlsV2: boolean;
 
   // Colors
   dominantColor: string;
@@ -63,6 +65,7 @@ interface PlayerActions {
   setDarkMode: (dark: boolean) => void;
   setVisualizerType: (type: VisualizerType) => void;
   setCurrentFont: (font: string) => void;
+  setMobileControlsV2: (on: boolean) => void;
 
   // Color actions
   setDominantColor: (color: string) => void;
@@ -135,6 +138,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   darkMode: true,
   visualizerType: 'terrain',
   currentFont: 'Stint Ultra Expanded',
+  mobileControlsV2:
+    typeof window !== 'undefined' &&
+    (window.localStorage.getItem('ptc-controls-v2') === '1' ||
+      new URLSearchParams(window.location.search).get('controls') === 'v2'),
 
   dominantColor: 'rgb(115, 115, 115)',
   accentColor: 'rgb(163, 163, 163)',
@@ -167,6 +174,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   setDarkMode: (dark) => set({ darkMode: dark }),
   setVisualizerType: (type) => set({ visualizerType: type }),
   setCurrentFont: (font) => set({ currentFont: font }),
+  setMobileControlsV2: (on) => {
+    if (typeof window !== 'undefined') window.localStorage.setItem('ptc-controls-v2', on ? '1' : '0');
+    set({ mobileControlsV2: on });
+  },
 
   // Color actions
   setDominantColor: (color) => set({ dominantColor: color }),
