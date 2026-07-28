@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerConfig, VisualizerPreset, ColorScheme } from './BaseVisualizer';
 
 export class RadialPlaneVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -158,6 +158,19 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
     );
 
     return controls;
+  }
+
+  getPresets(): VisualizerPreset[] {
+    return [
+      // 1: "Interference" - fast tight line rings with a mirrored X seam
+      { name: '1', config: { ringStyle: 0, amplitude: 4.2, speed: 30, decay: 0.92, innerRadius: 0.3, outerRadius: 15, autoRotation: 0.001, zoomSpeed: 0, hue: 0, harmonyMode: 2, __mirror: 1, __mirrorOffset: 0.1 } },
+      // 2: "Dome" - solid rings fused into a closed breathing surface
+      { name: '2', config: { ringStyle: 1, ringWidth: 1.0, amplitude: 2.6, speed: 10, decay: 0.95, innerRadius: 0, outerRadius: 9, autoRotation: 0.0015, zoomSpeed: 0, hue: 0, harmonyMode: 1, __mirror: 0 } },
+      // 3: "Kaleido" - line rings tiled through a four-way mirror
+      { name: '3', config: { ringStyle: 0, amplitude: 3.4, speed: 22, decay: 0.9, innerRadius: 1.6, outerRadius: 11, autoRotation: 0.002, zoomSpeed: 0, hue: 0, harmonyMode: 1, __mirror: 3, __mirrorOffset: 0.32 } },
+      // 4: "Vinyl" - slow solid ribbons with a gentle zoom drift
+      { name: '4', config: { ringStyle: 1, ringWidth: 0.45, amplitude: 1.8, speed: 14, decay: 0.97, innerRadius: 0.8, outerRadius: 9, autoRotation: 0.003, zoomSpeed: 0.003, hue: 0, harmonyMode: 0, __mirror: 0 } },
+    ];
   }
 
   init(): void {
