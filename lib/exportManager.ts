@@ -265,7 +265,7 @@ export class VideoRecorder {
             if (this.conversionCancelled) return;
             const url = URL.createObjectURL(mp4Blob);
             const link = document.createElement('a');
-            link.download = `visualizer-${Date.now()}.mp4`;
+            link.download = `ptc-visualizer-${Date.now()}.mp4`;
             link.href = url;
             link.click();
             URL.revokeObjectURL(url);
@@ -275,7 +275,7 @@ export class VideoRecorder {
             console.error('MP4 conversion failed, falling back to WebM:', err);
             const url = URL.createObjectURL(webmBlob);
             const link = document.createElement('a');
-            link.download = `visualizer-${Date.now()}.webm`;
+            link.download = `ptc-visualizer-${Date.now()}.webm`;
             link.href = url;
             link.click();
             URL.revokeObjectURL(url);
@@ -287,7 +287,7 @@ export class VideoRecorder {
         // Direct WebM download — no transcoding
         const url = URL.createObjectURL(webmBlob);
         const link = document.createElement('a');
-        link.download = `visualizer-${Date.now()}.webm`;
+        link.download = `ptc-visualizer-${Date.now()}.webm`;
         link.href = url;
         link.click();
         URL.revokeObjectURL(url);
