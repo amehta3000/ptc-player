@@ -167,7 +167,7 @@ export default function MobileVizControls({
                 step={active.step}
                 value={active.value}
                 onChange={(e) => onUpdateConfig(active.key, parseFloat(e.target.value))}
-                className="w-full viz-slider"
+                className="w-full viz-slider viz-slider-lg"
                 style={{
                   '--fill-pct': `${((active.value - active.min) / (active.max - active.min)) * 100}%`,
                   '--slider-fill': dominantColor,

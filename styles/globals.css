@@ -106,6 +106,39 @@ input[type='range'].viz-slider::-moz-range-thumb:hover {
   transform: scale(1.12);
 }
 
+/* Mobile control sheet: wider rounded-rectangle thumb for easy dragging */
+input[type='range'].viz-slider.viz-slider-lg {
+  height: 36px;
+}
+
+input[type='range'].viz-slider.viz-slider-lg::-webkit-slider-runnable-track {
+  height: 7px;
+  border-radius: 4px;
+}
+
+input[type='range'].viz-slider.viz-slider-lg::-webkit-slider-thumb {
+  width: 44px;
+  height: 26px;
+  border-radius: 9px;
+  margin-top: -9.5px;
+}
+
+input[type='range'].viz-slider.viz-slider-lg::-moz-range-track {
+  height: 7px;
+  border-radius: 4px;
+}
+
+input[type='range'].viz-slider.viz-slider-lg::-moz-range-progress {
+  height: 7px;
+  border-radius: 4px;
+}
+
+input[type='range'].viz-slider.viz-slider-lg::-moz-range-thumb {
+  width: 44px;
+  height: 26px;
+  border-radius: 9px;
+}
+
 /* Hue slider — rainbow gradient track with large circular thumb */
 input[type='range'].viz-slider-hue {
   -webkit-appearance: none;

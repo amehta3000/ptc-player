@@ -138,10 +138,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   darkMode: true,
   visualizerType: 'terrain',
   currentFont: 'Stint Ultra Expanded',
-  mobileControlsV2:
-    typeof window !== 'undefined' &&
-    (window.localStorage.getItem('ptc-controls-v2') === '1' ||
-      new URLSearchParams(window.location.search).get('controls') === 'v2'),
+  // Default ON: the mobile sheet is the standard experience; the tools-menu
+  // toggle (persisted) or ?controls=classic switches back to the old panel
+  mobileControlsV2: (() => {
+    if (typeof window === 'undefined') return true;
+    const param = new URLSearchParams(window.location.search).get('controls');
+    if (param === 'v2') return true;
+    if (param === 'classic') return false;
+    return window.localStorage.getItem('ptc-controls-v2') !== '0';
+  })(),
 
   dominantColor: 'rgb(115, 115, 115)',
   accentColor: 'rgb(163, 163, 163)',
