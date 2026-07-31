@@ -229,6 +229,7 @@ VisualizerRegistry.register('spokes', 'Spokes', RadialSpokesVisualizer, {
   speed: 14,
   decay: 1.0,
   innerRadius: 1.3,
+  spokeWidth: 0,
   autoRotation: 0.0008,
   zoomSpeed: 0,
   cameraDistance: 14,
