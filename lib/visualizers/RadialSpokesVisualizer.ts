@@ -16,7 +16,7 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
   private camera: THREE.PerspectiveCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
   private geometry: THREE.BufferGeometry | null = null;
-  private lines: THREE.LineSegments | null = null;
+  private spokesObject: THREE.LineSegments | THREE.Mesh | null = null;
   private spokes: number[][] = [];
   private writeIndex: number = 0;
   private lastUpdateTime: number = 0;
@@ -95,6 +95,15 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
         value: this.config.zoomSpeed ?? 0
       },
       {
+        name: 'Spoke Width',
+        key: 'spokeWidth',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 0,
+        value: this.config.spokeWidth ?? 0
+      },
+      {
         name: 'Hue',
         key: 'hue',
         min: 0,
@@ -114,6 +123,10 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
         labels: ['Mono', 'Analog', 'Comp']
       }
     ];
+  }
+
+  private isRibbon(): boolean {
+    return (this.config.spokeWidth ?? 0) > 0.001;
   }
 
   init(): void {
@@ -153,15 +166,6 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
 
     this.buildGeometry();
 
-    const material = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9
-    });
-
-    this.lines = new THREE.LineSegments(this.geometry!, material);
-    this.scene.add(this.lines);
-
     this.lastUpdateTime = Date.now();
 
     this.setupCameraControls(this.container);
@@ -178,52 +182,128 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
   }
 
   /**
-   * One indexed line-segment buffer: spokeCount polylines of samplesPerSpoke
-   * points each, running from the center hole to the outer edge.
+   * Rebuild the spoke geometry for the current width.
+   *
+   * Width 0: one indexed line-segment buffer, spokeCount crisp polylines
+   * from the center hole to the outer edge.
+   *
+   * Width > 0: each spoke becomes a flat wedge, two edges offset along the
+   * tangent by an angular fraction of the spoke pitch, so wedges widen with
+   * radius and at 1.0 neighboring spokes touch into a full disc.
    */
   private buildGeometry(): void {
+    if (!this.scene) return;
+
+    if (this.spokesObject) {
+      this.scene.remove(this.spokesObject);
+      (this.spokesObject.material as THREE.Material).dispose();
+      this.spokesObject = null;
+    }
+    if (this.geometry) {
+      this.geometry.dispose();
+      this.geometry = null;
+    }
+
     const innerRadius = this.config.innerRadius ?? 1.3;
     const outerRadius = 9;
     const N = this.spokeCount;
     const S = this.samplesPerSpoke;
-    const vertexCount = N * S;
-
-    const positions = new Float32Array(vertexCount * 3);
-    const colors = new Float32Array(vertexCount * 3);
     const dominantRGB = this.parseRGB(this.colors.dominant);
-
-    for (let n = 0; n < N; n++) {
-      const theta = (n / N) * Math.PI * 2;
-      const cos = Math.cos(theta);
-      const sin = Math.sin(theta);
-      for (let k = 0; k < S; k++) {
-        const radius = innerRadius + (k / (S - 1)) * (outerRadius - innerRadius);
-        const index = n * S + k;
-        positions[index * 3] = cos * radius;
-        positions[index * 3 + 1] = 0;
-        positions[index * 3 + 2] = sin * radius;
-        colors[index * 3] = dominantRGB.r;
-        colors[index * 3 + 1] = dominantRGB.g;
-        colors[index * 3 + 2] = dominantRGB.b;
-      }
-    }
-
-    const indices: number[] = [];
-    for (let n = 0; n < N; n++) {
-      for (let k = 0; k < S - 1; k++) {
-        const a = n * S + k;
-        indices.push(a, a + 1);
-      }
-    }
-
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setIndex(indices);
 
-    if (this.geometry) this.geometry.dispose();
+    if (this.isRibbon()) {
+      // Half of the angular pitch each side, scaled by the width fraction
+      const halfAngle = (Math.PI / N) * (this.config.spokeWidth ?? 0);
+      const vertexCount = N * S * 2;
+      const positions = new Float32Array(vertexCount * 3);
+      const colors = new Float32Array(vertexCount * 3);
+
+      for (let n = 0; n < N; n++) {
+        const theta = (n / N) * Math.PI * 2;
+        for (let k = 0; k < S; k++) {
+          const radius = innerRadius + (k / (S - 1)) * (outerRadius - innerRadius);
+          const base = (n * S + k) * 2;
+          const left = theta - halfAngle;
+          const right = theta + halfAngle;
+          positions[base * 3] = Math.cos(left) * radius;
+          positions[base * 3 + 1] = 0;
+          positions[base * 3 + 2] = Math.sin(left) * radius;
+          positions[(base + 1) * 3] = Math.cos(right) * radius;
+          positions[(base + 1) * 3 + 1] = 0;
+          positions[(base + 1) * 3 + 2] = Math.sin(right) * radius;
+          for (const index of [base, base + 1]) {
+            colors[index * 3] = dominantRGB.r;
+            colors[index * 3 + 1] = dominantRGB.g;
+            colors[index * 3 + 2] = dominantRGB.b;
+          }
+        }
+      }
+
+      const indices: number[] = [];
+      for (let n = 0; n < N; n++) {
+        for (let k = 0; k < S - 1; k++) {
+          const a = (n * S + k) * 2;
+          const b = a + 1;
+          const c = a + 2;
+          const d = a + 3;
+          indices.push(a, c, b, b, c, d);
+        }
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.setIndex(indices);
+
+      const material = new THREE.MeshBasicMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+      this.spokesObject = new THREE.Mesh(geometry, material);
+    } else {
+      const vertexCount = N * S;
+      const positions = new Float32Array(vertexCount * 3);
+      const colors = new Float32Array(vertexCount * 3);
+
+      for (let n = 0; n < N; n++) {
+        const theta = (n / N) * Math.PI * 2;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        for (let k = 0; k < S; k++) {
+          const radius = innerRadius + (k / (S - 1)) * (outerRadius - innerRadius);
+          const index = n * S + k;
+          positions[index * 3] = cos * radius;
+          positions[index * 3 + 1] = 0;
+          positions[index * 3 + 2] = sin * radius;
+          colors[index * 3] = dominantRGB.r;
+          colors[index * 3 + 1] = dominantRGB.g;
+          colors[index * 3 + 2] = dominantRGB.b;
+        }
+      }
+
+      const indices: number[] = [];
+      for (let n = 0; n < N; n++) {
+        for (let k = 0; k < S - 1; k++) {
+          const a = n * S + k;
+          indices.push(a, a + 1);
+        }
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.setIndex(indices);
+
+      const material = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9
+      });
+      this.spokesObject = new THREE.LineSegments(geometry, material);
+    }
+
     this.geometry = geometry;
-    if (this.lines) this.lines.geometry = geometry;
+    this.scene.add(this.spokesObject);
   }
 
   private setupCameraControls(element: HTMLDivElement): void {
@@ -394,18 +474,28 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
     const N = this.spokeCount;
     const S = this.samplesPerSpoke;
 
+    const ribbon = this.isRibbon();
+
     for (let n = 0; n < N; n++) {
       const spoke = this.spokes[n];
       for (let k = 0; k < S; k++) {
-        const index = n * S + k;
         const height = (spoke?.[k] || 0) * amplitude;
-        positions.setY(index, height);
-
         const heightIntensity = Math.min(1, height / amplitude);
         const r = dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity;
         const g = dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity;
         const b = dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity;
-        colorAttr.setXYZ(index, r, g, b);
+
+        if (ribbon) {
+          const base = (n * S + k) * 2;
+          positions.setY(base, height);
+          positions.setY(base + 1, height);
+          colorAttr.setXYZ(base, r, g, b);
+          colorAttr.setXYZ(base + 1, r, g, b);
+        } else {
+          const index = n * S + k;
+          positions.setY(index, height);
+          colorAttr.setXYZ(index, r, g, b);
+        }
       }
     }
 
@@ -435,7 +525,7 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
   updateConfig(key: string, value: number): void {
     super.updateConfig(key, value);
 
-    if (key === 'innerRadius') {
+    if (key === 'innerRadius' || key === 'spokeWidth') {
       this.buildGeometry();
     }
     if (key === 'cameraDistance') {
@@ -470,15 +560,15 @@ export class RadialSpokesVisualizer extends BaseVisualizer {
     if (this.geometry) {
       this.geometry.dispose();
     }
-    if (this.lines && this.lines.material) {
-      (this.lines.material as THREE.Material).dispose();
+    if (this.spokesObject && this.spokesObject.material) {
+      (this.spokesObject.material as THREE.Material).dispose();
     }
 
     this.scene = null;
     this.camera = null;
     this.renderer = null;
     this.geometry = null;
-    this.lines = null;
+    this.spokesObject = null;
     this.spokes = [];
 
     this.container.innerHTML = '';
