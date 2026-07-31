@@ -20,6 +20,8 @@ export class OrbVisualizer extends BaseVisualizer {
   private lights: THREE.Light[] = [];
   private orbitLights: THREE.PointLight[] = [];
   private lightTime = 0;
+  private zoomPhase = 0;
+  private tiltPhase = 0;
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -141,6 +143,24 @@ export class OrbVisualizer extends BaseVisualizer {
         step: 0.0005,
         default: 0.002,
         value: this.config.autoRotationSpeed ?? 0.002
+      },
+      {
+        name: 'Zoom Speed',
+        key: 'zoomSpeed',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.zoomSpeed ?? 0
+      },
+      {
+        name: 'Auto Tilt',
+        key: 'autoTilt',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.autoTilt ?? 0
       },
       {
         name: 'Radius',
@@ -415,11 +435,19 @@ export class OrbVisualizer extends BaseVisualizer {
       this.cameraRotation.y += autoRotationSpeed;
     }
     
-    // Update camera position
-    const radius = 6;
-    this.camera.position.x = radius * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
-    this.camera.position.y = radius * Math.sin(this.cameraRotation.x);
-    this.camera.position.z = radius * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+    // Update camera position with optional zoom and tilt oscillation
+    const zoomSpeed = this.config.zoomSpeed ?? 0;
+    if (zoomSpeed > 0) this.zoomPhase += zoomSpeed;
+    const radius = 6 + (zoomSpeed > 0 ? 2.5 * Math.sin(this.zoomPhase) : 0);
+    const autoTilt = this.config.autoTilt ?? 0;
+    let pitch = this.cameraRotation.x;
+    if (autoTilt > 0) {
+      this.tiltPhase += autoTilt;
+      pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch + Math.sin(this.tiltPhase) * 0.35));
+    }
+    this.camera.position.x = radius * Math.sin(this.cameraRotation.y) * Math.cos(pitch);
+    this.camera.position.y = radius * Math.sin(pitch);
+    this.camera.position.z = radius * Math.cos(this.cameraRotation.y) * Math.cos(pitch);
     this.camera.lookAt(0, 0, 0);
 
     // For disco ball: orbit lights around the ball at different speeds/planes

@@ -54,6 +54,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
   // 3D surface mode support
   private cameraRotation = { x: 0.3, y: 0 };
+  private zoomPhase = 0;
+  private tiltPhase = 0;
   private isDragging = false;
   private lastMouse = { x: 0, y: 0 };
   private surfaceMesh: THREE.LineSegments | null = null;
@@ -133,15 +135,35 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
 
     if (surfaceMode > 0) {
-      controls.push({
-        name: 'Auto Rotation',
-        key: 'autoRotation',
-        min: 0,
-        max: 0.01,
-        step: 0.0005,
-        default: 0.003,
-        value: this.config.autoRotation ?? 0.003
-      });
+      controls.push(
+        {
+          name: 'Auto Rotation',
+          key: 'autoRotation',
+          min: 0,
+          max: 0.01,
+          step: 0.0005,
+          default: 0.003,
+          value: this.config.autoRotation ?? 0.003
+        },
+        {
+          name: 'Zoom Speed',
+          key: 'zoomSpeed',
+          min: 0,
+          max: 0.02,
+          step: 0.001,
+          default: 0,
+          value: this.config.zoomSpeed ?? 0
+        },
+        {
+          name: 'Auto Tilt',
+          key: 'autoTilt',
+          min: 0,
+          max: 0.02,
+          step: 0.001,
+          default: 0,
+          value: this.config.autoTilt ?? 0
+        }
+      );
     }
 
     controls.push(
@@ -311,10 +333,18 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.camera.position.set(0, 20, 0);
       this.camera.lookAt(0, 0, 0);
     } else {
-      const distance = 12;
-      this.camera.position.x = distance * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
-      this.camera.position.y = distance * Math.sin(this.cameraRotation.x);
-      this.camera.position.z = distance * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+      const zoomSpeed = this.config.zoomSpeed ?? 0;
+      if (zoomSpeed > 0) this.zoomPhase += zoomSpeed;
+      const distance = 12 + (zoomSpeed > 0 ? 5 * Math.sin(this.zoomPhase) : 0);
+      const autoTilt = this.config.autoTilt ?? 0;
+      let pitch = this.cameraRotation.x;
+      if (autoTilt > 0) {
+        this.tiltPhase += autoTilt;
+        pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch + Math.sin(this.tiltPhase) * 0.35));
+      }
+      this.camera.position.x = distance * Math.sin(this.cameraRotation.y) * Math.cos(pitch);
+      this.camera.position.y = distance * Math.sin(pitch);
+      this.camera.position.z = distance * Math.cos(this.cameraRotation.y) * Math.cos(pitch);
       this.camera.lookAt(0, 0, 0);
     }
   }

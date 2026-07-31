@@ -59,6 +59,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private cameraRotation = { x: 0.35, y: 0 }; // x = pitch, y = yaw
   private cameraDistance = 8;
   private zoomPhase = Math.asin((8 - 11) / 9); // phase matched to default distance
+  private tiltPhase = 0;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
 
@@ -140,6 +141,15 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
         step: 0.001,
         default: 0,
         value: this.config.zoomSpeed ?? 0
+      },
+      {
+        name: 'Auto Tilt',
+        key: 'autoTilt',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.autoTilt ?? 0
       },
       {
         name: 'Trail',
@@ -657,10 +667,18 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private updateCameraPosition(): void {
     if (!this.camera) return;
 
-    const distance = this.config.cameraDistance || this.cameraDistance;
-    this.camera.position.x = distance * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
-    this.camera.position.y = distance * Math.sin(this.cameraRotation.x);
-    this.camera.position.z = distance * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+    // Auto tilt: slow pitch oscillation around the current angle
+    const autoTilt = this.config.autoTilt ?? 0;
+    let pitch = this.cameraRotation.x;
+    if (autoTilt > 0) {
+      this.tiltPhase += autoTilt;
+      pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch + Math.sin(this.tiltPhase) * 0.35));
+    }
+
+    const D = this.config.cameraDistance || this.cameraDistance;
+    this.camera.position.x = D * Math.sin(this.cameraRotation.y) * Math.cos(pitch);
+    this.camera.position.y = D * Math.sin(pitch);
+    this.camera.position.z = D * Math.cos(this.cameraRotation.y) * Math.cos(pitch);
     this.camera.lookAt(0, 0, 0);
   }
 
