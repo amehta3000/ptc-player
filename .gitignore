@@ -8,3 +8,4 @@ out
 .env*.local
 docs
 public/media/
+tsconfig.tsbuildinfo

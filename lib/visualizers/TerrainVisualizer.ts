@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
 export class TerrainVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -21,6 +21,7 @@ export class TerrainVisualizer extends BaseVisualizer {
   private cameraRotation = { x: 0.7, y: 0 };
   private cameraDistance = 9.5;
   private zoomPhase = Math.asin((9.5 - 10) / 5);
+  private tiltPhase = 0;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
   private frameCount: number = 0;
@@ -81,6 +82,15 @@ export class TerrainVisualizer extends BaseVisualizer {
         value: this.config.zoomSpeed ?? 0
       },
       {
+        name: 'Auto Tilt',
+        key: 'autoTilt',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.autoTilt ?? 0
+      },
+      {
         name: 'Segments',
         key: 'segments',
         min: 32,
@@ -120,6 +130,15 @@ export class TerrainVisualizer extends BaseVisualizer {
     ];
   }
   
+  getPresets(): VisualizerPreset[] {
+    return [
+      { name: '1', config: { amplitude: 3.9, speed: 17.5, decay: 0.95, autoRotation: 0.0005, zoomSpeed: 0, autoTilt: 0, segments: 64, sineAmplitude: 0.3, hue: 0, harmonyMode: 0 } },
+      { name: '2', config: { amplitude: 2.4, speed: 6, decay: 0.98, autoRotation: 0.001, zoomSpeed: 0, autoTilt: 0.004, segments: 96, sineAmplitude: 0.9, hue: 0, harmonyMode: 1 } },
+      { name: '3', config: { amplitude: 5, speed: 25, decay: 0.88, autoRotation: 0.0005, zoomSpeed: 0, autoTilt: 0, segments: 160, sineAmplitude: 0.1, hue: 0, harmonyMode: 2 } },
+      { name: '4', config: { amplitude: 3.5, speed: 14, decay: 0.95, autoRotation: 0.004, zoomSpeed: 0.004, autoTilt: 0.003, segments: 64, sineAmplitude: 0.5, hue: 0, harmonyMode: 1 } },
+    ];
+  }
+
   init(): void {
     // Use container directly - get dimensions
     const containerWidth = this.container.clientWidth || 800;
@@ -306,10 +325,18 @@ export class TerrainVisualizer extends BaseVisualizer {
       this.cameraRotation.y += this.config.autoRotation ?? 0.0005;
     }
 
-    const d = this.cameraDistance;
-    this.camera.position.x = d * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
-    this.camera.position.y = d * Math.sin(this.cameraRotation.x);
-    this.camera.position.z = d * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+    // Auto tilt: slow pitch oscillation around the current angle
+    const autoTilt = this.config.autoTilt ?? 0;
+    let pitch = this.cameraRotation.x;
+    if (autoTilt > 0) {
+      this.tiltPhase += autoTilt;
+      pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch + Math.sin(this.tiltPhase) * 0.35));
+    }
+
+    const D = this.cameraDistance;
+    this.camera.position.x = D * Math.sin(this.cameraRotation.y) * Math.cos(pitch);
+    this.camera.position.y = D * Math.sin(pitch);
+    this.camera.position.z = D * Math.cos(this.cameraRotation.y) * Math.cos(pitch);
     this.camera.lookAt(0, 0, -5);
   }
   

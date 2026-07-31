@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
-import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
 
 export class RidgeVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -26,6 +26,7 @@ export class RidgeVisualizer extends BaseVisualizer {
   private cameraRotation = { x: 0.45, y: 0 };
   private cameraDistance = 13;
   private zoomPhase = 0;
+  private tiltPhase = 0;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
   private frameCount: number = 0;
@@ -88,6 +89,15 @@ export class RidgeVisualizer extends BaseVisualizer {
         value: this.config.zoomSpeed ?? 0
       },
       {
+        name: 'Auto Tilt',
+        key: 'autoTilt',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.autoTilt ?? 0
+      },
+      {
         name: 'Hue',
         key: 'hue',
         min: 0,
@@ -106,6 +116,15 @@ export class RidgeVisualizer extends BaseVisualizer {
         value: this.config.harmonyMode ?? 2,
         labels: ['Mono', 'Analog', 'Comp']
       }
+    ];
+  }
+
+  getPresets(): VisualizerPreset[] {
+    return [
+      { name: '1', config: { amplitude: 3.2, speed: 12, decay: 0.98, autoRotation: 0, zoomSpeed: 0, autoTilt: 0, hue: 0, harmonyMode: 2 } },
+      { name: '2', config: { amplitude: 2.0, speed: 5, decay: 1.0, autoRotation: 0, zoomSpeed: 0, autoTilt: 0.003, hue: 0, harmonyMode: 1 } },
+      { name: '3', config: { amplitude: 5.5, speed: 20, decay: 0.95, autoRotation: 0, zoomSpeed: 0, autoTilt: 0, hue: 0, harmonyMode: 2 } },
+      { name: '4', config: { amplitude: 3.5, speed: 12, decay: 0.98, autoRotation: 0.003, zoomSpeed: 0.005, autoTilt: 0, hue: 0, harmonyMode: 1 } },
     ];
   }
 
@@ -351,10 +370,18 @@ export class RidgeVisualizer extends BaseVisualizer {
       this.cameraRotation.y += this.config.autoRotation ?? 0;
     }
 
-    const d = this.cameraDistance;
-    this.camera.position.x = d * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
-    this.camera.position.y = d * Math.sin(this.cameraRotation.x);
-    this.camera.position.z = d * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
+    // Auto tilt: slow pitch oscillation around the current angle
+    const autoTilt = this.config.autoTilt ?? 0;
+    let pitch = this.cameraRotation.x;
+    if (autoTilt > 0) {
+      this.tiltPhase += autoTilt;
+      pitch = Math.max(0.05, Math.min(Math.PI / 2, pitch + Math.sin(this.tiltPhase) * 0.35));
+    }
+
+    const D = this.cameraDistance;
+    this.camera.position.x = D * Math.sin(this.cameraRotation.y) * Math.cos(pitch);
+    this.camera.position.y = D * Math.sin(pitch);
+    this.camera.position.z = D * Math.cos(this.cameraRotation.y) * Math.cos(pitch);
     this.camera.lookAt(0, 0, -5);
   }
 
