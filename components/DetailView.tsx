@@ -587,34 +587,31 @@ export default function DetailView({
               </svg>
             </button>
           </div>
-          {/* Recording indicator — visible in header when recording/converting */}
-          {(recordingState.isRecording || recordingState.isConverting) && (
+          {/* Recording indicator */}
+          {recordingState.isRecording && (
             <button
-              onClick={() => recordingState.isRecording ? onToggleRecording(exportRatio, exportFormat) : onCancelConversion()}
-              className={`h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                recordingState.isRecording
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-amber-600 hover:bg-amber-700 text-white'
-              }`}
-              title={recordingState.isRecording
-                ? 'Stop Recording'
-                : 'Converting to MP4. FFmpeg runs in your browser, so this can take about as long as the clip. Click to cancel.'}
+              onClick={() => onToggleRecording(exportRatio, exportFormat)}
+              className="h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+              title="Stop Recording"
             >
-              {recordingState.isRecording ? (
-                <>
-                  <span className="w-2 h-2 rounded-sm bg-white animate-pulse" />
-                  <span className="text-xs font-mono tabular-nums">{Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')}</span>
-                </>
-              ) : (
-                <>
-                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="text-xs font-mono tabular-nums">
-                    {recordingState.conversionProgress != null
-                      ? `MP4 ${Math.round(recordingState.conversionProgress * 100)}%`
-                      : 'MP4…'}
-                  </span>
-                </>
-              )}
+              <span className="w-2 h-2 rounded-sm bg-white animate-pulse" />
+              <span className="text-xs font-mono tabular-nums">{Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')}</span>
+            </button>
+          )}
+          {/* Background conversion indicator; can run while recording a new take */}
+          {recordingState.isConverting && (
+            <button
+              onClick={onCancelConversion}
+              className="h-9 px-3 rounded-md text-sm transition-all duration-300 flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+              title="Converting to MP4 in the background. You can keep recording. Click to cancel."
+            >
+              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="text-xs font-mono tabular-nums">
+                {recordingState.conversionProgress != null
+                  ? `MP4 ${Math.round(recordingState.conversionProgress * 100)}%`
+                  : 'MP4…'}
+                {recordingState.pendingCount > 1 ? ` ×${recordingState.pendingCount}` : ''}
+              </span>
             </button>
           )}
           {/* Tools menu (⋯) — controls, export, screenshot */}
@@ -705,12 +702,9 @@ export default function DetailView({
                     <div className="border-t border-white/10" />
                     <button
                       onClick={() => { onToggleRecording(exportRatio, exportFormat); if (!recordingState.isRecording) setToolsMenuOpen(false); }}
-                      disabled={recordingState.isConverting}
                       className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center gap-3 ${
                         recordingState.isRecording
                           ? 'text-red-400 hover:bg-red-500/15'
-                          : recordingState.isConverting
-                          ? 'text-amber-400 cursor-wait'
                           : 'text-white/90 hover:bg-white/10'
                       }`}
                     >
@@ -721,16 +715,6 @@ export default function DetailView({
                           </span>
                           Stop Recording ({Math.floor(recordingState.duration / 60)}:{(recordingState.duration % 60).toString().padStart(2, '0')})
                         </>
-                      ) : recordingState.isConverting ? (
-                        <span
-                          className="flex items-center gap-3"
-                          title="FFmpeg runs in your browser, so conversion can take about as long as the clip itself"
-                        >
-                          <span className="w-4 h-4 flex-shrink-0 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
-                          {recordingState.conversionProgress != null
-                            ? `Converting MP4: ${Math.round(recordingState.conversionProgress * 100)}%`
-                            : 'Converting MP4: preparing…'}
-                        </span>
                       ) : (
                         <>
                           <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -742,8 +726,32 @@ export default function DetailView({
                     </button>
                   </>
                 )}
+                {/* Background conversion status; recording stays available */}
+                {showVisualizer && recordingState.isConverting && (
+                  <>
+                    <div className="border-t border-white/10" />
+                    <div
+                      className="px-3 py-2.5 text-sm text-amber-400 flex items-center gap-3"
+                      title="Converting in the background. You can record another take while this finishes."
+                    >
+                      <span className="w-4 h-4 flex-shrink-0 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                      <span className="flex-1">
+                        {recordingState.conversionProgress != null
+                          ? `Converting MP4: ${Math.round(recordingState.conversionProgress * 100)}%`
+                          : 'Converting MP4: preparing…'}
+                        {recordingState.pendingCount > 1 && ` (${recordingState.pendingCount} queued)`}
+                      </span>
+                      <button
+                        onClick={onCancelConversion}
+                        className="text-xs text-white/50 hover:text-white/90 underline underline-offset-2"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
                 {/* Export preset: platform-labeled crop + format */}
-                {showVisualizer && !recordingState.isRecording && !recordingState.isConverting && (
+                {showVisualizer && !recordingState.isRecording && (
                   <>
                     <div className="border-t border-white/10" />
                     <div className="px-3 py-2">
