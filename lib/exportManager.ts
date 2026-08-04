@@ -12,6 +12,7 @@
 
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
+import { drawMirrored, createMirrorScratch, MirrorState } from './mirrorCompositor';
 
 export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1' | '16:9';
 export type OverlayDrawerFn = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
@@ -124,7 +125,7 @@ function getExportDimensions(
   return { sx, sy, sw, sh, outW, outH };
 }
 
-export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 'visualizer.png', ratio: AspectRatio = 'browser', darkMode: boolean = true, overlayDrawer?: OverlayDrawerFn): void {
+export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 'visualizer.png', ratio: AspectRatio = 'browser', darkMode: boolean = true, overlayDrawer?: OverlayDrawerFn, mirror?: MirrorState): void {
   // Screenshots keep full canvas resolution (no cap)
   const { sx, sy, sw, sh, outW, outH } = getExportDimensions(canvas, ratio);
   const bgColor = darkMode ? '#000000' : '#e8ebed';
@@ -137,7 +138,7 @@ export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 
   if (!ctx) return;
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, outW, outH);
-  ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, outW, outH);
+  drawMirrored(ctx, canvas, sx, sy, sw, sh, outW, outH, mirror ?? { mode: 0, offset: 0.5 }, createMirrorScratch());
   if (overlayDrawer) overlayDrawer(ctx, outW, outH);
   const dataUrl = offscreen.toDataURL('image/png');
   const link = document.createElement('a');
@@ -266,7 +267,7 @@ export class VideoRecorder {
     });
   }
 
-  start(canvas: HTMLCanvasElement, audioContext: AudioContext, analyserNode: AnalyserNode, ratio: AspectRatio = 'browser', darkMode: boolean = true, format: ExportFormat = 'webm', getOverlay?: () => OverlayDrawerFn | null | undefined): boolean {
+  start(canvas: HTMLCanvasElement, audioContext: AudioContext, analyserNode: AnalyserNode, ratio: AspectRatio = 'browser', darkMode: boolean = true, format: ExportFormat = 'webm', getOverlay?: () => OverlayDrawerFn | null | undefined, getMirror?: () => MirrorState): boolean {
     if (this.mediaRecorder?.state === 'recording') return false;
 
     // Always use an offscreen canvas to composite onto an opaque background
@@ -277,14 +278,23 @@ export class VideoRecorder {
     this.offscreenCanvas.height = outH;
     const ctx = this.offscreenCanvas.getContext('2d', { alpha: false })!;
     const bgColor = darkMode ? '#000000' : '#e8ebed';
+    const mirrorScratch = createMirrorScratch();
 
     const drawFrame = () => {
       const dims = getExportDimensions(canvas, ratio, MAX_EXPORT_LONG_EDGE);
       // Fill opaque background first
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, dims.outW, dims.outH);
-      // Composite the visualizer canvas on top
-      ctx.drawImage(canvas, dims.sx, dims.sy, dims.sw, dims.sh, 0, 0, dims.outW, dims.outH);
+      // Composite the visualizer canvas on top, mirroring across the export
+      // frame so a tall crop tiles within the video instead of slicing a
+      // window out of the mirrored screen-shaped frame
+      drawMirrored(
+        ctx, canvas,
+        dims.sx, dims.sy, dims.sw, dims.sh,
+        dims.outW, dims.outH,
+        getMirror?.() ?? { mode: 0, offset: 0.5 },
+        mirrorScratch
+      );
       // Draw HTML overlay (e.g. intro title card) if present
       const overlay = getOverlay?.();
       if (overlay) overlay(ctx, dims.outW, dims.outH);

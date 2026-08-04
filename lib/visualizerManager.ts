@@ -6,6 +6,7 @@
 import { AudioEngine, AudioAnalysis } from './audioEngine';
 import { BaseVisualizer, ColorScheme, VisualizerConfig, VisualizerControl } from './visualizers/BaseVisualizer';
 import { VisualizerRegistry, VisualizerType } from './visualizerRegistry';
+import { drawMirrored, createMirrorScratch, MirrorState } from './mirrorCompositor';
 
 // Manager-level mirror controls appended to every visualizer's control list.
 // The manager intercepts these keys in updateConfig instead of forwarding them.
@@ -27,7 +28,7 @@ export class VisualizerManager {
   // strip tiles across the rest of the frame, kaleidoscope-style.
   private mirrorOffset: number = 0.5;
   private mirrorCanvas: HTMLCanvasElement | null = null;
-  private scratchCanvas: HTMLCanvasElement | null = null;
+  private mirrorScratch: { base: HTMLCanvasElement; pass: HTMLCanvasElement } | null = null;
   
   constructor(audioEngine: AudioEngine, container: HTMLDivElement) {
     this.audioEngine = audioEngine;
@@ -205,9 +206,10 @@ export class VisualizerManager {
   }
 
   /**
-   * Composite the rendered frame into mirrored halves/quadrants on a 2D
-   * overlay canvas. The source WebGL canvas keeps rendering underneath
-   * (hidden) so the effect works for every visualizer without changes.
+   * Composite the rendered frame onto a mirrored 2D overlay canvas. The
+   * source WebGL canvas keeps rendering underneath (hidden) so the effect
+   * works for every visualizer without changes. Exporters run the same
+   * compositor against their own output frame.
    */
   private applyMirror(): void {
     const src = this.getSourceCanvas();
@@ -239,72 +241,11 @@ export class VisualizerManager {
     const ctx = this.mirrorCanvas.getContext('2d');
     if (!ctx) return;
 
+    if (!this.mirrorScratch) this.mirrorScratch = createMirrorScratch();
     ctx.clearRect(0, 0, w, h);
-
-    if (this.mirrorMode === 1) {
-      this.mirrorAxis(ctx, src, w, h, 'x');
-    } else if (this.mirrorMode === 2) {
-      this.mirrorAxis(ctx, src, w, h, 'y');
-    } else {
-      // Both axes: mirror X into a scratch canvas, then mirror that in Y
-      if (!this.scratchCanvas) this.scratchCanvas = document.createElement('canvas');
-      if (this.scratchCanvas.width !== w || this.scratchCanvas.height !== h) {
-        this.scratchCanvas.width = w;
-        this.scratchCanvas.height = h;
-      }
-      const sctx = this.scratchCanvas.getContext('2d');
-      if (!sctx) return;
-      sctx.clearRect(0, 0, w, h);
-      this.mirrorAxis(sctx, src, w, h, 'x');
-      this.mirrorAxis(ctx, this.scratchCanvas, w, h, 'y');
-    }
+    drawMirrored(ctx, src, 0, 0, w, h, w, h, this.getMirrorState(), this.mirrorScratch);
   }
 
-  /**
-   * Center-anchored mirror tiling: a strip (mirrorOffset fraction of the
-   * frame) is sampled from the middle of the source, drawn in place, and
-   * mirrored copies tile outward symmetrically in both directions —
-   * the original stays centered while reflections extend to the sides.
-   */
-  private mirrorAxis(
-    ctx: CanvasRenderingContext2D,
-    source: HTMLCanvasElement,
-    w: number,
-    h: number,
-    axis: 'x' | 'y'
-  ): void {
-    const total = axis === 'x' ? w : h;
-    const strip = Math.max(1, Math.round(total * this.mirrorOffset));
-    const start = (total - strip) / 2;
-
-    const kMin = -Math.ceil(start / strip);
-    const kMax = Math.floor((total - start) / strip);
-
-    for (let k = kMin; k <= kMax; k++) {
-      const pos = start + k * strip;
-      const flipped = ((k % 2) + 2) % 2 === 1;
-      ctx.save();
-      if (axis === 'x') {
-        if (flipped) {
-          ctx.translate(pos + strip, 0);
-          ctx.scale(-1, 1);
-        } else {
-          ctx.translate(pos, 0);
-        }
-        ctx.drawImage(source, start, 0, strip, h, 0, 0, strip, h);
-      } else {
-        if (flipped) {
-          ctx.translate(0, pos + strip);
-          ctx.scale(1, -1);
-        } else {
-          ctx.translate(0, pos);
-        }
-        ctx.drawImage(source, 0, start, w, strip, 0, 0, w, strip);
-      }
-      ctx.restore();
-    }
-  }
-  
   /**
    * Stop animation loop
    */
@@ -324,14 +265,17 @@ export class VisualizerManager {
   }
 
   /**
-   * Get the current canvas element for export purposes.
-   * When mirroring is active, exports capture the mirrored output.
+   * The un-mirrored render target. Exporters take this and apply the mirror
+   * to their own output frame, so a tall crop tiles across the exported
+   * frame instead of slicing a window out of the mirrored screen frame.
    */
   getCanvas(): HTMLCanvasElement | null {
-    if (this.mirrorMode > 0 && this.mirrorCanvas) {
-      return this.mirrorCanvas;
-    }
     return this.getSourceCanvas();
+  }
+
+  /** Current mirror mode + offset, so exporters can reproduce the look */
+  getMirrorState(): MirrorState {
+    return { mode: this.mirrorMode, offset: this.mirrorOffset };
   }
 
   /**
@@ -347,7 +291,7 @@ export class VisualizerManager {
       this.mirrorCanvas.remove();
       this.mirrorCanvas = null;
     }
-    this.scratchCanvas = null;
+    this.mirrorScratch = null;
     if (this.currentVisualizer) {
       this.currentVisualizer.destroy();
       this.currentVisualizer = null;
