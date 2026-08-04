@@ -223,7 +223,7 @@ export function useVisualizer({
     const canvas = visualizerManagerRef.current?.getCanvas();
     if (!canvas) return;
     const name = VisualizerRegistry.getName(visualizerType);
-    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio, darkMode, overlayRef?.current ?? undefined);
+    captureScreenshot(canvas, `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`, ratio, darkMode, overlayRef?.current ?? undefined, visualizerManagerRef.current?.getMirrorState());
   }, [visualizerType, darkMode, overlayRef]);
 
   // Video recording
@@ -237,7 +237,7 @@ export function useVisualizer({
     } else {
       const canvas = visualizerManagerRef.current?.getCanvas();
       if (!canvas || !audioContextRef.current || !analyserRef.current) return;
-      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio, darkMode, format, () => overlayRef?.current ?? undefined);
+      videoRecorderRef.current.start(canvas, audioContextRef.current, analyserRef.current, ratio, darkMode, format, () => overlayRef?.current ?? undefined, () => visualizerManagerRef.current?.getMirrorState() ?? { mode: 0, offset: 0.5 });
     }
   }, [darkMode, overlayRef]);
 
