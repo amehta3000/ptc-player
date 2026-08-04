@@ -41,7 +41,7 @@ export function useVisualizer({
   const [controls, setControls] = useState<VisualizerControl[]>([]);
   const [presets, setPresets] = useState<VisualizerPreset[]>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, number>>({});
-  const [recordingState, setRecordingState] = useState<RecordingState>({ isRecording: false, isConverting: false, duration: 0 });
+  const [recordingState, setRecordingState] = useState<RecordingState>({ isRecording: false, isConverting: false, duration: 0, pendingCount: 0 });
   const videoRecorderRef = useRef<VideoRecorder | null>(null);
 
   // Initialize audio engine
