@@ -18,6 +18,7 @@ import { PlasmaVisualizer } from './visualizers/PlasmaVisualizer';
 import { RadialPlaneVisualizer } from './visualizers/RadialPlaneVisualizer';
 import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
 import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
+import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -275,6 +276,24 @@ VisualizerRegistry.register('ridge', 'Ridge', RidgeVisualizer, {
 }, {
   samples: 72,
   rows: 22,
+});
+
+// Host for the pluggable per-particle fields in visualizers/fields/.
+// Field-specific sliders are registered by the field body itself and stored
+// under namespaced `f_<field>_<control>` keys, so they are not listed here.
+VisualizerRegistry.register('particleField', 'Particle Field', ParticleFieldVisualizer, {
+  field: 0,
+  particleCount: 12000,
+  particleSize: 1,
+  cameraSpeed: 0.001,
+  zoomSpeed: 0,
+  trail: 0,
+  hue: 0,
+  harmonyMode: 0,
+  cameraDistance: 16,
+}, {
+  particleCount: 4000,
+  particleSize: 1.4,
 });
 
 VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
