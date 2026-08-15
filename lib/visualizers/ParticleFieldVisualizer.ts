@@ -196,6 +196,44 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     }
   }
 
+  /** Apply a field's preferred host-control defaults (particleSize, trail, etc.). */
+  private applyFieldDefaults(): void {
+    const defs = this.currentField().defaults;
+    if (!defs) return;
+    for (const [key, value] of Object.entries(defs)) {
+      if (typeof value !== 'number') continue;
+      this.config[key] = value;
+      this.updateConfig(key, value);
+    }
+  }
+
+  /** Configure fade material blending for the current dark-mode and trail settings. */
+  private applyFadeMode(): void {
+    if (!this.fadeMaterial) return;
+    const trail = this.config.trail ?? 0;
+    if (this.darkMode) {
+      // Subtractive: dst = dst - color. Guarantees pixels reach true black.
+      const fade = trail > 0 ? 0.012 * (1 - trail) + 0.002 : 1;
+      this.fadeMaterial.color.setRGB(fade, fade, fade);
+      this.fadeMaterial.transparent = false;
+      this.fadeMaterial.opacity = 1;
+      this.fadeMaterial.blending = THREE.CustomBlending;
+      this.fadeMaterial.blendEquation = THREE.ReverseSubtractEquation;
+      this.fadeMaterial.blendSrc = THREE.OneFactor;
+      this.fadeMaterial.blendDst = THREE.OneFactor;
+      this.fadeMaterial.blendEquationAlpha = THREE.AddEquation;
+      this.fadeMaterial.blendSrcAlpha = THREE.ZeroFactor;
+      this.fadeMaterial.blendDstAlpha = THREE.OneFactor;
+    } else {
+      // Multiplicative: dst = dst * (1 - opacity) + lightGray * opacity.
+      this.fadeMaterial.color.set(0xe8ebed);
+      this.fadeMaterial.transparent = true;
+      this.fadeMaterial.opacity = trail > 0 ? 0.08 * (1 - trail) : 1;
+      this.fadeMaterial.blending = THREE.NormalBlending;
+    }
+    this.fadeMaterial.needsUpdate = true;
+  }
+
   // ---------------------------------------------------------------------
   // Controls
   // ---------------------------------------------------------------------
@@ -227,7 +265,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
         name: 'Particle Size',
         key: 'particleSize',
         min: 0.2,
-        max: 4,
+        max: 2,
         step: 0.1,
         default: 1,
         value: this.config.particleSize ?? 1,
@@ -339,18 +377,13 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     this.container.style.cursor = 'grab';
     this.container.style.touchAction = 'none';
 
-    // Trail overlay: a semi-transparent full-screen quad drawn before the
-    // points, so previous frames decay instead of being cleared.
+    // Trail overlay: fade previous frames so particles leave trails.
+    // Dark mode uses subtractive blending (dst - color) so pixels reach true
+    // black; multiplicative fade leaves 8-bit rounding ghosts.
     this.fadeScene = new THREE.Scene();
     this.fadeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const trail = this.config.trail ?? 0;
-    this.fadeMaterial = new THREE.MeshBasicMaterial({
-      color: this.darkMode ? 0x000000 : 0xe8ebed,
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      opacity: trail > 0 ? 0.08 * (1 - trail) : 1,
-    });
+    this.fadeMaterial = new THREE.MeshBasicMaterial({ depthWrite: false, depthTest: false });
+    this.applyFadeMode();
     this.fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.fadeMaterial));
 
     this.refreshPalette();
@@ -417,9 +450,9 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
 
           void main() {
             float dist = length(gl_PointCoord - vec2(0.5));
-            float gaussian = exp(-dist * dist * 6.0);
-            float a = gaussian * vAlpha;
-            // Light mode uses normal blending, so lift alpha to stay visible
+            float core = 1.0 - smoothstep(0.35, 0.5, dist);
+            float glow = exp(-dist * dist * 18.0) * 0.3;
+            float a = (core + glow) * vAlpha;
             a = darkMode > 0.5 ? a : clamp(a * 1.8, 0.0, 1.0);
             gl_FragColor = vec4(vColor, a);
           }
@@ -674,9 +707,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     if (this.renderer) {
       this.renderer.setClearColor(isDark ? 0x000000 : 0xe8ebed, 1);
     }
-    if (this.fadeMaterial) {
-      this.fadeMaterial.color.set(isDark ? 0x000000 : 0xe8ebed);
-    }
+    this.applyFadeMode();
     if (this.material) {
       this.material.blending = isDark ? THREE.AdditiveBlending : THREE.NormalBlending;
       this.material.uniforms.darkMode.value = isDark ? 1 : 0;
@@ -698,6 +729,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
 
     if (key === 'field') {
       this.probeField();
+      this.applyFieldDefaults();
       this.needsClear = true;
       return;
     }
@@ -714,7 +746,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     }
 
     if (key === 'trail' && this.fadeMaterial) {
-      this.fadeMaterial.opacity = value > 0 ? 0.08 * (1 - value) : 1;
+      this.applyFadeMode();
       return;
     }
 

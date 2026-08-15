@@ -117,9 +117,9 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       {
         name: 'Particle Size',
         key: 'particleSize',
-        min: 0.5,
-        max: 3,
-        step: 0.5,
+        min: 0.2,
+        max: 2,
+        step: 0.1,
         default: 0.5,
         value: this.config.particleSize || 0.5
       },
@@ -469,20 +469,21 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
 
         void main() {
           float dist = length(gl_PointCoord - vec2(0.5));
-          float gaussian = exp(-dist * dist * 6.0);
+          // Hard circle core with soft anti-aliased edge
+          float core = 1.0 - smoothstep(0.35, 0.5, dist);
+          float glow = exp(-dist * dist * 18.0) * 0.3;
+          float shape = core + glow;
 
-          float brightness = 0.2 + vAmplitude * 2.0;
-          // Dark (additive): allow overbright for glow. Light (normal): clamp to 1 to avoid washing out.
-          float maxBright = darkMode > 0.5 ? 3.0 : 1.0;
-          brightness = clamp(brightness, 0.2, maxBright);
+          float brightness = 0.4 + vAmplitude * 1.5;
+          float maxBright = darkMode > 0.5 ? 2.5 : 1.0;
+          brightness = clamp(brightness, 0.4, maxBright);
 
           float bassPulse = darkMode > 0.5
-            ? (0.2 + bassIntensity * 0.8)
+            ? (0.3 + bassIntensity * 0.7)
             : (0.6 + bassIntensity * 0.4);
 
-          float alpha = gaussian * brightness * bassPulse;
-          // Light mode: boost alpha so particles are clearly visible
-          alpha = darkMode > 0.5 ? alpha : clamp(alpha * 2.5, 0.0, 1.0);
+          float alpha = shape * brightness * bassPulse;
+          alpha = darkMode > 0.5 ? alpha : clamp(alpha * 2.0, 0.0, 1.0);
           gl_FragColor = vec4(vColor * brightness, alpha);
         }
       `,
