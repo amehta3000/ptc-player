@@ -98,7 +98,7 @@ export class ConstellationVisualizer extends BaseVisualizer {
       { name: 'Particle Count', key: 'particleCount', min: 400, max: 10000, step: 200, default: 2000, value: this.config.particleCount || 2000 },
       { name: 'Attractor Count', key: 'attractorCount', min: 2, max: 6, step: 1, default: 3, value: this.config.attractorCount || 3 },
       { name: 'Max Speed', key: 'maxSpeed', min: 0, max: 10, step: 0.5, default: 0.5, value: this.config.maxSpeed ?? 0.5 },
-      { name: 'Particle Size', key: 'particleSize', min: 0.5, max: 3, step: 0.5, default: 0.5, value: this.config.particleSize || 0.5 },
+      { name: 'Particle Size', key: 'particleSize', min: 0.2, max: 2, step: 0.1, default: 0.5, value: this.config.particleSize || 0.5 },
       { name: 'Camera Speed', key: 'cameraSpeed', min: 0, max: 0.02, step: 0.001, default: 0.001, value: this.config.cameraSpeed ?? 0.001 },
       { name: 'Zoom Speed', key: 'zoomSpeed', min: 0, max: 0.02, step: 0.001, default: 0, value: this.config.zoomSpeed ?? 0 },
       { name: 'Trail', key: 'trail', min: 0, max: 0.95, step: 0.01, default: 0, value: this.config.trail ?? 0 },
@@ -308,13 +308,16 @@ export class ConstellationVisualizer extends BaseVisualizer {
 
         void main() {
           float dist = length(gl_PointCoord - vec2(0.5));
-          float gaussian = exp(-dist * dist * 6.0);
-          float brightness = 0.2 + vAmplitude * 2.0;
-          float maxBright = darkMode > 0.5 ? 3.0 : 1.0;
-          brightness = clamp(brightness, 0.2, maxBright);
-          float bassPulse = darkMode > 0.5 ? (0.2 + bassIntensity * 0.8) : (0.6 + bassIntensity * 0.4);
-          float alpha = gaussian * brightness * bassPulse;
-          alpha = darkMode > 0.5 ? alpha : clamp(alpha * 2.5, 0.0, 1.0);
+          float core = 1.0 - smoothstep(0.35, 0.5, dist);
+          float glow = exp(-dist * dist * 18.0) * 0.3;
+          float shape = core + glow;
+
+          float brightness = 0.4 + vAmplitude * 1.5;
+          float maxBright = darkMode > 0.5 ? 2.5 : 1.0;
+          brightness = clamp(brightness, 0.4, maxBright);
+          float bassPulse = darkMode > 0.5 ? (0.3 + bassIntensity * 0.7) : (0.6 + bassIntensity * 0.4);
+          float alpha = shape * brightness * bassPulse;
+          alpha = darkMode > 0.5 ? alpha : clamp(alpha * 2.0, 0.0, 1.0);
           gl_FragColor = vec4(vColor * brightness, alpha);
         }
       `,
