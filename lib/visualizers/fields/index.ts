@@ -12,13 +12,15 @@ import { ParticleField } from './types';
 import { torusInterference } from './torusInterference';
 import { jellyFish } from './jellyfish';
 import { tesseract } from './tesseract';
-// 
+import { spiralVortex } from './spiralVortex';
+//
 
 export const PARTICLE_FIELDS: ParticleField[] = [
   // spectralHelix,
   torusInterference,
   jellyFish,
   tesseract,
+  spiralVortex,
   // nestedVessels,
 ];
 

@@ -26,6 +26,8 @@ import { FieldContext, FieldControlSpec, ParticleField } from './fields/types';
 /** Hard bound on particle coordinates, so a runaway field cannot lose the camera. */
 const COORD_LIMIT = 60;
 const SPECTRUM_BINS = 64;
+/** Camera pitch in radians for fields that do not ask for their own. */
+const DEFAULT_CAMERA_PITCH = 0.25;
 
 export class ParticleFieldVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -79,7 +81,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
   private needsClear = false;
 
   // Camera controls
-  private cameraRotation = { x: 0.25, y: 0 };
+  private cameraRotation = { x: DEFAULT_CAMERA_PITCH, y: 0 };
   private cameraDistance = 16;
   private zoomPhase = 0;
   private isDragging = false;
@@ -194,6 +196,19 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     } finally {
       this.probing = false;
     }
+  }
+
+  /**
+   * Point the camera at whatever angle the current field wants. Disc-shaped
+   * fields need a steeper pitch or they are seen edge-on and read as a line;
+   * upright fields want the shallow default. Read straight off the field so
+   * one field's preference never leaks into the next.
+   */
+  private applyFieldPitch(): void {
+    const wanted = this.currentField()?.defaults?.cameraPitch;
+    const pitch = typeof wanted === 'number' && Number.isFinite(wanted) ? wanted : DEFAULT_CAMERA_PITCH;
+    this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+    this.updateCameraPosition();
   }
 
   /** Apply a field's preferred host-control defaults (particleSize, trail, etc.). */
@@ -395,7 +410,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
 
     this.cameraDistance = this.config.cameraDistance || 16;
     this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 16) / 8)));
-    this.updateCameraPosition();
+    this.applyFieldPitch();
     this.setupControls();
   }
 
@@ -730,6 +745,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     if (key === 'field') {
       this.probeField();
       this.applyFieldDefaults();
+      this.applyFieldPitch();
       this.needsClear = true;
       return;
     }

@@ -46,6 +46,21 @@ export const myField: ParticleField = {
 Trim the destructuring list to what the body actually uses — unused bindings
 will fail lint.
 
+## Optional: `defaults`
+
+A field may declare preferred host settings, applied when it is selected:
+
+```ts
+defaults: { cameraPitch: 0.6, particleSize: 0.8, trail: 0.3 },
+```
+
+Any host control key works (`particleSize`, `trail`, `cameraSpeed`, …), plus
+`cameraPitch` — the camera's vertical angle in radians, defaulting to 0.25.
+Flat disc-shaped fields want roughly 0.6, or they are seen almost edge-on and
+read as a line; upright fields want the shallow default. The pitch is read
+straight off the field each time one is selected, so one field's preference
+never leaks into the next.
+
 ## What the host guarantees
 
 - `target`, `color` and `attr` are the same objects every call. Mutate them;
