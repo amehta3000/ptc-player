@@ -83,6 +83,8 @@ export interface ParticleField {
   name: string;
   /** One-line description of the visual. */
   blurb: string;
+  /** Preferred host-control values applied when this field is first selected. */
+  defaults?: Partial<Record<string, number>>;
   /** Runs once per particle, per frame. Must set `target` and `color`. */
   body: (c: FieldContext) => void;
 }

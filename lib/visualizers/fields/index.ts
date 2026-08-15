@@ -8,12 +8,18 @@
  */
 
 import { ParticleField } from './types';
-import { spectralHelix } from './spectralHelix';
+// import { spectralHelix } from './spectralHelix';
 import { torusInterference } from './torusInterference';
+import { jellyFish } from './jellyfish';
+import { tesseract } from './tesseract';
+// 
 
 export const PARTICLE_FIELDS: ParticleField[] = [
-  spectralHelix,
+  // spectralHelix,
   torusInterference,
+  jellyFish,
+  tesseract,
+  // nestedVessels,
 ];
 
 export const PARTICLE_FIELD_NAMES: string[] = PARTICLE_FIELDS.map((f) => f.name);
