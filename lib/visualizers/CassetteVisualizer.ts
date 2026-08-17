@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 export class CassetteVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -26,6 +27,7 @@ export class CassetteVisualizer extends BaseVisualizer {
   private cameraAngle = { theta: 0.3, phi: 1.2 };
   private cameraDistance = 5;
   private isDragging = false;
+  private dragInertia = new DragInertia();
   private lastMousePos = { x: 0, y: 0 };
 
   // Audio smoothing
@@ -286,6 +288,7 @@ export class CassetteVisualizer extends BaseVisualizer {
 
     const onPointerDown = (e: PointerEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       this.lastMousePos = { x: e.clientX, y: e.clientY };
       this.container.style.cursor = 'grabbing';
     };
@@ -294,14 +297,14 @@ export class CassetteVisualizer extends BaseVisualizer {
       if (!this.isDragging) return;
       const dx = e.clientX - this.lastMousePos.x;
       const dy = e.clientY - this.lastMousePos.y;
-      this.cameraAngle.theta -= dx * 0.005;
-      this.cameraAngle.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.cameraAngle.phi - dy * 0.005));
+      this.dragInertia.record(dx, dy);
+      this.orbitBy(dx, dy);
       this.lastMousePos = { x: e.clientX, y: e.clientY };
-      this.updateCameraPosition();
     };
 
     const onPointerUp = () => {
       this.isDragging = false;
+      this.dragInertia.release();
       this.container.style.cursor = 'grab';
     };
 
@@ -318,6 +321,19 @@ export class CassetteVisualizer extends BaseVisualizer {
     this.container.addEventListener('wheel', onWheel, { passive: false });
   }
 
+  /**
+   * Turn the orbit by a drag in screen pixels. Both axes are inverted here so
+   * the cassette follows the pointer rather than moving away from it.
+   */
+  private orbitBy(dx: number, dy: number): void {
+    this.cameraAngle.theta -= dx * 0.005;
+    const phi = this.cameraAngle.phi - dy * 0.005;
+    const clamped = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+    this.cameraAngle.phi = clamped;
+    if (clamped !== phi) this.dragInertia.stopPitch();
+    this.updateCameraPosition();
+  }
+
   private updateCameraPosition(): void {
     if (!this.camera) return;
     const { theta, phi } = this.cameraAngle;
@@ -332,6 +348,11 @@ export class CassetteVisualizer extends BaseVisualizer {
 
   update(audioAnalysis: AudioAnalysis): void {
     if (!this.isInitialized) return;
+
+    if (!this.isDragging) {
+      const glide = this.dragInertia.step();
+      if (glide) this.orbitBy(glide.dx, glide.dy);
+    }
 
     const { bassAvg, midAvg, highAvg, normalizedFrequency, isPlaying } = audioAnalysis;
     const lerp = 0.08;

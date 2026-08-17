@@ -9,6 +9,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 export class ChrysalisVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -25,6 +26,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   }> = [];
   private userRotation = { x: -0.8, y: 0.3 };
   private isDragging = false;
+  private dragInertia = new DragInertia();
   private lastMousePos = { x: 0, y: 0 };
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
@@ -148,6 +150,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
 
     const onMouseDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       this.container.style.cursor = 'grabbing';
       const pos = 'touches' in e ? e.touches[0] : e;
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
@@ -159,6 +162,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
       const deltaX = pos.clientX - this.lastMousePos.x;
       const deltaY = pos.clientY - this.lastMousePos.y;
 
+      this.dragInertia.record(deltaX, deltaY);
       this.userRotation.y += deltaX * 0.005;
       this.userRotation.x += deltaY * 0.005;
 
@@ -167,6 +171,7 @@ export class ChrysalisVisualizer extends BaseVisualizer {
 
     const onMouseUp = () => {
       this.isDragging = false;
+      this.dragInertia.release();
       this.container.style.cursor = 'grab';
     };
 
@@ -292,8 +297,10 @@ export class ChrysalisVisualizer extends BaseVisualizer {
 
     // Apply rotation
     const rotationSpeed = this.config.rotationSpeed || 0.003;
-    if (!this.isDragging && rotationSpeed > 0) {
-      this.userRotation.y += rotationSpeed;
+    if (!this.isDragging) {
+      // Free-spinning: no pitch limit to clamp against
+      this.dragInertia.glideOrbit(this.userRotation, 0.005, -Infinity, Infinity);
+      if (rotationSpeed > 0) this.userRotation.y += rotationSpeed;
     }
 
     this.chrysalisGroup.rotation.x = this.userRotation.x;

@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 interface Ripple {
   position: THREE.Vector3;
@@ -56,6 +57,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
   private cameraRotation = { x: 0.3, y: 0 };
   private zoomPhase = 0;
   private isDragging = false;
+  private dragInertia = new DragInertia();
   private lastMouse = { x: 0, y: 0 };
   private surfaceMesh: THREE.LineSegments | null = null;
   private boundOnMouseDown: ((e: MouseEvent) => void) | null = null;
@@ -292,6 +294,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       const surfaceMode = this.config.surfaceMode ?? 2;
       if (surfaceMode === 0) return;
       this.isDragging = true;
+      this.dragInertia.grab();
       this.lastMouse = { x: e.clientX, y: e.clientY };
     };
 
@@ -299,6 +302,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
       if (!this.isDragging) return;
       const dx = e.clientX - this.lastMouse.x;
       const dy = e.clientY - this.lastMouse.y;
+      this.dragInertia.record(dx, dy);
       this.cameraRotation.y += dx * 0.005;
       this.cameraRotation.x += dy * 0.005;
       this.cameraRotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.cameraRotation.x));
@@ -307,6 +311,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
 
     this.boundOnMouseUp = () => {
       this.isDragging = false;
+      this.dragInertia.release();
     };
 
     this.container.addEventListener('mousedown', this.boundOnMouseDown);
@@ -795,6 +800,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
     // --- Camera auto-rotation for 3D modes ---
     const surfaceMode = this.config.surfaceMode ?? 2;
     if (surfaceMode > 0 && !this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation, 0.005, -Math.PI / 2 + 0.1, Math.PI / 2 - 0.1);
       const speed = this.config.autoRotation ?? 0.003;
       this.cameraRotation.y += speed;
     }

@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme, VisualizerPreset } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 interface Attractor {
   position: THREE.Vector3;
@@ -68,6 +69,7 @@ export class ConstellationVisualizer extends BaseVisualizer {
   private cameraDistance = 8;
   private zoomPhase = Math.asin((8 - 11) / 9); // phase matched to default distance
   private isDragging = false;
+  private dragInertia = new DragInertia();
   private lastMousePos = { x: 0, y: 0 };
 
   // Spectrum texture for 64-bin frequency data
@@ -599,18 +601,22 @@ export class ConstellationVisualizer extends BaseVisualizer {
   private setupMouseControls(element: HTMLDivElement): void {
     const onMouseDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       const pos = 'touches' in e ? e.touches[0] : e;
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
     const onMouseMove = (e: MouseEvent | TouchEvent) => {
       if (!this.isDragging) return;
       const pos = 'touches' in e ? e.touches[0] : e;
-      this.cameraRotation.y += (pos.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (pos.clientY - this.lastMousePos.y) * 0.005;
+      const dx = pos.clientX - this.lastMousePos.x;
+      const dy = pos.clientY - this.lastMousePos.y;
+      this.dragInertia.record(dx, dy);
+      this.cameraRotation.y += dx * 0.005;
+      this.cameraRotation.x += dy * 0.005;
       this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
-    const onMouseUp = () => { this.isDragging = false; };
+    const onMouseUp = () => { this.isDragging = false; this.dragInertia.release(); };
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -648,6 +654,7 @@ export class ConstellationVisualizer extends BaseVisualizer {
     }
 
     if (!this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation);
       this.cameraRotation.y += this.config.cameraSpeed ?? 0.001;
     }
     const zoomSpeed = this.config.zoomSpeed ?? 0;

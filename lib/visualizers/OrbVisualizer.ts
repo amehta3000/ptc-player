@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 export class OrbVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -16,6 +17,7 @@ export class OrbVisualizer extends BaseVisualizer {
   private originalPositions: Float32Array | null = null;
   private cameraRotation = { x: 0, y: 0 };
   private isDragging = false;
+  private dragInertia = new DragInertia();
   private lastMousePos = { x: 0, y: 0 };
   private lights: THREE.Light[] = [];
   private orbitLights: THREE.PointLight[] = [];
@@ -381,25 +383,28 @@ export class OrbVisualizer extends BaseVisualizer {
   private setupMouseControls(element: HTMLDivElement): void {
     const onMouseDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       const pos = 'touches' in e ? e.touches[0] : e;
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
-    
+
     const onMouseMove = (e: MouseEvent | TouchEvent) => {
       if (!this.isDragging) return;
       const pos = 'touches' in e ? e.touches[0] : e;
       const deltaX = pos.clientX - this.lastMousePos.x;
       const deltaY = pos.clientY - this.lastMousePos.y;
-      
+
+      this.dragInertia.record(deltaX, deltaY);
       this.cameraRotation.y += deltaX * 0.005;
       this.cameraRotation.x += deltaY * 0.005;
       this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
-      
+
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
-    
+
     const onMouseUp = () => {
       this.isDragging = false;
+      this.dragInertia.release();
     };
     
     element.addEventListener('mousedown', onMouseDown);
@@ -422,6 +427,7 @@ export class OrbVisualizer extends BaseVisualizer {
     
     // Auto-rotate camera if not dragging
     if (!this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation);
       this.cameraRotation.y += autoRotationSpeed;
     }
     

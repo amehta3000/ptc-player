@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme, VisualizerPreset } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 interface Attractor {
   position: THREE.Vector3;
@@ -61,6 +62,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private zoomPhase = Math.asin((8 - 11) / 9); // phase matched to default distance
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
+  private dragInertia = new DragInertia();
 
   // Spectrum texture for 64-bin frequency data
   private spectrumTexture: THREE.DataTexture | null = null;
@@ -617,6 +619,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
   private setupMouseControls(element: HTMLDivElement): void {
     const onMouseDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       const pos = 'touches' in e ? e.touches[0] : e;
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
@@ -627,6 +630,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
       const deltaX = pos.clientX - this.lastMousePos.x;
       const deltaY = pos.clientY - this.lastMousePos.y;
 
+      this.dragInertia.record(deltaX, deltaY);
       this.cameraRotation.y += deltaX * 0.005;
       this.cameraRotation.x += deltaY * 0.005;
       this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
@@ -636,6 +640,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
 
     const onMouseUp = () => {
       this.isDragging = false;
+      this.dragInertia.release();
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -675,6 +680,7 @@ export class SonicGalaxyVisualizer extends BaseVisualizer {
 
     // Auto-rotate camera when not dragging
     if (!this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation);
       const cameraSpeed = this.config.cameraSpeed ?? 0.001;
       this.cameraRotation.y += cameraSpeed;
     }
