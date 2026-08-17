@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, VisualizerPreset, ColorScheme } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 export class RadialPlaneVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -29,6 +30,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
   private zoomPhase = 0;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
+  private dragInertia = new DragInertia();
   private frameCount: number = 0;
   private handleResize: (() => void) | null = null;
   private removeCameraControls: (() => void) | null = null;
@@ -376,16 +378,20 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
 
     const onMouseDown = (e: MouseEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       this.lastMousePos = { x: e.clientX, y: e.clientY };
     };
     const onMouseMove = (e: MouseEvent) => {
       if (!this.isDragging) return;
-      this.cameraRotation.y += (e.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (e.clientY - this.lastMousePos.y) * 0.005;
+      const dx = e.clientX - this.lastMousePos.x;
+      const dy = e.clientY - this.lastMousePos.y;
+      this.dragInertia.record(dx, dy);
+      this.cameraRotation.y += dx * 0.005;
+      this.cameraRotation.x += dy * 0.005;
       this.cameraRotation.x = Math.max(0.1, Math.min(Math.PI / 2, this.cameraRotation.x));
       this.lastMousePos = { x: e.clientX, y: e.clientY };
     };
-    const onMouseUp = () => { this.isDragging = false; };
+    const onMouseUp = () => { this.isDragging = false; this.dragInertia.release(); };
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -402,6 +408,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
         );
       } else {
         this.isDragging = true;
+        this.dragInertia.grab();
         this.lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
@@ -419,13 +426,16 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
         pinchDist = dist;
       } else if (this.isDragging) {
         const pos = e.touches[0];
-        this.cameraRotation.y += (pos.clientX - this.lastMousePos.x) * 0.005;
-        this.cameraRotation.x += (pos.clientY - this.lastMousePos.y) * 0.005;
+        const dx = pos.clientX - this.lastMousePos.x;
+        const dy = pos.clientY - this.lastMousePos.y;
+        this.dragInertia.record(dx, dy);
+        this.cameraRotation.y += dx * 0.005;
+        this.cameraRotation.x += dy * 0.005;
         this.cameraRotation.x = Math.max(0.1, Math.min(Math.PI / 2, this.cameraRotation.x));
         this.lastMousePos = { x: pos.clientX, y: pos.clientY };
       }
     };
-    const onTouchEnd = () => { this.isDragging = false; pinchDist = 0; };
+    const onTouchEnd = () => { this.isDragging = false; pinchDist = 0; this.dragInertia.release(); };
 
     element.addEventListener('mousedown', onMouseDown);
     element.addEventListener('mousemove', onMouseMove);
@@ -458,6 +468,7 @@ export class RadialPlaneVisualizer extends BaseVisualizer {
     }
 
     if (!this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation, 0.005, 0.1, Math.PI / 2);
       this.cameraRotation.y += this.config.autoRotation ?? 0.001;
     }
 

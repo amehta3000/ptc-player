@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { DragInertia } from './dragInertia';
 
 // ── Shaders ────────────────────────────────────────────────────────────────
 
@@ -208,6 +209,7 @@ export class PlasmaVisualizer extends BaseVisualizer {
 
   private cameraRotation = { x: 0.15, y: 0 };
   private isDragging    = false;
+  private dragInertia = new DragInertia();
   private lastMousePos  = { x: 0, y: 0 };
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
@@ -476,18 +478,22 @@ export class PlasmaVisualizer extends BaseVisualizer {
     const el = this.container;
     const onDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging  = true;
+      this.dragInertia.grab();
       const p = 'touches' in e ? e.touches[0] : e;
       this.lastMousePos = { x: p.clientX, y: p.clientY };
     };
     const onMove = (e: MouseEvent | TouchEvent) => {
       if (!this.isDragging) return;
       const p = 'touches' in e ? e.touches[0] : e;
-      this.cameraRotation.y += (p.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (p.clientY - this.lastMousePos.y) * 0.005;
+      const dx = p.clientX - this.lastMousePos.x;
+      const dy = p.clientY - this.lastMousePos.y;
+      this.dragInertia.record(dx, dy);
+      this.cameraRotation.y += dx * 0.005;
+      this.cameraRotation.x += dy * 0.005;
       this.cameraRotation.x  = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
       this.lastMousePos = { x: p.clientX, y: p.clientY };
     };
-    const onUp = () => { this.isDragging = false; };
+    const onUp = () => { this.isDragging = false; this.dragInertia.release(); };
 
     el.addEventListener('mousedown',  onDown);
     el.addEventListener('mousemove',  onMove);
@@ -518,7 +524,10 @@ export class PlasmaVisualizer extends BaseVisualizer {
     this.time += 0.016 * 1.3;
 
     // Camera orbit
-    if (!this.isDragging) this.cameraRotation.y += rotSpeed;
+    if (!this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation);
+      this.cameraRotation.y += rotSpeed;
+    }
     const r  = 6;
     const cx = this.cameraRotation.x;
     const cy = this.cameraRotation.y;

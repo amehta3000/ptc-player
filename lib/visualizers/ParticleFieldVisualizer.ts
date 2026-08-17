@@ -22,6 +22,7 @@ import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme, VisualizerPreset } from './BaseVisualizer';
 import { PARTICLE_FIELDS, PARTICLE_FIELD_NAMES } from './fields';
 import { FieldContext, FieldControlSpec, ParticleField } from './fields/types';
+import { DragInertia } from './dragInertia';
 
 /** Hard bound on particle coordinates, so a runaway field cannot lose the camera. */
 const COORD_LIMIT = 60;
@@ -86,6 +87,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
   private zoomPhase = 0;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
+  private dragInertia = new DragInertia();
   private listenerCleanup: (() => void) | null = null;
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
@@ -499,6 +501,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
 
     // Camera
     if (!this.isDragging) {
+      this.dragInertia.glideOrbit(this.cameraRotation);
       this.cameraRotation.y += this.config.cameraSpeed ?? 0.001;
     }
     const zoomSpeed = this.config.zoomSpeed ?? 0;
@@ -643,6 +646,7 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
 
     const onDown = (e: MouseEvent | TouchEvent) => {
       this.isDragging = true;
+      this.dragInertia.grab();
       const pos = 'touches' in e ? e.touches[0] : e;
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
@@ -650,14 +654,18 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
     const onMove = (e: MouseEvent | TouchEvent) => {
       if (!this.isDragging) return;
       const pos = 'touches' in e ? e.touches[0] : e;
-      this.cameraRotation.y += (pos.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (pos.clientY - this.lastMousePos.y) * 0.005;
+      const dx = pos.clientX - this.lastMousePos.x;
+      const dy = pos.clientY - this.lastMousePos.y;
+      this.dragInertia.record(dx, dy);
+      this.cameraRotation.y += dx * 0.005;
+      this.cameraRotation.x += dy * 0.005;
       this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
       this.lastMousePos = { x: pos.clientX, y: pos.clientY };
     };
 
     const onUp = () => {
       this.isDragging = false;
+      this.dragInertia.release();
     };
 
     const onWheel = (e: WheelEvent) => {
