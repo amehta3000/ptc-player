@@ -4,6 +4,7 @@ import { useVisualizer } from '../lib/useVisualizer';
 import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
 import { trackEvent, trackGAEvent } from '../lib/analytics';
+import { ListenTracker } from '../lib/listenTracker';
 import { OverlayDrawerFn } from '../lib/exportManager';
 import { Mix, mixes, getMixBySlug } from '../data/mixes';
 import { buildShareUrl, buildStudioShareUrl, parseShareParam } from '../lib/shareState';
@@ -21,6 +22,7 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visualizerContainerRef = useRef<HTMLDivElement | null>(null);
   const isInitialLoad = useRef(true);
+  const listenRef = useRef<ListenTracker>(new ListenTracker());
 
   const [showIntro, setShowIntro] = useState(true);
   const [introTimeout, setIntroTimeout] = useState(5500);
@@ -203,16 +205,24 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     const audio = audioRef.current;
     if (!audio || !currentMix) return;
 
+    const listen = listenRef.current;
+    listen.startTrack(currentMix.title, audio.duration || 0);
+
     const onTimeUpdate = () => {
       if (audio.duration) {
         setProgress((audio.currentTime / audio.duration) * 100);
         setCurrentTime(audio.currentTime);
       }
+      listen.progress(audio.currentTime);
     };
-    const onLoadedMetadata = () => setDuration(audio.duration);
-    const onDurationChange = () => setDuration(audio.duration);
+    const onLoadedMetadata = () => { setDuration(audio.duration); listen.setDuration(audio.duration); };
+    const onDurationChange = () => { setDuration(audio.duration); listen.setDuration(audio.duration); };
+    const onAudioPlay = () => listen.resume();
+    const onAudioPause = () => { listen.pause(); listen.flush('pause'); };
     const onEnded = () => {
       trackEvent('song_completed', currentMix.title);
+      listen.pause();
+      listen.flush('ended');
       if (studioMode) {
         // Studio: loop the uploaded track so the visual keeps running
         audio.currentTime = 0;
@@ -231,6 +241,8 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('play', onAudioPlay);
+    audio.addEventListener('pause', onAudioPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
 
@@ -238,6 +250,8 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('play', onAudioPlay);
+      audio.removeEventListener('pause', onAudioPause);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
@@ -356,18 +370,32 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     dwellStartRef.current = Date.now();
   }, [visualizerType]);
 
+  // Flush pending analytics when the page goes away. beforeunload is unreliable
+  // on mobile Safari, so listen for pagehide and the hidden visibility state and
+  // send via sendBeacon, which survives unload.
   useEffect(() => {
-    const handleUnload = () => {
+    const flushAll = () => {
       const elapsed = Math.round((Date.now() - dwellStartRef.current) / 1000);
       if (elapsed >= 5) {
         trackGAEvent('visualizer_dwell', {
           visualizer_type: dwellTypeRef.current,
           duration_seconds: elapsed,
-        });
+        }, true);
+        dwellStartRef.current = Date.now();
       }
+      listenRef.current.pause();
+      listenRef.current.flush('page_hide', true);
+      // Audio may keep playing in the background, so resume the clock
+      if (audioRef.current && !audioRef.current.paused) listenRef.current.resume();
     };
-    window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flushAll(); };
+
+    window.addEventListener('pagehide', flushAll);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flushAll);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   // Playback controls
