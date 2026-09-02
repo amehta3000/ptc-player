@@ -19,7 +19,6 @@ import { RadialPlaneVisualizer } from './visualizers/RadialPlaneVisualizer';
 import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
 import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
-import { BloomVisualizer } from './visualizers/BloomVisualizer';
 import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
 
 // Re-export the canonical type from the store
@@ -312,27 +311,6 @@ VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
   radius: 2.0,
   meshDetail: 5,
   tendrils: 5,
-});
-
-VisualizerRegistry.register('bloom', 'Bloom', BloomVisualizer, {
-  petals: 12,
-  layers: 3,
-  particleCount: 18000,
-  petalLength: 3.4,
-  curl: 1.1,
-  bloomAmount: 1.4,
-  scatter: 1.8,
-  turbulence: 0.08,
-  react: 1.3,
-  particleSize: 0.9,
-  autoRotation: 0.0015,
-  zoomSpeed: 0,
-  cameraDistance: 12,
-  hue: 0,
-  harmonyMode: 1,
-}, {
-  particleCount: 7000,
-  particleSize: 1.4,
 });
 
 VisualizerRegistry.register('arcs', 'Arcs', ArcsVisualizer, {
