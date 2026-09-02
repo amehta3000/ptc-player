@@ -24,6 +24,14 @@ export class TerrainVisualizer extends BaseVisualizer {
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
   private frameCount: number = 0;
+  // Cube (voxel) mode
+  private cubeMesh: THREE.InstancedMesh | null = null;
+  private cubeGeometry: THREE.BoxGeometry | null = null;
+  private cubeMaterial: THREE.MeshPhongMaterial | null = null;
+  private cubeHeights: Float32Array = new Float32Array(0);
+  private cubeGrid: number = 32;
+  private cubeDummy = new THREE.Object3D();
+  private cubeColor = new THREE.Color();
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -35,6 +43,16 @@ export class TerrainVisualizer extends BaseVisualizer {
   
   getControls(): VisualizerControl[] {
     return [
+      {
+        name: 'Render Mode',
+        key: 'renderMode',
+        min: 0,
+        max: 1,
+        step: 1,
+        default: 0,
+        value: this.config.renderMode ?? 0,
+        labels: ['Mesh', 'Cubes']
+      },
       {
         name: 'Wave Amplitude',
         key: 'amplitude',
@@ -99,6 +117,51 @@ export class TerrainVisualizer extends BaseVisualizer {
         value: this.config.sineAmplitude ?? 0.3
       },
       {
+        name: 'Cube Grid',
+        key: 'cubeGrid',
+        min: 8,
+        max: 64,
+        step: 4,
+        default: 32,
+        value: this.config.cubeGrid ?? 32
+      },
+      {
+        name: 'Cube Gap',
+        key: 'cubeGap',
+        min: 0,
+        max: 0.7,
+        step: 0.05,
+        default: 0.15,
+        value: this.config.cubeGap ?? 0.15
+      },
+      {
+        name: 'Cube Steps',
+        key: 'cubeSteps',
+        min: 0,
+        max: 16,
+        step: 1,
+        default: 0,
+        value: this.config.cubeSteps ?? 0
+      },
+      {
+        name: 'Cube Height',
+        key: 'cubeHeight',
+        min: 0.2,
+        max: 4,
+        step: 0.1,
+        default: 1.5,
+        value: this.config.cubeHeight ?? 1.5
+      },
+      {
+        name: 'Cube Rise',
+        key: 'cubeRise',
+        min: 0.05,
+        max: 1,
+        step: 0.05,
+        default: 0.25,
+        value: this.config.cubeRise ?? 0.25
+      },
+      {
         name: 'Hue',
         key: 'hue',
         min: 0,
@@ -122,10 +185,12 @@ export class TerrainVisualizer extends BaseVisualizer {
   
   getPresets(): VisualizerPreset[] {
     return [
-      { name: '1', config: { amplitude: 3.9, speed: 17.5, decay: 0.95, autoRotation: 0.0005, zoomSpeed: 0, segments: 64, sineAmplitude: 0.3, hue: 0, harmonyMode: 0 } },
-      { name: '2', config: { amplitude: 2.4, speed: 6, decay: 0.98, autoRotation: 0.001, zoomSpeed: 0, segments: 96, sineAmplitude: 0.9, hue: 0, harmonyMode: 1 } },
-      { name: '3', config: { amplitude: 5, speed: 25, decay: 0.88, autoRotation: 0.0005, zoomSpeed: 0, segments: 160, sineAmplitude: 0.1, hue: 0, harmonyMode: 2 } },
-      { name: '4', config: { amplitude: 3.5, speed: 14, decay: 0.95, autoRotation: 0.004, zoomSpeed: 0.004, segments: 64, sineAmplitude: 0.5, hue: 0, harmonyMode: 1 } },
+      { name: '1', config: { renderMode: 0, amplitude: 3.9, speed: 17.5, decay: 0.95, autoRotation: 0.0005, zoomSpeed: 0, segments: 64, sineAmplitude: 0.3, hue: 0, harmonyMode: 0 } },
+      { name: '2', config: { renderMode: 0, amplitude: 2.4, speed: 6, decay: 0.98, autoRotation: 0.001, zoomSpeed: 0, segments: 96, sineAmplitude: 0.9, hue: 0, harmonyMode: 1 } },
+      { name: '3', config: { renderMode: 0, amplitude: 5, speed: 25, decay: 0.88, autoRotation: 0.0005, zoomSpeed: 0, segments: 160, sineAmplitude: 0.1, hue: 0, harmonyMode: 2 } },
+      { name: '4', config: { renderMode: 0, amplitude: 3.5, speed: 14, decay: 0.95, autoRotation: 0.004, zoomSpeed: 0.004, segments: 64, sineAmplitude: 0.5, hue: 0, harmonyMode: 1 } },
+      { name: '5', config: { renderMode: 1, amplitude: 3.2, speed: 12, decay: 0.96, autoRotation: 0.002, zoomSpeed: 0, segments: 64, sineAmplitude: 0.25, cubeGrid: 32, cubeGap: 0.15, cubeSteps: 0, cubeHeight: 1.5, cubeRise: 0.25, hue: 0, harmonyMode: 1 } },
+      { name: '6', config: { renderMode: 1, amplitude: 4.2, speed: 8, decay: 0.97, autoRotation: 0.001, zoomSpeed: 0, segments: 64, sineAmplitude: 0.1, cubeGrid: 16, cubeGap: 0, cubeSteps: 8, cubeHeight: 2.2, cubeRise: 0.35, hue: 0, harmonyMode: 0 } },
     ];
   }
 
@@ -216,7 +281,12 @@ export class TerrainVisualizer extends BaseVisualizer {
     this.mesh = new THREE.Mesh(this.geometry, material);
     this.mesh.position.z = -depth / 2;
     this.scene.add(this.mesh);
-    
+
+    // Cube (voxel) mode geometry — shares the same wave history as the mesh
+    this.cubeGrid = this.config.cubeGrid ?? 32;
+    this.buildCubes();
+    this.applyRenderMode();
+
     this.lastUpdateTime = Date.now();
     
     // Add mouse/touch controls
@@ -387,6 +457,153 @@ export class TerrainVisualizer extends BaseVisualizer {
     this.mesh.geometry = this.geometry;
   }
 
+  /**
+   * Build (or rebuild) the instanced cube field used by Cubes render mode.
+   * The field is a square grid centred on the camera's look-at point; each
+   * instance is a unit box anchored at its base so scaling Y grows it upward.
+   */
+  private buildCubes(): void {
+    if (!this.scene) return;
+
+    this.disposeCubes();
+
+    const grid = this.cubeGrid;
+    const count = grid * grid;
+
+    this.cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+    this.cubeGeometry.translate(0, 0.5, 0);
+
+    this.cubeMaterial = new THREE.MeshPhongMaterial({
+      shininess: 20,
+      flatShading: true
+    });
+
+    this.cubeMesh = new THREE.InstancedMesh(this.cubeGeometry, this.cubeMaterial, count);
+    this.cubeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.cubeMesh.frustumCulled = false;
+
+    // Seed instance colors so nothing renders black before the first update
+    const { r, g, b } = this.parseRGB(this.colors.dominant);
+    this.cubeColor.setRGB(r, g, b);
+    for (let i = 0; i < count; i++) {
+      this.cubeMesh.setColorAt(i, this.cubeColor);
+    }
+
+    this.cubeHeights = new Float32Array(count);
+    this.scene.add(this.cubeMesh);
+  }
+
+  private disposeCubes(): void {
+    if (this.cubeMesh) {
+      this.scene?.remove(this.cubeMesh);
+      this.cubeMesh.dispose();
+      this.cubeMesh = null;
+    }
+    if (this.cubeGeometry) {
+      this.cubeGeometry.dispose();
+      this.cubeGeometry = null;
+    }
+    if (this.cubeMaterial) {
+      this.cubeMaterial.dispose();
+      this.cubeMaterial = null;
+    }
+    this.cubeHeights = new Float32Array(0);
+  }
+
+  private isCubeMode(): boolean {
+    return Math.round(this.config.renderMode ?? 0) === 1;
+  }
+
+  private applyRenderMode(): void {
+    const cubes = this.isCubeMode();
+    if (this.mesh) this.mesh.visible = !cubes;
+    if (this.cubeMesh) this.cubeMesh.visible = cubes;
+  }
+
+  /**
+   * Animate the cube field: each column eases toward the height sampled from
+   * the scrolling wave history, so new audio rises at the front and decays as
+   * it travels back through the grid.
+   */
+  private updateCubes(
+    amplitude: number,
+    decayFactors: number[],
+    sineAmp: number,
+    time: number,
+    dominantRGB: { r: number; g: number; b: number },
+    accentRGB: { r: number; g: number; b: number }
+  ): void {
+    if (!this.cubeMesh) return;
+
+    const grid = this.cubeGrid;
+    const fieldSize = 10;
+    const cell = fieldSize / grid;
+    const gap = this.config.cubeGap ?? 0.15;
+    const footprint = cell * (1 - gap);
+    const rise = this.config.cubeRise ?? 0.25;
+    const steps = Math.round(this.config.cubeSteps ?? 0);
+    const heightScale = this.config.cubeHeight ?? 1.5;
+    const stepSize = steps > 0 ? ((amplitude + sineAmp) * heightScale) / steps : 0;
+    const minHeight = cell * 0.35;
+    const centerZ = -5;
+
+    for (let row = 0; row < grid; row++) {
+      // Row 0 is the newest wave and sits nearest the camera
+      const historyRow = Math.min(
+        this.segmentsZ - 1,
+        Math.round((row / Math.max(1, grid - 1)) * (this.segmentsZ - 1))
+      );
+      const decayFactor = decayFactors[historyRow];
+      const wave = this.waveHistory[historyRow];
+      const zNorm = (row / Math.max(1, grid - 1)) * 2 - 1;
+      const z = centerZ + fieldSize / 2 - (row + 0.5) * cell;
+
+      for (let col = 0; col < grid; col++) {
+        const index = row * grid + col;
+        const xNorm = (col / Math.max(1, grid - 1)) * 2 - 1;
+        const x = -fieldSize / 2 + (col + 0.5) * cell;
+
+        const srcX = Math.min(
+          this.segmentsX - 1,
+          Math.round((col / Math.max(1, grid - 1)) * (this.segmentsX - 1))
+        );
+        const waveHeight = (wave?.[srcX] || 0) * decayFactor;
+
+        const sineBase = sineAmp * (
+          Math.sin(xNorm * Math.PI * 2 + time * 0.5) * 0.6 +
+          Math.cos(zNorm * Math.PI * 1.5 + time * 0.3) * 0.4
+        );
+
+        // Ease toward the target height so cubes rise and fall smoothly
+        const target = Math.max(minHeight, (waveHeight + sineBase) * heightScale + minHeight);
+        const current = this.cubeHeights[index] + (target - this.cubeHeights[index]) * rise;
+        this.cubeHeights[index] = current;
+
+        const height = steps > 0
+          ? Math.max(minHeight, Math.round(current / stepSize) * stepSize)
+          : current;
+
+        this.cubeDummy.position.set(x, 0, z);
+        this.cubeDummy.scale.set(footprint, height, footprint);
+        this.cubeDummy.updateMatrix();
+        this.cubeMesh.setMatrixAt(index, this.cubeDummy.matrix);
+
+        const heightIntensity = Math.min(1, Math.abs(waveHeight) / amplitude);
+        this.cubeColor.setRGB(
+          dominantRGB.r + (accentRGB.r - dominantRGB.r) * heightIntensity,
+          dominantRGB.g + (accentRGB.g - dominantRGB.g) * heightIntensity,
+          dominantRGB.b + (accentRGB.b - dominantRGB.b) * heightIntensity
+        );
+        this.cubeMesh.setColorAt(index, this.cubeColor);
+      }
+    }
+
+    this.cubeMesh.instanceMatrix.needsUpdate = true;
+    if (this.cubeMesh.instanceColor) {
+      this.cubeMesh.instanceColor.needsUpdate = true;
+    }
+  }
+
   update(audioAnalysis: AudioAnalysis): void {
     if (!this.isInitialized || !this.geometry || !this.camera) return;
     
@@ -440,6 +657,12 @@ export class TerrainVisualizer extends BaseVisualizer {
     // Sine wave base parameters
     const sineAmp = this.config.sineAmplitude ?? 0.3;
     const time = Date.now() * 0.001;
+
+    // Cube mode renders the same wave history as an instanced voxel field
+    if (this.isCubeMode()) {
+      this.updateCubes(amplitude, decayFactors, sineAmp, time, dominantRGB, accentRGB);
+      return;
+    }
 
     // Update vertices
     for (let z = 0; z < this.segmentsZ; z++) {
@@ -511,6 +734,14 @@ export class TerrainVisualizer extends BaseVisualizer {
       this.cameraDistance = value;
       this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (value - 10) / 5)));
     }
+    if (key === 'cubeGrid') {
+      this.cubeGrid = Math.max(2, Math.round(value));
+      this.buildCubes();
+      this.applyRenderMode();
+    }
+    if (key === 'renderMode') {
+      this.applyRenderMode();
+    }
   }
 
   setDarkMode(isDark: boolean): void {
@@ -533,6 +764,7 @@ export class TerrainVisualizer extends BaseVisualizer {
     if (this.mesh && this.mesh.material) {
       (this.mesh.material as THREE.Material).dispose();
     }
+    this.disposeCubes();
     
     this.scene = null;
     this.camera = null;
