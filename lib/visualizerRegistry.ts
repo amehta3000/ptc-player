@@ -19,7 +19,7 @@ import { RadialPlaneVisualizer } from './visualizers/RadialPlaneVisualizer';
 import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
 import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
-import { BloomVisualizer } from './visualizers/BloomVisualizer';
+import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -313,23 +313,27 @@ VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
   tendrils: 5,
 });
 
-VisualizerRegistry.register('bloom', 'Bloom', BloomVisualizer, {
-  petals: 12,
-  layers: 3,
-  particleCount: 18000,
-  petalLength: 3.4,
-  curl: 1.1,
-  bloomAmount: 1.4,
-  scatter: 1.8,
-  turbulence: 0.08,
-  react: 1.3,
-  particleSize: 0.9,
-  autoRotation: 0.0015,
-  zoomSpeed: 0,
-  cameraDistance: 12,
+VisualizerRegistry.register('arcs', 'Arcs', ArcsVisualizer, {
+  ringCount: 9,
+  startRadius: 0.8,
+  minThickness: 0.15,
+  maxThickness: 1.6,
+  growthExponent: 2.0,
+  gap: 0.25,
+  baseAngle: 250,
+  openingReact: 0.45,
+  audioReact: 0.6,
+  spinSpeed: 0.08,
+  beatSpin: 2.6,
+  beatStagger: 55,
+  rippleDirection: 0,
+  alternateSpin: 1,
+  beatSensitivity: 1.7,
+  smoothing: 0.2,
+  guideOpacity: 0.35,
+  colorMode: 0,
   hue: 0,
   harmonyMode: 1,
 }, {
-  particleCount: 7000,
-  particleSize: 1.4,
+  ringCount: 7,
 });
