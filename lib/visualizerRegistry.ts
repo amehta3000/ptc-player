@@ -19,6 +19,7 @@ import { RadialPlaneVisualizer } from './visualizers/RadialPlaneVisualizer';
 import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
 import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
+import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -310,4 +311,29 @@ VisualizerRegistry.register('plasma', 'Plasma', PlasmaVisualizer, {
   radius: 2.0,
   meshDetail: 5,
   tendrils: 5,
+});
+
+VisualizerRegistry.register('arcs', 'Arcs', ArcsVisualizer, {
+  ringCount: 9,
+  startRadius: 0.8,
+  minThickness: 0.15,
+  maxThickness: 1.6,
+  growthExponent: 2.0,
+  gap: 0.25,
+  baseAngle: 250,
+  openingReact: 0.45,
+  audioReact: 0.6,
+  spinSpeed: 0.08,
+  beatSpin: 2.6,
+  beatStagger: 55,
+  rippleDirection: 0,
+  alternateSpin: 1,
+  beatSensitivity: 1.7,
+  smoothing: 0.2,
+  guideOpacity: 0.35,
+  colorMode: 0,
+  hue: 0,
+  harmonyMode: 1,
+}, {
+  ringCount: 7,
 });
