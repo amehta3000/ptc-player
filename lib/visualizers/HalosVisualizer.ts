@@ -45,7 +45,7 @@ const fragmentShader = /* glsl */`
   uniform float     brightness;
   uniform float     reactivity;
   uniform float     kaleido;
-  uniform vec2      pan;
+  uniform vec2      ringShift;
   uniform float     zoom;
   uniform float     darkMode;
 
@@ -89,10 +89,9 @@ const fragmentShader = /* glsl */`
     vec2 uv = vUv - 0.5;
     uv.x *= resolution.x / max(resolution.y, 1.0);
 
-    // Pan before scaling so a drag moves the viewport across the lattice
-    // (and takes the kaleidoscope's mirror centre with it); zoom divides the
-    // scale, so zooming in makes each halo bigger rather than adding more.
-    vec2 p = (uv + pan) * (scale / max(zoom, 0.05));
+    // Zoom divides the scale, so zooming in makes each halo bigger rather
+    // than adding more of them.
+    vec2 p = uv * (scale / max(zoom, 0.05));
 
     // Fold in screen space so the mirror axes stay pinned to the centre,
     // then travel — the lattice streams through a fixed kaleidoscope
@@ -106,8 +105,11 @@ const fragmentShader = /* glsl */`
       p = abs(p);
     }
 
+    // sizeRadius and the fold above are read from screen position, so they
+    // stay pinned: shifting the lattice here moves the halo inside its cell —
+    // identically in every cell — while the composition around it holds still.
     float sizeRadius = length(p);
-    p += vec2(time * drift * 0.42, time * drift * 0.27);
+    p += ringShift + vec2(time * drift * 0.42, time * drift * 0.27);
 
     // Domain warp — mids ripple the lattice so it never sits still
     float wobble = warp * (0.35 + midLevel * 0.9);
@@ -166,8 +168,8 @@ export class HalosVisualizer extends BaseVisualizer {
 
   private handleResize: (() => void) | null = null;
 
-  // Viewport — dragged/zoomed by the pointer, not exposed as controls
-  private pan = { x: 0, y: 0 };
+  // Pointer state — the halo's offset inside its cell, and the zoom level
+  private ringShift = { x: 0, y: 0 };
   private zoom = 1;
   private isDragging = false;
   private lastPointer = { x: 0, y: 0 };
@@ -349,7 +351,7 @@ export class HalosVisualizer extends BaseVisualizer {
         brightness: { value: this.config.brightness ?? 1.3 },
         reactivity: { value: this.config.reactivity ?? 0.7 },
         kaleido: { value: this.config.kaleido ?? 1 },
-        pan: { value: new THREE.Vector2(0, 0) },
+        ringShift: { value: new THREE.Vector2(0, 0) },
         zoom: { value: 1 },
         darkMode: { value: this.darkMode ? 1 : 0 }
       },
@@ -430,27 +432,31 @@ export class HalosVisualizer extends BaseVisualizer {
     uniforms.brightness.value = this.config.brightness ?? 1.3;
     uniforms.reactivity.value = this.config.reactivity ?? 0.7;
     uniforms.kaleido.value = Math.round(this.config.kaleido ?? 1);
-    uniforms.pan.value.set(this.pan.x, this.pan.y);
+    uniforms.ringShift.value.set(this.ringShift.x, this.ringShift.y);
     uniforms.zoom.value = this.zoom;
   }
 
   /**
-   * Drag to pan across the lattice, wheel or pinch to zoom. Drag deltas are
-   * divided by the viewport height because that is what the shader normalises
-   * uv by, so a pixel of drag moves the same distance regardless of aspect,
-   * and by the zoom so panning stays 1:1 with the pixels under the cursor.
+   * Drag moves the halo within its cell — and so within every cell — while
+   * the kaleidoscope and the size gradient stay put; wheel or pinch zooms.
+   * Deltas are converted from pixels to lattice units by the current cell
+   * size (viewport height over the effective scale), so a halo tracks the
+   * cursor 1:1 at any zoom.
    */
   private setupPointerControls(): void {
     const element = this.container;
     element.style.cursor = 'grab';
     element.style.touchAction = 'none';
 
-    const panBy = (dx: number, dy: number) => {
+    const dragBy = (dx: number, dy: number) => {
       const height = element.clientHeight || 600;
-      // uv.y runs down the screen but the shader's y axis runs up, so the
-      // vertical delta is negated to keep the drag under the cursor
-      this.pan.x -= dx / height / this.zoom;
-      this.pan.y += dy / height / this.zoom;
+      const effectiveScale = (this.config.scale ?? 6) / Math.max(this.zoom, 0.05);
+      const perPixel = effectiveScale / height;
+      // The shader subtracts nothing here, it adds — so the shift runs
+      // opposite the drag to keep the halo under the cursor. uv.y runs up the
+      // screen while pointer y runs down, hence the flipped vertical sign.
+      this.ringShift.x -= dx * perPixel;
+      this.ringShift.y += dy * perPixel;
     };
 
     const zoomBy = (factor: number) => {
@@ -464,7 +470,7 @@ export class HalosVisualizer extends BaseVisualizer {
     };
     const onMouseMove = (e: MouseEvent) => {
       if (!this.isDragging) return;
-      panBy(e.clientX - this.lastPointer.x, e.clientY - this.lastPointer.y);
+      dragBy(e.clientX - this.lastPointer.x, e.clientY - this.lastPointer.y);
       this.lastPointer = { x: e.clientX, y: e.clientY };
     };
     const onMouseUp = () => {
@@ -501,7 +507,7 @@ export class HalosVisualizer extends BaseVisualizer {
         this.pinchDistance = distance;
       } else if (this.isDragging) {
         const touch = e.touches[0];
-        panBy(touch.clientX - this.lastPointer.x, touch.clientY - this.lastPointer.y);
+        dragBy(touch.clientX - this.lastPointer.x, touch.clientY - this.lastPointer.y);
         this.lastPointer = { x: touch.clientX, y: touch.clientY };
       }
     };
