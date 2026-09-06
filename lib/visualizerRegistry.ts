@@ -346,6 +346,8 @@ VisualizerRegistry.register('halos', 'Halos', HalosVisualizer, {
   chroma: 0.05,
   drift: 0.2,
   warp: 0.15,
+  autoRotation: 0.001,
+  zoomSpeed: 0,
   brightness: 1.3,
   reactivity: 0.7,
   kaleido: 1,

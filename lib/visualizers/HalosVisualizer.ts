@@ -47,6 +47,7 @@ const fragmentShader = /* glsl */`
   uniform float     kaleido;
   uniform vec2      ringShift;
   uniform float     zoom;
+  uniform float     rotation;
   uniform float     darkMode;
 
   varying vec2 vUv;
@@ -88,6 +89,12 @@ const fragmentShader = /* glsl */`
   void main() {
     vec2 uv = vUv - 0.5;
     uv.x *= resolution.x / max(resolution.y, 1.0);
+
+    // Rotate before folding so the whole kaleidoscope turns, mirror axes and
+    // all, rather than the lattice spinning inside fixed mirrors.
+    float ca = cos(rotation);
+    float sa = sin(rotation);
+    uv = mat2(ca, -sa, sa, ca) * uv;
 
     // Zoom divides the scale, so zooming in makes each halo bigger rather
     // than adding more of them.
@@ -171,6 +178,12 @@ export class HalosVisualizer extends BaseVisualizer {
   // Pointer state — the halo's offset inside its cell, and the zoom level
   private ringShift = { x: 0, y: 0 };
   private zoom = 1;
+  // Auto rotation angle and the phase driving the auto-zoom breath
+  private rotation = 0;
+  private zoomPhase = 0;
+  // Manual zoom times the auto-zoom breath — what the shader is actually
+  // showing, so drag deltas convert with the on-screen cell size
+  private effectiveZoom = 1;
   private isDragging = false;
   private lastPointer = { x: 0, y: 0 };
   private pinchDistance = 0;
@@ -241,6 +254,24 @@ export class HalosVisualizer extends BaseVisualizer {
         value: this.config.warp ?? 0.15
       },
       {
+        name: 'Auto Rotation',
+        key: 'autoRotation',
+        min: 0,
+        max: 0.01,
+        step: 0.0005,
+        default: 0.001,
+        value: this.config.autoRotation ?? 0.001
+      },
+      {
+        name: 'Zoom Speed',
+        key: 'zoomSpeed',
+        min: 0,
+        max: 0.02,
+        step: 0.001,
+        default: 0,
+        value: this.config.zoomSpeed ?? 0
+      },
+      {
         name: 'Brightness',
         key: 'brightness',
         min: 0.2,
@@ -292,10 +323,10 @@ export class HalosVisualizer extends BaseVisualizer {
 
   getPresets(): VisualizerPreset[] {
     return [
-      { name: '1', config: { scale: 6, ringWidth: 0.5, growth: 0.18, chroma: 0.05, drift: 0.2, warp: 0.15, brightness: 1.3, reactivity: 0.7, kaleido: 1, hue: 0, harmonyMode: 2 } },
-      { name: '2', config: { scale: 4, ringWidth: 0.35, growth: 0.18, chroma: 0.06, drift: 0.1, warp: 0.05, brightness: 1.6, reactivity: 0.9, kaleido: 1, hue: 0, harmonyMode: 2 } },
-      { name: '3', config: { scale: 12, ringWidth: 1.4, growth: 0.04, chroma: 0.015, drift: 0.45, warp: 0.5, brightness: 1.0, reactivity: 0.5, kaleido: 2, hue: 0, harmonyMode: 1 } },
-      { name: '4', config: { scale: 9, ringWidth: 0.5, growth: 0.14, chroma: 0.08, drift: 0.6, warp: 0.35, brightness: 1.4, reactivity: 1.1, kaleido: 0, hue: 0, harmonyMode: 2 } },
+      { name: '1', config: { scale: 6, ringWidth: 0.5, growth: 0.18, chroma: 0.05, drift: 0.2, warp: 0.15, autoRotation: 0.001, zoomSpeed: 0, brightness: 1.3, reactivity: 0.7, kaleido: 1, hue: 0, harmonyMode: 2 } },
+      { name: '2', config: { scale: 4, ringWidth: 0.35, growth: 0.18, chroma: 0.06, drift: 0.1, warp: 0.05, autoRotation: 0.0005, zoomSpeed: 0.004, brightness: 1.6, reactivity: 0.9, kaleido: 1, hue: 0, harmonyMode: 2 } },
+      { name: '3', config: { scale: 12, ringWidth: 1.4, growth: 0.04, chroma: 0.015, drift: 0.45, warp: 0.5, autoRotation: 0.002, zoomSpeed: 0, brightness: 1.0, reactivity: 0.5, kaleido: 2, hue: 0, harmonyMode: 1 } },
+      { name: '4', config: { scale: 9, ringWidth: 0.5, growth: 0.14, chroma: 0.08, drift: 0.6, warp: 0.35, autoRotation: 0.004, zoomSpeed: 0.008, brightness: 1.4, reactivity: 1.1, kaleido: 0, hue: 0, harmonyMode: 2 } },
     ];
   }
 
@@ -353,6 +384,7 @@ export class HalosVisualizer extends BaseVisualizer {
         kaleido: { value: this.config.kaleido ?? 1 },
         ringShift: { value: new THREE.Vector2(0, 0) },
         zoom: { value: 1 },
+        rotation: { value: 0 },
         darkMode: { value: this.darkMode ? 1 : 0 }
       },
       vertexShader,
@@ -432,8 +464,20 @@ export class HalosVisualizer extends BaseVisualizer {
     uniforms.brightness.value = this.config.brightness ?? 1.3;
     uniforms.reactivity.value = this.config.reactivity ?? 0.7;
     uniforms.kaleido.value = Math.round(this.config.kaleido ?? 1);
+    this.rotation += this.config.autoRotation ?? 0.001;
+
+    // Auto zoom breathes around whatever zoom the pointer left it at
+    const zoomSpeed = this.config.zoomSpeed ?? 0;
+    if (zoomSpeed > 0) {
+      this.zoomPhase += zoomSpeed;
+      this.effectiveZoom = this.zoom * (1 + 0.55 * Math.sin(this.zoomPhase));
+    } else {
+      this.effectiveZoom = this.zoom;
+    }
+
     uniforms.ringShift.value.set(this.ringShift.x, this.ringShift.y);
-    uniforms.zoom.value = this.zoom;
+    uniforms.zoom.value = this.effectiveZoom;
+    uniforms.rotation.value = this.rotation;
   }
 
   /**
@@ -450,13 +494,21 @@ export class HalosVisualizer extends BaseVisualizer {
 
     const dragBy = (dx: number, dy: number) => {
       const height = element.clientHeight || 600;
-      const effectiveScale = (this.config.scale ?? 6) / Math.max(this.zoom, 0.05);
+      const effectiveScale = (this.config.scale ?? 6) / Math.max(this.effectiveZoom, 0.05);
       const perPixel = effectiveScale / height;
-      // The shader subtracts nothing here, it adds — so the shift runs
-      // opposite the drag to keep the halo under the cursor. uv.y runs up the
-      // screen while pointer y runs down, hence the flipped vertical sign.
-      this.ringShift.x -= dx * perPixel;
-      this.ringShift.y += dy * perPixel;
+
+      // The shader adds ringShift, so the shift runs opposite the drag to keep
+      // the halo under the cursor. uv.y runs up the screen while pointer y runs
+      // down, hence the flipped vertical sign.
+      let sx = -dx * perPixel;
+      let sy = dy * perPixel;
+
+      // ringShift lives in the rotated lattice frame, so a screen-space drag
+      // has to be rotated into it or the halo slides off at an angle
+      const ca = Math.cos(this.rotation);
+      const sa = Math.sin(this.rotation);
+      this.ringShift.x += ca * sx - sa * sy;
+      this.ringShift.y += sa * sx + ca * sy;
     };
 
     const zoomBy = (factor: number) => {
