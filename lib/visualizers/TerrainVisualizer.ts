@@ -548,7 +548,8 @@ export class TerrainVisualizer extends BaseVisualizer {
     const centerZ = -5;
 
     for (let row = 0; row < grid; row++) {
-      // Row 0 is the newest wave and sits nearest the camera
+      // Row 0 is the newest wave and sits at the far end of the field, so
+      // waves travel toward the viewer exactly as they do in mesh mode.
       const historyRow = Math.min(
         this.segmentsZ - 1,
         Math.round((row / Math.max(1, grid - 1)) * (this.segmentsZ - 1))
@@ -556,7 +557,7 @@ export class TerrainVisualizer extends BaseVisualizer {
       const decayFactor = decayFactors[historyRow];
       const wave = this.waveHistory[historyRow];
       const zNorm = (row / Math.max(1, grid - 1)) * 2 - 1;
-      const z = centerZ + fieldSize / 2 - (row + 0.5) * cell;
+      const z = centerZ - fieldSize / 2 + (row + 0.5) * cell;
 
       for (let col = 0; col < grid; col++) {
         const index = row * grid + col;
