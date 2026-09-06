@@ -20,6 +20,7 @@ import { RadialSpokesVisualizer } from './visualizers/RadialSpokesVisualizer';
 import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
 import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
+import { HalosVisualizer } from './visualizers/HalosVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -336,4 +337,20 @@ VisualizerRegistry.register('arcs', 'Arcs', ArcsVisualizer, {
   harmonyMode: 1,
 }, {
   ringCount: 7,
+});
+
+VisualizerRegistry.register('halos', 'Halos', HalosVisualizer, {
+  scale: 6,
+  ringWidth: 0.5,
+  growth: 0.18,
+  chroma: 0.05,
+  drift: 0.2,
+  warp: 0.15,
+  brightness: 1.3,
+  reactivity: 0.7,
+  kaleido: 1,
+  hue: 0,
+  harmonyMode: 2,
+}, {
+  scale: 4,
 });
