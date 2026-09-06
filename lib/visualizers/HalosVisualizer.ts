@@ -45,6 +45,8 @@ const fragmentShader = /* glsl */`
   uniform float     brightness;
   uniform float     reactivity;
   uniform float     kaleido;
+  uniform vec2      pan;
+  uniform float     zoom;
   uniform float     darkMode;
 
   varying vec2 vUv;
@@ -69,8 +71,11 @@ const fragmentShader = /* glsl */`
     float pulse = bin * reactivity * 0.35 + bassLevel * 0.08;
 
     // sizeRadius is the distance from screen centre, so halos open out toward
-    // the edges while the middle stays small and crisp
-    float r = 0.2 + sizeRadius * growth + pulse + radiusOffset;
+    // the edges while the middle stays small and crisp. The growth term
+    // saturates: past a point a ring would outgrow its cell entirely and stop
+    // intersecting it, which blanks the field when you zoom out.
+    float grown = 0.6 * growth * sizeRadius / (0.6 + growth * sizeRadius);
+    float r = 0.2 + grown + pulse + radiusOffset;
     r += 0.03 * sin(sizeRadius * 0.9 - time * 1.7);
     r  = max(r, 0.02);
 
@@ -84,7 +89,10 @@ const fragmentShader = /* glsl */`
     vec2 uv = vUv - 0.5;
     uv.x *= resolution.x / max(resolution.y, 1.0);
 
-    vec2 p = uv * scale;
+    // Pan before scaling so a drag moves the viewport across the lattice
+    // (and takes the kaleidoscope's mirror centre with it); zoom divides the
+    // scale, so zooming in makes each halo bigger rather than adding more.
+    vec2 p = (uv + pan) * (scale / max(zoom, 0.05));
 
     // Fold in screen space so the mirror axes stay pinned to the centre,
     // then travel — the lattice streams through a fixed kaleidoscope
@@ -157,6 +165,14 @@ export class HalosVisualizer extends BaseVisualizer {
   private startTime = 0;
 
   private handleResize: (() => void) | null = null;
+
+  // Viewport — dragged/zoomed by the pointer, not exposed as controls
+  private pan = { x: 0, y: 0 };
+  private zoom = 1;
+  private isDragging = false;
+  private lastPointer = { x: 0, y: 0 };
+  private pinchDistance = 0;
+  private detachPointerControls: (() => void) | null = null;
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -333,6 +349,8 @@ export class HalosVisualizer extends BaseVisualizer {
         brightness: { value: this.config.brightness ?? 1.3 },
         reactivity: { value: this.config.reactivity ?? 0.7 },
         kaleido: { value: this.config.kaleido ?? 1 },
+        pan: { value: new THREE.Vector2(0, 0) },
+        zoom: { value: 1 },
         darkMode: { value: this.darkMode ? 1 : 0 }
       },
       vertexShader,
@@ -347,6 +365,8 @@ export class HalosVisualizer extends BaseVisualizer {
     this.scene.add(this.mesh);
 
     this.startTime = performance.now();
+
+    this.setupPointerControls();
 
     this.handleResize = () => {
       if (!this.renderer || !this.material) return;
@@ -410,6 +430,107 @@ export class HalosVisualizer extends BaseVisualizer {
     uniforms.brightness.value = this.config.brightness ?? 1.3;
     uniforms.reactivity.value = this.config.reactivity ?? 0.7;
     uniforms.kaleido.value = Math.round(this.config.kaleido ?? 1);
+    uniforms.pan.value.set(this.pan.x, this.pan.y);
+    uniforms.zoom.value = this.zoom;
+  }
+
+  /**
+   * Drag to pan across the lattice, wheel or pinch to zoom. Drag deltas are
+   * divided by the viewport height because that is what the shader normalises
+   * uv by, so a pixel of drag moves the same distance regardless of aspect,
+   * and by the zoom so panning stays 1:1 with the pixels under the cursor.
+   */
+  private setupPointerControls(): void {
+    const element = this.container;
+    element.style.cursor = 'grab';
+    element.style.touchAction = 'none';
+
+    const panBy = (dx: number, dy: number) => {
+      const height = element.clientHeight || 600;
+      // uv.y runs down the screen but the shader's y axis runs up, so the
+      // vertical delta is negated to keep the drag under the cursor
+      this.pan.x -= dx / height / this.zoom;
+      this.pan.y += dy / height / this.zoom;
+    };
+
+    const zoomBy = (factor: number) => {
+      this.zoom = Math.max(0.2, Math.min(8, this.zoom * factor));
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      this.isDragging = true;
+      this.lastPointer = { x: e.clientX, y: e.clientY };
+      element.style.cursor = 'grabbing';
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!this.isDragging) return;
+      panBy(e.clientX - this.lastPointer.x, e.clientY - this.lastPointer.y);
+      this.lastPointer = { x: e.clientX, y: e.clientY };
+    };
+    const onMouseUp = () => {
+      this.isDragging = false;
+      element.style.cursor = 'grab';
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      zoomBy(Math.exp(-e.deltaY * 0.0015));
+    };
+
+    const touchDistance = (e: TouchEvent) => Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        this.isDragging = false;
+        this.pinchDistance = touchDistance(e);
+      } else {
+        this.isDragging = true;
+        this.lastPointer = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const distance = touchDistance(e);
+        if (this.pinchDistance > 0) {
+          zoomBy(distance / this.pinchDistance);
+        }
+        this.pinchDistance = distance;
+      } else if (this.isDragging) {
+        const touch = e.touches[0];
+        panBy(touch.clientX - this.lastPointer.x, touch.clientY - this.lastPointer.y);
+        this.lastPointer = { x: touch.clientX, y: touch.clientY };
+      }
+    };
+    const onTouchEnd = () => {
+      this.isDragging = false;
+      this.pinchDistance = 0;
+    };
+
+    element.addEventListener('mousedown', onMouseDown);
+    element.addEventListener('mousemove', onMouseMove);
+    element.addEventListener('mouseup', onMouseUp);
+    element.addEventListener('mouseleave', onMouseUp);
+    element.addEventListener('wheel', onWheel, { passive: false });
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: false });
+    element.addEventListener('touchend', onTouchEnd);
+
+    this.detachPointerControls = () => {
+      element.removeEventListener('mousedown', onMouseDown);
+      element.removeEventListener('mousemove', onMouseMove);
+      element.removeEventListener('mouseup', onMouseUp);
+      element.removeEventListener('mouseleave', onMouseUp);
+      element.removeEventListener('wheel', onWheel);
+      element.removeEventListener('touchstart', onTouchStart);
+      element.removeEventListener('touchmove', onTouchMove);
+      element.removeEventListener('touchend', onTouchEnd);
+      element.style.cursor = '';
+      element.style.touchAction = '';
+    };
   }
 
   render(): void {
@@ -434,6 +555,11 @@ export class HalosVisualizer extends BaseVisualizer {
     if (this.handleResize) {
       window.removeEventListener('resize', this.handleResize);
       this.handleResize = null;
+    }
+
+    if (this.detachPointerControls) {
+      this.detachPointerControls();
+      this.detachPointerControls = null;
     }
 
     if (this.mesh && this.scene) {
