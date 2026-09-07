@@ -81,8 +81,11 @@ const fragmentShader = /* glsl */`
     r  = max(r, 0.02);
 
     float d = abs(length(f) - r);
-    // Rings sharpen as the highs come up
-    float w = ringWidth * (1.0 - highLevel * 0.35) + 0.001;
+    // Rings sharpen as the highs come up. Widening them a little as you zoom
+    // out keeps far views from thinning to invisible hairlines — but only a
+    // little, since full screen-space compensation merges them into a wash.
+    float zoomWiden = clamp(zoom, 0.45, 1.5);
+    float w = ringWidth * zoomWiden * (1.0 - highLevel * 0.35) + 0.001;
     return 0.014 / (d * w + 0.004);
   }
 
@@ -290,6 +293,16 @@ export class HalosVisualizer extends BaseVisualizer {
         value: this.config.reactivity ?? 0.7
       },
       {
+        name: 'View',
+        key: 'resetView',
+        min: 0,
+        max: 0,
+        step: 1,
+        default: 0,
+        value: 0,
+        labels: ['Reset']
+      },
+      {
         name: 'Kaleido',
         key: 'kaleido',
         min: 0,
@@ -323,10 +336,13 @@ export class HalosVisualizer extends BaseVisualizer {
 
   getPresets(): VisualizerPreset[] {
     return [
-      { name: '1', config: { scale: 6, ringWidth: 0.5, growth: 0.18, chroma: 0.05, drift: 0.2, warp: 0.15, autoRotation: 0.001, zoomSpeed: 0, brightness: 1.3, reactivity: 0.7, kaleido: 1, hue: 0, harmonyMode: 2 } },
-      { name: '2', config: { scale: 4, ringWidth: 0.35, growth: 0.18, chroma: 0.06, drift: 0.1, warp: 0.05, autoRotation: 0.0005, zoomSpeed: 0.004, brightness: 1.6, reactivity: 0.9, kaleido: 1, hue: 0, harmonyMode: 2 } },
+      // Warm, medium lattice — the house look
+      { name: '1', config: { scale: 5, ringWidth: 0.45, growth: 0.2, chroma: 0.05, drift: 0.15, warp: 0.1, autoRotation: 0.0008, zoomSpeed: 0, brightness: 1.3, reactivity: 0.7, kaleido: 1, hue: 35, harmonyMode: 1 } },
+      // A handful of enormous halos, thin and bright, breathing slowly
+      { name: '2', config: { scale: 2.5, ringWidth: 0.22, growth: 0.28, chroma: 0.09, drift: 0.05, warp: 0, autoRotation: 0.0004, zoomSpeed: 0.003, brightness: 1.7, reactivity: 1.0, kaleido: 1, hue: 200, harmonyMode: 2 } },
       { name: '3', config: { scale: 12, ringWidth: 1.4, growth: 0.04, chroma: 0.015, drift: 0.45, warp: 0.5, autoRotation: 0.002, zoomSpeed: 0, brightness: 1.0, reactivity: 0.5, kaleido: 2, hue: 0, harmonyMode: 1 } },
-      { name: '4', config: { scale: 9, ringWidth: 0.5, growth: 0.14, chroma: 0.08, drift: 0.6, warp: 0.35, autoRotation: 0.004, zoomSpeed: 0.008, brightness: 1.4, reactivity: 1.1, kaleido: 0, hue: 0, harmonyMode: 2 } },
+      // Unfolded fine mesh, fast and busy, at the far end of the palette
+      { name: '4', config: { scale: 16, ringWidth: 1.1, growth: 0.06, chroma: 0.02, drift: 0.7, warp: 0.25, autoRotation: 0.005, zoomSpeed: 0.01, brightness: 1.1, reactivity: 1.2, kaleido: 0, hue: 300, harmonyMode: 2 } },
     ];
   }
 
@@ -470,7 +486,7 @@ export class HalosVisualizer extends BaseVisualizer {
     const zoomSpeed = this.config.zoomSpeed ?? 0;
     if (zoomSpeed > 0) {
       this.zoomPhase += zoomSpeed;
-      this.effectiveZoom = this.zoom * (1 + 0.55 * Math.sin(this.zoomPhase));
+      this.effectiveZoom = this.zoom * Math.pow(2, 0.7 * Math.sin(this.zoomPhase));
     } else {
       this.effectiveZoom = this.zoom;
     }
@@ -512,8 +528,10 @@ export class HalosVisualizer extends BaseVisualizer {
     };
 
     const zoomBy = (factor: number) => {
-      this.zoom = Math.max(0.2, Math.min(8, this.zoom * factor));
+      this.zoom = Math.max(0.05, Math.min(8, this.zoom * factor));
     };
+
+    const onDoubleClick = () => this.resetView();
 
     const onMouseDown = (e: MouseEvent) => {
       this.isDragging = true;
@@ -568,6 +586,7 @@ export class HalosVisualizer extends BaseVisualizer {
       this.pinchDistance = 0;
     };
 
+    element.addEventListener('dblclick', onDoubleClick);
     element.addEventListener('mousedown', onMouseDown);
     element.addEventListener('mousemove', onMouseMove);
     element.addEventListener('mouseup', onMouseUp);
@@ -578,6 +597,7 @@ export class HalosVisualizer extends BaseVisualizer {
     element.addEventListener('touchend', onTouchEnd);
 
     this.detachPointerControls = () => {
+      element.removeEventListener('dblclick', onDoubleClick);
       element.removeEventListener('mousedown', onMouseDown);
       element.removeEventListener('mousemove', onMouseMove);
       element.removeEventListener('mouseup', onMouseUp);
@@ -594,6 +614,24 @@ export class HalosVisualizer extends BaseVisualizer {
   render(): void {
     if (!this.isInitialized || !this.renderer || !this.scene || !this.camera) return;
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Put the pointer-driven view back to square one. */
+  private resetView(): void {
+    this.ringShift = { x: 0, y: 0 };
+    this.zoom = 1;
+    this.effectiveZoom = 1;
+    this.rotation = 0;
+    this.zoomPhase = 0;
+  }
+
+  updateConfig(key: string, value: number): void {
+    super.updateConfig(key, value);
+    // The Reset chip fires on every click, including when already selected,
+    // so it works as a plain button
+    if (key === 'resetView') {
+      this.resetView();
+    }
   }
 
   setDarkMode(isDark: boolean): void {
