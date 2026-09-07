@@ -42,7 +42,12 @@ export class TerrainVisualizer extends BaseVisualizer {
   }
   
   getControls(): VisualizerControl[] {
-    return [
+    // The cube field's own knobs do nothing in Mesh mode, so they only appear
+    // once Cubes is selected
+    const cubeOnly = new Set(['cubeGrid', 'cubeGap', 'cubeSteps', 'cubeHeight', 'cubeRise']);
+    const cubes = this.isCubeMode();
+
+    const controls: VisualizerControl[] = [
       {
         name: 'Render Mode',
         key: 'renderMode',
@@ -149,8 +154,8 @@ export class TerrainVisualizer extends BaseVisualizer {
         min: 0.2,
         max: 4,
         step: 0.1,
-        default: 1.5,
-        value: this.config.cubeHeight ?? 1.5
+        default: 1.0,
+        value: this.config.cubeHeight ?? 1.0
       },
       {
         name: 'Cube Rise',
@@ -181,6 +186,8 @@ export class TerrainVisualizer extends BaseVisualizer {
         labels: ['Mono', 'Analog', 'Comp']
       }
     ];
+
+    return controls.filter((control) => cubes || !cubeOnly.has(control.key));
   }
   
   getPresets(): VisualizerPreset[] {
@@ -189,8 +196,8 @@ export class TerrainVisualizer extends BaseVisualizer {
       { name: '2', config: { renderMode: 0, amplitude: 2.4, speed: 6, decay: 0.98, autoRotation: 0.001, zoomSpeed: 0, segments: 96, sineAmplitude: 0.9, hue: 0, harmonyMode: 1 } },
       { name: '3', config: { renderMode: 0, amplitude: 5, speed: 25, decay: 0.88, autoRotation: 0.0005, zoomSpeed: 0, segments: 160, sineAmplitude: 0.1, hue: 0, harmonyMode: 2 } },
       { name: '4', config: { renderMode: 0, amplitude: 3.5, speed: 14, decay: 0.95, autoRotation: 0.004, zoomSpeed: 0.004, segments: 64, sineAmplitude: 0.5, hue: 0, harmonyMode: 1 } },
-      { name: '5', config: { renderMode: 1, amplitude: 3.2, speed: 12, decay: 0.96, autoRotation: 0.002, zoomSpeed: 0, segments: 64, sineAmplitude: 0.25, cubeGrid: 32, cubeGap: 0.15, cubeSteps: 0, cubeHeight: 1.5, cubeRise: 0.25, hue: 0, harmonyMode: 1 } },
-      { name: '6', config: { renderMode: 1, amplitude: 4.2, speed: 8, decay: 0.97, autoRotation: 0.001, zoomSpeed: 0, segments: 64, sineAmplitude: 0.1, cubeGrid: 16, cubeGap: 0, cubeSteps: 8, cubeHeight: 2.2, cubeRise: 0.35, hue: 0, harmonyMode: 0 } },
+      { name: '5', config: { renderMode: 1, amplitude: 3.2, speed: 12, decay: 0.96, autoRotation: 0.002, zoomSpeed: 0, segments: 64, sineAmplitude: 0.25, cubeGrid: 32, cubeGap: 0.15, cubeSteps: 0, cubeHeight: 1.0, cubeRise: 0.25, hue: 0, harmonyMode: 1 } },
+      { name: '6', config: { renderMode: 1, amplitude: 4.2, speed: 8, decay: 0.97, autoRotation: 0.001, zoomSpeed: 0, segments: 64, sineAmplitude: 0.1, cubeGrid: 16, cubeGap: 0, cubeSteps: 8, cubeHeight: 1.4, cubeRise: 0.35, hue: 0, harmonyMode: 0 } },
     ];
   }
 
@@ -542,7 +549,7 @@ export class TerrainVisualizer extends BaseVisualizer {
     const footprint = cell * (1 - gap);
     const rise = this.config.cubeRise ?? 0.25;
     const steps = Math.round(this.config.cubeSteps ?? 0);
-    const heightScale = this.config.cubeHeight ?? 1.5;
+    const heightScale = this.config.cubeHeight ?? 1.0;
     const stepSize = steps > 0 ? ((amplitude + sineAmp) * heightScale) / steps : 0;
     const minHeight = cell * 0.35;
     const centerZ = -5;
