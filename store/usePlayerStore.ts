@@ -83,8 +83,9 @@ interface PlayerActions {
   playPrevious: () => { action: 'restart' } | { action: 'previous'; mix: Mix } | null;
 }
 
-// 'ripples' merged into 'radial' (Solid style); kept registered for old share links but not in the cycle
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ridge', 'sonicGalaxy', 'constellation', 'particleField', 'orb', 'bars', /* 'plasma', 'web', 'chrysalis', */ 'arcs', 'halos', 'raindrops', 'sacredGeometry'];
+// 'ripples' merged into 'radial' (Solid style) and 'sonicGalaxy' into 'constellation'
+// (Edges off); both stay registered for old share links but are out of the cycle
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ridge', 'constellation', 'particleField', 'orb', 'bars', /* 'plasma', 'web', 'chrysalis', */ 'arcs', 'halos', 'raindrops', 'sacredGeometry'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',

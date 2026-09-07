@@ -9,7 +9,6 @@ import { OrbVisualizer } from './visualizers/OrbVisualizer';
 import { WebVisualizer } from './visualizers/WebVisualizer';
 import { TerrainVisualizer } from './visualizers/TerrainVisualizer';
 // import { ChrysalisVisualizer } from './visualizers/ChrysalisVisualizer'; // retired
-import { SonicGalaxyVisualizer } from './visualizers/SonicGalaxyVisualizer';
 import { RaindropsVisualizer } from './visualizers/RaindropsVisualizer';
 import { CassetteVisualizer } from './visualizers/CassetteVisualizer';
 import { SacredGeometryVisualizer } from './visualizers/SacredGeometryVisualizer';
@@ -142,22 +141,6 @@ VisualizerRegistry.register('terrain', 'Terrain', TerrainVisualizer, {
 //   hue: 0,
 // });
 
-VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', SonicGalaxyVisualizer, {
-  particleCount: 4000,
-  attractorCount: 3,
-  gravity: 7.0,
-  maxSpeed: 0.5,
-  particleSize: 0.5,
-  cameraSpeed: 0.001,
-  zoomSpeed: 0,
-  trail: 0,
-  hue: 0,
-  harmonyMode: 0,
-}, {
-  particleSize: 1.0,
-  trail: 0.12,
-});
-
 VisualizerRegistry.register('raindrops', 'Raindrops', RaindropsVisualizer, {
   maxRipples: 64,
   bassThreshold: 0.10,
@@ -204,6 +187,29 @@ VisualizerRegistry.register('constellation', 'Constellation', ConstellationVisua
   trail: 0,
   hue: 0,
   harmonyMode: 0,
+  edges: 1,
+  connectionThreshold: 0.6,
+  edgeOpacity: 0.5,
+  maxConnections: 3,
+}, {
+  particleSize: 1.0,
+  trail: 0.12,
+});
+
+// Sonic Galaxy merged into Constellation (same simulation, Edges off). This
+// alias keeps old share links working; it is not in the VISUALIZER_TYPES cycle.
+VisualizerRegistry.register('sonicGalaxy', 'Sonic Galaxy', ConstellationVisualizer, {
+  particleCount: 4000,
+  attractorCount: 3,
+  gravity: 7.0,
+  maxSpeed: 0.5,
+  particleSize: 0.5,
+  cameraSpeed: 0.001,
+  zoomSpeed: 0,
+  trail: 0,
+  hue: 0,
+  harmonyMode: 0,
+  edges: 0,
   connectionThreshold: 0.6,
   edgeOpacity: 0.5,
   maxConnections: 3,

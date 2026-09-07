@@ -261,9 +261,9 @@ init(): void {
 }
 ```
 
-## Example: SonicGalaxyVisualizer
+## Example: ConstellationVisualizer
 
-See `SonicGalaxyVisualizer.ts` for a complete, production-ready example following all these patterns.
+See `ConstellationVisualizer.ts` for a complete, production-ready example following all these patterns.
 
 ## Troubleshooting
 

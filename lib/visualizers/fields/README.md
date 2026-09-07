@@ -77,7 +77,7 @@ never leaks into the next.
 - **Stateless.** Positions are recomputed from scratch every frame, so a field
   cannot integrate velocity. Anything needing real physics (attractors, boids,
   springs) wants a full `BaseVisualizer` subclass instead — see
-  `../SonicGalaxyVisualizer.ts`.
+  `../ConstellationVisualizer.ts`.
 - **Main thread.** The body runs `particleCount` times per frame in JS. 12,000
   is the desktop default and 30,000 the ceiling; mobile drops to 4,000 via the
   registry's `mobileConfig`. Keep bodies to plain arithmetic.
