@@ -1,16 +1,27 @@
 /**
  * Constellation Visualizer
  *
- * Forked from Sonic Galaxy — treats particles as nodes in a dynamic graph.
- * When nodes drift close, luminous edges form between them; as they separate,
- * edges stretch thin and snap. The result is an audio-reactive network that
- * constantly assembles and disintegrates — a living constellation.
+ * A particle-based visualizer featuring gravitational attractors that react to
+ * audio frequencies, with an optional edge layer that treats those particles as
+ * nodes in a dynamic graph. When nodes drift close, luminous edges form between
+ * them; as they separate, edges stretch thin and snap.
  *
- * Key additions over Sonic Galaxy:
- * - Spatial-hashed proximity detection (O(n×k) not O(n²))
+ * Absorbs the former "Sonic Galaxy" visualizer, which was this same simulation
+ * without the edge layer — turn Edges off for that look (the `sonicGalaxy` type
+ * is still registered as an alias so old share links land on it).
+ *
+ * Simulation:
+ * - Configurable particles forming a dynamic galaxy
+ * - Multiple attractors positioned in spherical formation
+ * - Bass controls attractor gravity, mids control spin, highs control energy
+ * - Beat detection creates gravity waves with outward velocity kicks
+ * - Soft boundary, auto-rotating camera, optional trail/blur for nebula smear
+ *
+ * Edge layer (Edges = On):
+ * - Spatial-hashed proximity detection (O(n x k) not O(n^2))
  * - THREE.LineSegments edge mesh with additive-blend alpha fade
  * - Configurable connection threshold, edge opacity, max connections per node
- * - Bass pulses briefly expand threshold → burst of connections on kicks
+ * - Bass pulses briefly expand threshold -> burst of connections on kicks
  */
 
 import * as THREE from 'three';
@@ -94,8 +105,10 @@ export class ConstellationVisualizer extends BaseVisualizer {
   }
 
   getControls(): VisualizerControl[] {
-    return [
-      { name: 'Particle Count', key: 'particleCount', min: 400, max: 10000, step: 200, default: 2000, value: this.config.particleCount || 2000 },
+    const edgesOn = (this.config.edges ?? 1) > 0.5;
+
+    const controls: VisualizerControl[] = [
+      { name: 'Particle Count', key: 'particleCount', min: 400, max: 46000, step: 400, default: 2000, value: this.config.particleCount || 2000 },
       { name: 'Attractor Count', key: 'attractorCount', min: 2, max: 6, step: 1, default: 3, value: this.config.attractorCount || 3 },
       { name: 'Max Speed', key: 'maxSpeed', min: 0, max: 10, step: 0.5, default: 0.5, value: this.config.maxSpeed ?? 0.5 },
       { name: 'Particle Size', key: 'particleSize', min: 0.2, max: 2, step: 0.1, default: 0.5, value: this.config.particleSize || 0.5 },
@@ -105,29 +118,52 @@ export class ConstellationVisualizer extends BaseVisualizer {
       { name: 'Hue', key: 'hue', min: 0, max: 360, step: 1, default: 0, value: this.config.hue ?? 0 },
       { name: 'Harmony', key: 'harmonyMode', min: 0, max: 2, step: 1, default: 0, value: this.config.harmonyMode ?? 0, labels: ['Mono', 'Analog', 'Comp'] },
       { name: 'Gravity', key: 'gravity', min: 0, max: 10, step: 0.5, default: 7.0, value: this.config.gravity ?? 7.0 },
-      { name: 'Connection Dist', key: 'connectionThreshold', min: 0.1, max: 2.0, step: 0.05, default: 0.6, value: this.config.connectionThreshold ?? 0.6 },
-      { name: 'Edge Opacity', key: 'edgeOpacity', min: 0, max: 1, step: 0.05, default: 0.5, value: this.config.edgeOpacity ?? 0.5 },
-      { name: 'Max Connections', key: 'maxConnections', min: 1, max: 8, step: 1, default: 3, value: this.config.maxConnections ?? 3 },
+      { name: 'Edges', key: 'edges', min: 0, max: 1, step: 1, default: 1, value: edgesOn ? 1 : 0, labels: ['Off', 'On'] },
     ];
+
+    // Edge sliders only mean something while the edge layer is drawing.
+    if (edgesOn) {
+      controls.push(
+        { name: 'Connection Dist', key: 'connectionThreshold', min: 0.1, max: 2.0, step: 0.05, default: 0.6, value: this.config.connectionThreshold ?? 0.6 },
+        { name: 'Edge Opacity', key: 'edgeOpacity', min: 0, max: 1, step: 0.05, default: 0.5, value: this.config.edgeOpacity ?? 0.5 },
+        { name: 'Max Connections', key: 'maxConnections', min: 1, max: 8, step: 1, default: 3, value: this.config.maxConnections ?? 3 },
+      );
+    }
+
+    return controls;
   }
 
   getPresets(): VisualizerPreset[] {
     return [
+      // 1-3: networked looks (edges on)
       {
         name: '1',
-        config: { particleCount: 2000, attractorCount: 3, gravity: 7.0, maxSpeed: 0.5, particleSize: 0.5, cameraSpeed: 0.001, trail: 0, hue: 0, harmonyMode: 0, connectionThreshold: 0.6, edgeOpacity: 0.5, maxConnections: 3 }
+        config: { particleCount: 2000, attractorCount: 3, gravity: 7.0, maxSpeed: 0.5, particleSize: 0.5, cameraSpeed: 0.001, trail: 0, hue: 0, harmonyMode: 0, edges: 1, connectionThreshold: 0.6, edgeOpacity: 0.5, maxConnections: 3 }
       },
       {
         name: '2',
-        config: { particleCount: 3000, attractorCount: 4, gravity: 9.0, maxSpeed: 0.5, particleSize: 0.5, cameraSpeed: 0.002, trail: 0.14, hue: 200, harmonyMode: 1, connectionThreshold: 0.8, edgeOpacity: 0.6, maxConnections: 4 }
+        config: { particleCount: 3000, attractorCount: 4, gravity: 9.0, maxSpeed: 0.5, particleSize: 0.5, cameraSpeed: 0.002, trail: 0.14, hue: 200, harmonyMode: 1, edges: 1, connectionThreshold: 0.8, edgeOpacity: 0.6, maxConnections: 4 }
       },
       {
         name: '3',
-        config: { particleCount: 1000, attractorCount: 2, gravity: 5.0, maxSpeed: 1.0, particleSize: 0.5, cameraSpeed: 0.005, trail: 0, hue: 280, harmonyMode: 2, connectionThreshold: 1.2, edgeOpacity: 0.4, maxConnections: 5 }
+        config: { particleCount: 1000, attractorCount: 2, gravity: 5.0, maxSpeed: 1.0, particleSize: 0.5, cameraSpeed: 0.005, trail: 0, hue: 280, harmonyMode: 2, edges: 1, connectionThreshold: 1.2, edgeOpacity: 0.4, maxConnections: 5 }
       },
       {
         name: '4',
-        config: { particleCount: 4000, attractorCount: 6, gravity: 3.0, maxSpeed: 0.5, particleSize: 0.5, cameraSpeed: 0.001, trail: 0.06, hue: 30, harmonyMode: 1, connectionThreshold: 0.4, edgeOpacity: 0.7, maxConnections: 2 }
+        config: { particleCount: 4000, attractorCount: 6, gravity: 3.0, maxSpeed: 0.5, particleSize: 0.5, cameraSpeed: 0.001, trail: 0.06, hue: 30, harmonyMode: 1, edges: 1, connectionThreshold: 0.4, edgeOpacity: 0.7, maxConnections: 2 }
+      },
+      // 5-7: the former Sonic Galaxy presets (edges off — pure particle galaxy)
+      {
+        name: '5',
+        config: { particleCount: 1000, attractorCount: 2, gravity: 10.0, maxSpeed: 0, particleSize: 0.5, cameraSpeed: 0.01, trail: 0.40, hue: 0, harmonyMode: 0, edges: 0 }
+      },
+      {
+        name: '6',
+        config: { particleCount: 4000, attractorCount: 4, gravity: 7.0, maxSpeed: 4.0, particleSize: 0.5, cameraSpeed: 0.001, trail: 0.03, hue: 30, harmonyMode: 2, edges: 0 }
+      },
+      {
+        name: '7',
+        config: { particleCount: 37200, attractorCount: 2, gravity: 0.5, maxSpeed: 0.0, particleSize: 0.5, cameraSpeed: 0.01, trail: 0.06, hue: 0, harmonyMode: 1, edges: 0 }
       }
     ];
   }
@@ -382,6 +418,18 @@ export class ConstellationVisualizer extends BaseVisualizer {
 
   private updateEdges(): void {
     if (!this.edgePositions || !this.edgeColors || !this.particleMesh) return;
+
+    // Edges off: hide the mesh and skip the proximity pass entirely, leaving
+    // the bare particle galaxy (the former Sonic Galaxy).
+    if ((this.config.edges ?? 1) < 0.5) {
+      if (this.edgeMesh && this.edgeMesh.visible) {
+        this.edgeMesh.visible = false;
+        this.edgeMesh.geometry.setDrawRange(0, 0);
+        this.edgeCount = 0;
+      }
+      return;
+    }
+    if (this.edgeMesh && !this.edgeMesh.visible) this.edgeMesh.visible = true;
 
     const threshold = (this.config.connectionThreshold ?? 0.6) + this.thresholdBoost;
     const baseOpacity = this.config.edgeOpacity ?? 0.5;
@@ -779,6 +827,8 @@ export class ConstellationVisualizer extends BaseVisualizer {
     }
 
     if (key === 'attractorCount' && this.scene) this.initializeAttractors();
+
+    if (key === 'edges') this.updateEdges();
     if (key === 'cameraDistance') { this.cameraDistance = value; this.updateCameraPosition(); }
 
     if (key === 'particleSize' && this.particleMesh) {

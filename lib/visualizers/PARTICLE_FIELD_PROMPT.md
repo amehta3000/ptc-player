@@ -170,7 +170,7 @@ keeping if you adapt the prompt:
 - **No persistent state.** Fields are pure functions. Anything needing
   integrated velocity (gravitational attractors, boids, springs) does not fit
   this host — write a full `BaseVisualizer` subclass for that, the way
-  `SonicGalaxyVisualizer` does.
+  `ConstellationVisualizer` does.
 - **No `Math.random()`.** Positions are recomputed from scratch every frame,
   so a random call gives a particle a different position each frame. Use
   `hash(i)`.
