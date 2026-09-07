@@ -131,8 +131,9 @@ export function useVisualizer({
 
     // Re-fetch full control list for keys that affect which controls are visible
     // (mirror toggles its offset slider; palette/colorMode/shape gate hue,
-    // harmony, and light controls; edges gates the connection sliders)
-    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode', 'palette', 'colorMode', 'ringStyle', 'field', 'edges', MIRROR_CONFIG_KEY]);
+    // harmony, and light controls; edges gates the connection sliders;
+    // renderMode gates Terrain's cube controls)
+    const refetchKeys = new Set(['surfaceMode', 'shape', 'mode', 'palette', 'colorMode', 'ringStyle', 'field', 'edges', 'renderMode', MIRROR_CONFIG_KEY]);
     if (refetchKeys.has(key)) {
       setControls(visualizerManagerRef.current.getCurrentControls());
     } else {
