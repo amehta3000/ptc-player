@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 interface Ripple {
   position: THREE.Vector3;
@@ -58,9 +59,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
   private isDragging = false;
   private lastMouse = { x: 0, y: 0 };
   private surfaceMesh: THREE.LineSegments | null = null;
-  private boundOnMouseDown: ((e: MouseEvent) => void) | null = null;
-  private boundOnMouseMove: ((e: MouseEvent) => void) | null = null;
-  private boundOnMouseUp: ((e: MouseEvent) => void) | null = null;
+  private userZoom = 1;
+  private detachPointerControls: (() => void) | null = null;
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -288,30 +288,21 @@ export class RaindropsVisualizer extends BaseVisualizer {
   }
 
   private setupMouseDrag(): void {
-    this.boundOnMouseDown = (e: MouseEvent) => {
-      const surfaceMode = this.config.surfaceMode ?? 2;
-      if (surfaceMode === 0) return;
-      this.isDragging = true;
-      this.lastMouse = { x: e.clientX, y: e.clientY };
-    };
-
-    this.boundOnMouseMove = (e: MouseEvent) => {
-      if (!this.isDragging) return;
-      const dx = e.clientX - this.lastMouse.x;
-      const dy = e.clientY - this.lastMouse.y;
-      this.cameraRotation.y += dx * 0.005;
-      this.cameraRotation.x += dy * 0.005;
-      this.cameraRotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.cameraRotation.x));
-      this.lastMouse = { x: e.clientX, y: e.clientY };
-    };
-
-    this.boundOnMouseUp = () => {
-      this.isDragging = false;
-    };
-
-    this.container.addEventListener('mousedown', this.boundOnMouseDown);
-    window.addEventListener('mousemove', this.boundOnMouseMove);
-    window.addEventListener('mouseup', this.boundOnMouseUp);
+    this.detachPointerControls = attachPointerControls(this.container, {
+      // Top-down mode looks straight at the surface, so it has nothing to orbit
+      onDragStart: () => { this.isDragging = (this.config.surfaceMode ?? 2) !== 0; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        if (!this.isDragging) return;
+        this.cameraRotation.y += dx * 0.005;
+        this.cameraRotation.x += dy * 0.005;
+        this.cameraRotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.cameraRotation.x));
+      },
+      onZoom: (delta) => {
+        if ((this.config.surfaceMode ?? 2) === 0) return;
+        this.userZoom = Math.max(0.35, Math.min(3, this.userZoom * (1 + delta * 0.001)));
+      }
+    });
   }
 
   private updateCameraPosition(): void {
@@ -325,7 +316,7 @@ export class RaindropsVisualizer extends BaseVisualizer {
     } else {
       const zoomSpeed = this.config.zoomSpeed ?? 0;
       if (zoomSpeed > 0) this.zoomPhase += zoomSpeed;
-      const distance = 12 + (zoomSpeed > 0 ? 5 * Math.sin(this.zoomPhase) : 0);
+      const distance = (12 + (zoomSpeed > 0 ? 5 * Math.sin(this.zoomPhase) : 0)) * this.userZoom;
       this.camera.position.x = distance * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
       this.camera.position.y = distance * Math.sin(this.cameraRotation.x);
       this.camera.position.z = distance * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
@@ -835,19 +826,8 @@ export class RaindropsVisualizer extends BaseVisualizer {
       this.resizeObserver = null;
     }
 
-    // Remove mouse event listeners
-    if (this.boundOnMouseDown) {
-      this.container.removeEventListener('mousedown', this.boundOnMouseDown);
-      this.boundOnMouseDown = null;
-    }
-    if (this.boundOnMouseMove) {
-      window.removeEventListener('mousemove', this.boundOnMouseMove);
-      this.boundOnMouseMove = null;
-    }
-    if (this.boundOnMouseUp) {
-      window.removeEventListener('mouseup', this.boundOnMouseUp);
-      this.boundOnMouseUp = null;
-    }
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     if (this.gridOverlay && this.scene) {
       this.scene.remove(this.gridOverlay);

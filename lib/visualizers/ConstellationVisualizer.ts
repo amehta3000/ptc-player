@@ -27,6 +27,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme, VisualizerPreset } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 interface Attractor {
   position: THREE.Vector3;
@@ -77,6 +78,7 @@ export class ConstellationVisualizer extends BaseVisualizer {
   // Camera controls
   private cameraRotation = { x: 0.35, y: 0 };
   private cameraDistance = 8;
+  private detachPointerControls: (() => void) | null = null;
   private zoomPhase = Math.asin((8 - 11) / 9); // phase matched to default distance
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
@@ -645,36 +647,20 @@ export class ConstellationVisualizer extends BaseVisualizer {
   // ── Camera ──
 
   private setupMouseControls(element: HTMLDivElement): void {
-    const onMouseDown = (e: MouseEvent | TouchEvent) => {
-      this.isDragging = true;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-    const onMouseMove = (e: MouseEvent | TouchEvent) => {
-      if (!this.isDragging) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.cameraRotation.y += (pos.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (pos.clientY - this.lastMousePos.y) * 0.005;
-      this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-    const onMouseUp = () => { this.isDragging = false; };
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      this.cameraDistance = Math.max(2, Math.min(20, this.cameraDistance + e.deltaY * 0.01));
-      this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 11) / 9)));
-      this.updateCameraPosition();
-    };
-
-    element.addEventListener('mousedown', onMouseDown);
-    element.addEventListener('mousemove', onMouseMove);
-    element.addEventListener('mouseup', onMouseUp);
-    element.addEventListener('mouseleave', onMouseUp);
-    element.addEventListener('touchstart', onMouseDown);
-    element.addEventListener('touchmove', onMouseMove);
-    element.addEventListener('touchend', onMouseUp);
-    element.addEventListener('wheel', onWheel, { passive: false });
+    this.detachPointerControls = attachPointerControls(element, {
+      onDragStart: () => { this.isDragging = true; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        this.cameraRotation.y += dx * 0.005;
+        this.cameraRotation.x += dy * 0.005;
+        this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
+      },
+      onZoom: (delta) => {
+        this.cameraDistance = Math.max(2, Math.min(20, this.cameraDistance + delta * 0.01));
+        this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 11) / 9)));
+        this.updateCameraPosition();
+      }
+    });
   }
 
   private updateCameraPosition(): void {
@@ -762,6 +748,9 @@ export class ConstellationVisualizer extends BaseVisualizer {
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;
+
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     if (this.particleMesh) {
       this.particleMesh.geometry.dispose();

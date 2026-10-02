@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme, VisualizerPreset } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 import { PARTICLE_FIELDS, PARTICLE_FIELD_NAMES } from './fields';
 import { FieldContext, FieldControlSpec, ParticleField } from './fields/types';
 
@@ -641,31 +642,20 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
   private setupControls(): void {
     const element = this.container;
 
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      this.isDragging = true;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-
-    const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!this.isDragging) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.cameraRotation.y += (pos.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (pos.clientY - this.lastMousePos.y) * 0.005;
-      this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-
-    const onUp = () => {
-      this.isDragging = false;
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      this.cameraDistance = Math.max(3, Math.min(40, this.cameraDistance + e.deltaY * 0.01));
-      this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 16) / 8)));
-      this.updateCameraPosition();
-    };
+    const detachPointer = attachPointerControls(element, {
+      onDragStart: () => { this.isDragging = true; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        this.cameraRotation.y += dx * 0.005;
+        this.cameraRotation.x += dy * 0.005;
+        this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
+      },
+      onZoom: (delta) => {
+        this.cameraDistance = Math.max(3, Math.min(40, this.cameraDistance + delta * 0.01));
+        this.zoomPhase = Math.asin(Math.max(-1, Math.min(1, (this.cameraDistance - 16) / 8)));
+        this.updateCameraPosition();
+      }
+    });
 
     const handleResize = () => {
       if (!this.camera || !this.renderer) return;
@@ -675,26 +665,10 @@ export class ParticleFieldVisualizer extends BaseVisualizer {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
     };
-
-    element.addEventListener('mousedown', onDown);
-    element.addEventListener('mousemove', onMove);
-    element.addEventListener('mouseup', onUp);
-    element.addEventListener('mouseleave', onUp);
-    element.addEventListener('touchstart', onDown);
-    element.addEventListener('touchmove', onMove);
-    element.addEventListener('touchend', onUp);
-    element.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('resize', handleResize);
 
     this.listenerCleanup = () => {
-      element.removeEventListener('mousedown', onDown);
-      element.removeEventListener('mousemove', onMove);
-      element.removeEventListener('mouseup', onUp);
-      element.removeEventListener('mouseleave', onUp);
-      element.removeEventListener('touchstart', onDown);
-      element.removeEventListener('touchmove', onMove);
-      element.removeEventListener('touchend', onUp);
-      element.removeEventListener('wheel', onWheel);
+      detachPointer();
       window.removeEventListener('resize', handleResize);
     };
   }
