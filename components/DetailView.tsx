@@ -90,6 +90,26 @@ export default function DetailView({
   const dominantColor = usePlayerStore((s) => s.dominantColor);
   const accentColor = usePlayerStore((s) => s.accentColor);
   const highlightColor = darkMode ? accentColor : 'rgba(28, 28, 30, 0.85)';
+
+  // Playlist sheet palette — translucent black in dark mode, off-white with
+  // dark text in light mode
+  const listSurface = darkMode
+    ? 'bg-black/95 sm:bg-black/60 sm:border-white/10'
+    : 'bg-[#f1f3f5]/95 sm:bg-white/85 sm:border-black/10';
+  const listDivider = darkMode ? 'border-white/10' : 'border-black/10';
+  const listBarBg = darkMode ? 'sm:bg-black/80' : 'sm:bg-white/85';
+  const listCount = darkMode ? 'text-neutral-300' : 'text-neutral-600';
+  const listTitle = darkMode ? 'text-white' : 'text-neutral-900';
+  const listSubtle = darkMode ? 'text-neutral-400' : 'text-neutral-600';
+  const listRowHover = darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5';
+  const listRowActive = darkMode ? 'bg-white/10 border-white/20' : 'bg-black/[0.07] border-black/20';
+  const listFilterOn = darkMode ? 'bg-white/20 text-white' : 'bg-black/10 text-neutral-900';
+  const listFilterOff = darkMode ? 'text-white/50 hover:text-white/70' : 'text-neutral-500 hover:text-neutral-900';
+  const listCloseBtn = darkMode
+    ? 'bg-white/10 active:bg-white/20 text-white'
+    : 'bg-black/10 active:bg-black/20 text-neutral-900';
+  const pillMix = darkMode ? 'border-purple-500/40 text-purple-400/90' : 'border-purple-600/50 text-purple-700';
+  const pillTrack = darkMode ? 'border-blue-500/40 text-blue-400/90' : 'border-blue-600/50 text-blue-700';
   const showVisualizer = usePlayerStore((s) => s.showVisualizer);
   const setShowVisualizer = usePlayerStore((s) => s.setShowVisualizer);
   const showControls = usePlayerStore((s) => s.showControls);
@@ -825,8 +845,8 @@ export default function DetailView({
           it stays on top of the sheet and keeps working while the list is open. */}
       <div
         className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
-          fixed inset-0 w-full bg-black/95
-          sm:absolute sm:inset-auto sm:bottom-[72px] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90%] sm:max-w-[60%] sm:max-h-[60vh] sm:rounded-t-lg sm:bg-black/60 sm:border sm:border-b-0 sm:border-white/10 ${
+          fixed inset-0 w-full ${listSurface}
+          sm:absolute sm:inset-auto sm:bottom-[72px] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90%] sm:max-w-[60%] sm:max-h-[60vh] sm:rounded-t-lg sm:border sm:border-b-0 ${
           showPlaylist && !studioMode
             ? 'translate-y-0 opacity-100'
             : 'translate-y-full sm:translate-y-4 opacity-0 pointer-events-none'
@@ -842,22 +862,22 @@ export default function DetailView({
           <button
             onClick={() => setShowPlaylist(false)}
             aria-label="Close playlist"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 transition-colors"
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${listCloseBtn}`}
           >
-            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
 
-        <div className="flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl sm:bg-black/80 border-b border-white/10 flex items-center justify-between">
-          <span className="text-sm text-neutral-300">{filteredMixes.length} tracks</span>
+        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl border-b flex items-center justify-between ${listBarBg} ${listDivider}`}>
+          <span className={`text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
           <div className="flex gap-1">
             {(['all', 'track', 'mix'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/70'}`}
+                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? listFilterOn : listFilterOff}`}
               >
                 {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
               </button>
@@ -871,8 +891,8 @@ export default function DetailView({
             <div
               key={idx}
               onClick={() => handleMixSelect(mix)}
-              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all hover:bg-white/10 active:scale-[0.99] ${
-                currentMix?.title === mix.title ? 'bg-white/10 border border-white/20' : 'border border-transparent'
+              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
+                currentMix?.title === mix.title ? `border ${listRowActive}` : 'border border-transparent'
               }`}
             >
               <img
@@ -881,13 +901,11 @@ export default function DetailView({
                 className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{mix.title}</div>
-                <div className="text-xs text-neutral-400 truncate">{mix.description} &bull; {mix.duration}</div>
+                <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
+                <div className={`text-xs truncate ${listSubtle}`}>{mix.description} &bull; {mix.duration}</div>
               </div>
               <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                mix.type === 'mix'
-                  ? 'border-purple-500/40 text-purple-400/90'
-                  : 'border-blue-500/40 text-blue-400/90'
+                mix.type === 'mix' ? pillMix : pillTrack
               }`}>
                 {mix.type}
               </span>
