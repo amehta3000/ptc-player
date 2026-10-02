@@ -820,39 +820,65 @@ export default function DetailView({
         {!showVisualizer && <VisualizerContainer containerRef={containerRef} />}
       </div>
 
-      {/* Playlist Drawer */}
+      {/* Playlist — full-screen sheet on phones, drawer above the player bar on
+          desktop. The player bar sits later in the DOM at the same z-index, so
+          it stays on top of the sheet and keeps working while the list is open. */}
       <div
-        className={`absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 w-[calc(100vw-1rem)] sm:w-[90%] sm:max-w-[60%] rounded-t-lg backdrop-blur-xl bg-black/60 border border-b-0 border-white/10 max-h-[60vh] overflow-y-auto transition-all duration-300 ${
-          showPlaylist && !studioMode ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
+        className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
+          fixed inset-0 w-full bg-black/95
+          sm:absolute sm:inset-auto sm:bottom-[72px] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90%] sm:max-w-[60%] sm:max-h-[60vh] sm:rounded-t-lg sm:bg-black/60 sm:border sm:border-b-0 sm:border-white/10 ${
+          showPlaylist && !studioMode
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full sm:translate-y-4 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="sticky top-0 z-10 p-3 pb-2 backdrop-blur-xl bg-black/80 border-b border-white/10 flex items-center justify-between">
+        {/* Sheet header — phones only; desktop keeps the page header visible */}
+        <div className="sm:hidden flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
+          <img
+            src="https://media.parttimechiller.com/logo3.png"
+            alt="PTC"
+            className={`h-10 w-10${!darkMode ? ' invert' : ''}`}
+          />
+          <button
+            onClick={() => setShowPlaylist(false)}
+            aria-label="Close playlist"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 transition-colors"
+          >
+            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl sm:bg-black/80 border-b border-white/10 flex items-center justify-between">
           <span className="text-sm text-neutral-300">{filteredMixes.length} tracks</span>
           <div className="flex gap-1">
             {(['all', 'track', 'mix'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-2 py-0.5 text-xs rounded ${filter === f ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/70'}`}
+                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/70'}`}
               >
                 {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
               </button>
             ))}
           </div>
         </div>
-        <div className="p-3 space-y-1">
+        {/* Scrolls on its own so the header and filters stay put; the bottom
+            padding clears the player bar riding over the sheet */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-24 sm:pb-3 space-y-1">
           {filteredMixes.map((mix, idx) => (
             <div
               key={idx}
               onClick={() => handleMixSelect(mix)}
-              className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-white/10 active:scale-[0.99] ${
+              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all hover:bg-white/10 active:scale-[0.99] ${
                 currentMix?.title === mix.title ? 'bg-white/10 border border-white/20' : 'border border-transparent'
               }`}
             >
               <img
                 src={mix.cover}
                 alt={mix.title}
-                className="w-10 h-10 rounded object-cover flex-shrink-0"
+                className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{mix.title}</div>
