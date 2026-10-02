@@ -1075,10 +1075,27 @@ export default function DetailView({
           />
         </div>
 
-        {/* Fullscreen toggle */}
+        {/* Playlist toggle — phones only. The Fullscreen API is a no-op in
+            iOS Safari, so that slot is a dead button on a phone; a playlist
+            toggle is the useful thing to reach with a thumb instead. */}
+        <button
+          onClick={() => !studioMode && setShowPlaylist(!showPlaylist)}
+          className={`sm:hidden w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center transition-all ${
+            showPlaylist
+              ? (darkMode ? 'text-white' : 'text-neutral-900')
+              : (darkMode ? 'text-white/40 hover:text-white/80' : 'text-neutral-500 hover:text-neutral-900')
+          }`}
+          aria-label={showPlaylist ? 'Hide playlist' : 'Show playlist'}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round">
+            <path d="M4 7h16M4 12h16M4 17h10" />
+          </svg>
+        </button>
+
+        {/* Fullscreen toggle — desktop only */}
         <button
           onClick={toggleFullscreen}
-          className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white/40 hover:text-white/80 transition-all"
+          className="hidden sm:flex w-8 h-8 rounded-full flex-shrink-0 items-center justify-center text-white/40 hover:text-white/80 transition-all"
           aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
           {isFullscreen ? (
