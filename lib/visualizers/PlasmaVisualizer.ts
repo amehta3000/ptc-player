@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 // ── Shaders ────────────────────────────────────────────────────────────────
 
@@ -207,6 +208,8 @@ export class PlasmaVisualizer extends BaseVisualizer {
   private smoothHigh = 0;
 
   private cameraRotation = { x: 0.15, y: 0 };
+  private userZoom = 1;
+  private detachPointerControls: (() => void) | null = null;
   private isDragging    = false;
   private lastMousePos  = { x: 0, y: 0 };
 
@@ -473,29 +476,19 @@ export class PlasmaVisualizer extends BaseVisualizer {
   };
 
   private setupMouseControls(): void {
-    const el = this.container;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      this.isDragging  = true;
-      const p = 'touches' in e ? e.touches[0] : e;
-      this.lastMousePos = { x: p.clientX, y: p.clientY };
-    };
-    const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!this.isDragging) return;
-      const p = 'touches' in e ? e.touches[0] : e;
-      this.cameraRotation.y += (p.clientX - this.lastMousePos.x) * 0.005;
-      this.cameraRotation.x += (p.clientY - this.lastMousePos.y) * 0.005;
-      this.cameraRotation.x  = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
-      this.lastMousePos = { x: p.clientX, y: p.clientY };
-    };
-    const onUp = () => { this.isDragging = false; };
-
-    el.addEventListener('mousedown',  onDown);
-    el.addEventListener('mousemove',  onMove);
-    el.addEventListener('mouseup',    onUp);
-    el.addEventListener('mouseleave', onUp);
-    el.addEventListener('touchstart', onDown);
-    el.addEventListener('touchmove',  onMove);
-    el.addEventListener('touchend',   onUp);
+    this.detachPointerControls = attachPointerControls(this.container, {
+      onDragStart: () => { this.isDragging = true; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        this.cameraRotation.y += dx * 0.005;
+        this.cameraRotation.x += dy * 0.005;
+        this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
+      },
+      // Pulls the camera in and out around its 6-unit resting radius
+      onZoom: (delta) => {
+        this.userZoom = Math.max(0.35, Math.min(3, this.userZoom * (1 + delta * 0.001)));
+      }
+    });
   }
 
   // ── Update ────────────────────────────────────────────────────────────────
@@ -519,7 +512,7 @@ export class PlasmaVisualizer extends BaseVisualizer {
 
     // Camera orbit
     if (!this.isDragging) this.cameraRotation.y += rotSpeed;
-    const r  = 6;
+    const r  = 6 * this.userZoom;
     const cx = this.cameraRotation.x;
     const cy = this.cameraRotation.y;
     this.camera.position.set(
@@ -683,6 +676,8 @@ export class PlasmaVisualizer extends BaseVisualizer {
     this.stopAnimationLoop();
     this.isInitialized = false;
     window.removeEventListener('resize', this.handleResize);
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     this.disposeTendrils();
     [this.surfaceMesh, this.haloMesh, this.coreMesh, this.coronaMesh].forEach((m) => {

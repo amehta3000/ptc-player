@@ -216,6 +216,9 @@ export default function DetailView({
   const swipeStartX = useRef(0);
   const swipeStartY = useRef(0);
   const swipeStartTime = useRef(0);
+  // A pinch is not a swipe: once a second finger lands, the gesture is the
+  // visualizer's to interpret and must not navigate away from it.
+  const swipeMultiTouch = useRef(false);
 
   // Auto-hide UI after idle
   const IDLE_TIMEOUT = 3000;
@@ -322,13 +325,25 @@ export default function DetailView({
   }, [setCurrentMix, setProgress, setCurrentTime, setDuration, setShowPlaylist, setDominantColor, setAccentColor]);
 
   const handleSwipeStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length > 1) {
+      swipeMultiTouch.current = true;
+      return;
+    }
+    swipeMultiTouch.current = false;
     swipeStartX.current = e.touches[0].clientX;
     swipeStartY.current = e.touches[0].clientY;
     swipeStartTime.current = Date.now();
   }, []);
 
   const handleSwipeEnd = useCallback((e: React.TouchEvent) => {
+    if (swipeMultiTouch.current) {
+      // Only clear it once the last finger is up, so the tail of a pinch
+      // doesn't register as a flick
+      if (e.touches.length === 0) swipeMultiTouch.current = false;
+      return;
+    }
     if (showPlaylist || showControls) return;
+    if (!e.changedTouches[0]) return;
     const deltaX = e.changedTouches[0].clientX - swipeStartX.current;
     const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
     const elapsed = Date.now() - swipeStartTime.current;
