@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 export class CassetteVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -25,6 +26,7 @@ export class CassetteVisualizer extends BaseVisualizer {
   // Camera drag
   private cameraAngle = { theta: 0.3, phi: 1.2 };
   private cameraDistance = 5;
+  private detachPointerControls: (() => void) | null = null;
   private isDragging = false;
   private lastMousePos = { x: 0, y: 0 };
 
@@ -281,41 +283,20 @@ export class CassetteVisualizer extends BaseVisualizer {
   }
 
   private setupMouseControls(): void {
-    this.container.style.cursor = 'grab';
-    this.container.style.touchAction = 'none';
-
-    const onPointerDown = (e: PointerEvent) => {
-      this.isDragging = true;
-      this.lastMousePos = { x: e.clientX, y: e.clientY };
-      this.container.style.cursor = 'grabbing';
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (!this.isDragging) return;
-      const dx = e.clientX - this.lastMousePos.x;
-      const dy = e.clientY - this.lastMousePos.y;
-      this.cameraAngle.theta -= dx * 0.005;
-      this.cameraAngle.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.cameraAngle.phi - dy * 0.005));
-      this.lastMousePos = { x: e.clientX, y: e.clientY };
-      this.updateCameraPosition();
-    };
-
-    const onPointerUp = () => {
-      this.isDragging = false;
-      this.container.style.cursor = 'grab';
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      this.cameraDistance = Math.max(2, Math.min(12, this.cameraDistance + e.deltaY * 0.01));
-      this.updateCameraPosition();
-    };
-
-    this.container.addEventListener('pointerdown', onPointerDown);
-    this.container.addEventListener('pointermove', onPointerMove);
-    this.container.addEventListener('pointerup', onPointerUp);
-    this.container.addEventListener('pointerleave', onPointerUp);
-    this.container.addEventListener('wheel', onWheel, { passive: false });
+    this.detachPointerControls = attachPointerControls(this.container, {
+      cursor: true,
+      onDragStart: () => { this.isDragging = true; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        this.cameraAngle.theta -= dx * 0.005;
+        this.cameraAngle.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.cameraAngle.phi - dy * 0.005));
+        this.updateCameraPosition();
+      },
+      onZoom: (delta) => {
+        this.cameraDistance = Math.max(2, Math.min(12, this.cameraDistance + delta * 0.01));
+        this.updateCameraPosition();
+      }
+    });
   }
 
   private updateCameraPosition(): void {
@@ -441,6 +422,9 @@ export class CassetteVisualizer extends BaseVisualizer {
 
   destroy(): void {
     this.stopAnimationLoop();
+
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     if (this.renderer) {
       this.renderer.dispose();

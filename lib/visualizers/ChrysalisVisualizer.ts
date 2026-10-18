@@ -9,6 +9,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 export class ChrysalisVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -25,6 +26,8 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   }> = [];
   private userRotation = { x: -0.8, y: 0.3 };
   private isDragging = false;
+  private userZoom = 1;
+  private detachPointerControls: (() => void) | null = null;
   private lastMousePos = { x: 0, y: 0 };
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
@@ -143,40 +146,20 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   }
 
   private setupMouseControls(): void {
-    this.container.style.cursor = 'grab';
-    this.container.style.touchAction = 'none';
-
-    const onMouseDown = (e: MouseEvent | TouchEvent) => {
-      this.isDragging = true;
-      this.container.style.cursor = 'grabbing';
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-
-    const onMouseMove = (e: MouseEvent | TouchEvent) => {
-      if (!this.isDragging) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      const deltaX = pos.clientX - this.lastMousePos.x;
-      const deltaY = pos.clientY - this.lastMousePos.y;
-
-      this.userRotation.y += deltaX * 0.005;
-      this.userRotation.x += deltaY * 0.005;
-
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-
-    const onMouseUp = () => {
-      this.isDragging = false;
-      this.container.style.cursor = 'grab';
-    };
-
-    this.container.addEventListener('mousedown', onMouseDown);
-    this.container.addEventListener('mousemove', onMouseMove);
-    this.container.addEventListener('mouseup', onMouseUp);
-    this.container.addEventListener('mouseleave', onMouseUp);
-    this.container.addEventListener('touchstart', onMouseDown);
-    this.container.addEventListener('touchmove', onMouseMove);
-    this.container.addEventListener('touchend', onMouseUp);
+    this.detachPointerControls = attachPointerControls(this.container, {
+      cursor: true,
+      onDragStart: () => { this.isDragging = true; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        this.userRotation.y += dx * 0.005;
+        this.userRotation.x += dy * 0.005;
+      },
+      // Dollies the camera along its 12-unit resting distance
+      onZoom: (delta) => {
+        this.userZoom = Math.max(0.35, Math.min(3, this.userZoom * (1 + delta * 0.001)));
+        if (this.camera) this.camera.position.z = 12 * this.userZoom;
+      }
+    });
   }
 
   private noise(x: number, y: number, seed: number): number {
@@ -396,6 +379,9 @@ export class ChrysalisVisualizer extends BaseVisualizer {
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;
+
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);

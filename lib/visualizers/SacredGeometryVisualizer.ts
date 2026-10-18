@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 interface GlowMaterialRef {
   material: THREE.LineBasicMaterial;
@@ -41,6 +42,7 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
 
   // Zoom
   private cameraZoom = 1;
+  private detachPointerControls: (() => void) | null = null;
 
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -101,7 +103,9 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     this.buildGeometry();
 
     window.addEventListener('resize', this.handleResize);
-    this.container.addEventListener('wheel', this.handleWheel, { passive: false });
+    this.detachPointerControls = attachPointerControls(this.container, {
+      onZoom: (delta) => { this.cameraZoom = Math.max(0.3, Math.min(4, this.cameraZoom - delta * 0.001)); }
+    });
   }
 
   private handleResize = (): void => {
@@ -116,11 +120,6 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     this.camera.bottom = -frustumSize / 2;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
-  };
-
-  private handleWheel = (e: WheelEvent): void => {
-    e.preventDefault();
-    this.cameraZoom = Math.max(0.3, Math.min(4, this.cameraZoom - e.deltaY * 0.001));
   };
 
   // ── Geometry builders ──────────────────────────────────────────────
@@ -645,7 +644,8 @@ export class SacredGeometryVisualizer extends BaseVisualizer {
     this.stopAnimationLoop();
 
     window.removeEventListener('resize', this.handleResize);
-    this.container.removeEventListener('wheel', this.handleWheel);
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     if (this.renderer) {
       this.renderer.dispose();

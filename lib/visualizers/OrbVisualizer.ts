@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { AudioAnalysis } from '../audioEngine';
 import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, ColorScheme } from './BaseVisualizer';
+import { attachPointerControls } from './pointerControls';
 
 export class OrbVisualizer extends BaseVisualizer {
   private scene: THREE.Scene | null = null;
@@ -21,6 +22,8 @@ export class OrbVisualizer extends BaseVisualizer {
   private orbitLights: THREE.PointLight[] = [];
   private lightTime = 0;
   private zoomPhase = 0;
+  private userZoom = 1;
+  private detachPointerControls: (() => void) | null = null;
   
   constructor(container: HTMLDivElement, config: VisualizerConfig, colors: ColorScheme) {
     super(container, config, colors);
@@ -379,36 +382,19 @@ export class OrbVisualizer extends BaseVisualizer {
   }
 
   private setupMouseControls(element: HTMLDivElement): void {
-    const onMouseDown = (e: MouseEvent | TouchEvent) => {
-      this.isDragging = true;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-    
-    const onMouseMove = (e: MouseEvent | TouchEvent) => {
-      if (!this.isDragging) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
-      const deltaX = pos.clientX - this.lastMousePos.x;
-      const deltaY = pos.clientY - this.lastMousePos.y;
-      
-      this.cameraRotation.y += deltaX * 0.005;
-      this.cameraRotation.x += deltaY * 0.005;
-      this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
-      
-      this.lastMousePos = { x: pos.clientX, y: pos.clientY };
-    };
-    
-    const onMouseUp = () => {
-      this.isDragging = false;
-    };
-    
-    element.addEventListener('mousedown', onMouseDown);
-    element.addEventListener('mousemove', onMouseMove);
-    element.addEventListener('mouseup', onMouseUp);
-    element.addEventListener('mouseleave', onMouseUp);
-    element.addEventListener('touchstart', onMouseDown);
-    element.addEventListener('touchmove', onMouseMove);
-    element.addEventListener('touchend', onMouseUp);
+    this.detachPointerControls = attachPointerControls(element, {
+      onDragStart: () => { this.isDragging = true; },
+      onDragEnd: () => { this.isDragging = false; },
+      onDrag: (dx, dy) => {
+        this.cameraRotation.y += dx * 0.005;
+        this.cameraRotation.x += dy * 0.005;
+        this.cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cameraRotation.x));
+      },
+      // Pulls the camera in and out around its 6-unit resting radius
+      onZoom: (delta) => {
+        this.userZoom = Math.max(0.35, Math.min(3, this.userZoom * (1 + delta * 0.001)));
+      }
+    });
   }
   
   update(audioAnalysis: AudioAnalysis): void {
@@ -428,7 +414,7 @@ export class OrbVisualizer extends BaseVisualizer {
     // Update camera position with optional zoom oscillation
     const zoomSpeed = this.config.zoomSpeed ?? 0;
     if (zoomSpeed > 0) this.zoomPhase += zoomSpeed;
-    const radius = 6 + (zoomSpeed > 0 ? 2.5 * Math.sin(this.zoomPhase) : 0);
+    const radius = (6 + (zoomSpeed > 0 ? 2.5 * Math.sin(this.zoomPhase) : 0)) * this.userZoom;
     this.camera.position.x = radius * Math.sin(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
     this.camera.position.y = radius * Math.sin(this.cameraRotation.x);
     this.camera.position.z = radius * Math.cos(this.cameraRotation.y) * Math.cos(this.cameraRotation.x);
@@ -561,6 +547,9 @@ export class OrbVisualizer extends BaseVisualizer {
   destroy(): void {
     this.stopAnimationLoop();
     this.isInitialized = false;
+
+    this.detachPointerControls?.();
+    this.detachPointerControls = null;
 
     if (this.renderer) {
       this.renderer.dispose();
