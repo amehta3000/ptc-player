@@ -20,6 +20,7 @@ import { RidgeVisualizer } from './visualizers/RidgeVisualizer';
 import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
 import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
 import { HalosVisualizer } from './visualizers/HalosVisualizer';
+import { LaminaVisualizer } from './visualizers/LaminaVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -361,4 +362,29 @@ VisualizerRegistry.register('halos', 'Halos', HalosVisualizer, {
   harmonyMode: 2,
 }, {
   scale: 4,
+});
+
+VisualizerRegistry.register('lamina', 'Lamina', LaminaVisualizer, {
+  cells: 14,
+  spread: 0.5,
+  cellSize: 0.19,
+  cellAspect: 1.25,
+  squircle: 4,
+  softness: 0.002,
+  density: 0.6,
+  amp: 0.16,
+  breath: 0.07,
+  reactivity: 0.8,
+  split: 0.6,
+  taper: 0.15,
+  drift: 0.25,
+  grain: 0.015,
+  hue: 0,
+  harmonyMode: 2,
+}, {
+  // Portrait scales the stack to the narrow axis, so phones need bigger cells
+  // and a longer cascade to fill the frame the way a wide screen does
+  cells: 11,
+  cellSize: 0.32,
+  spread: 0.9,
 });

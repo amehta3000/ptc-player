@@ -3,7 +3,7 @@ import { Mix, mixes } from '../data/mixes';
 
 type FilterType = 'all' | 'mix' | 'track';
 type RepeatMode = 'off' | 'all' | 'one';
-type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | /* 'chrysalis' | */ 'sonicGalaxy' | 'constellation' | 'raindrops' | 'sacredGeometry' | 'cassette' | 'plasma' | 'radial' | 'spokes' | 'ripples' | 'ridge' | 'particleField' | 'arcs' | 'halos';
+type VisualizerType = 'bars' | 'orb' | 'web' | 'terrain' | /* 'chrysalis' | */ 'sonicGalaxy' | 'constellation' | 'raindrops' | 'sacredGeometry' | 'cassette' | 'plasma' | 'radial' | 'spokes' | 'ripples' | 'ridge' | 'particleField' | 'arcs' | 'halos' | 'lamina';
 
 export type { FilterType, RepeatMode, VisualizerType };
 
@@ -85,7 +85,7 @@ interface PlayerActions {
 
 // 'ripples' merged into 'radial' (Solid style) and 'sonicGalaxy' into 'constellation'
 // (Edges off); both stay registered for old share links but are out of the cycle
-export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ridge', 'constellation', 'particleField', 'orb', 'bars', /* 'plasma', 'web', 'chrysalis', */ 'arcs', 'halos', 'raindrops', 'sacredGeometry'];
+export const VISUALIZER_TYPES: VisualizerType[] = ['terrain', 'radial', 'spokes', 'ridge', 'constellation', 'particleField', 'orb', 'bars', /* 'plasma', 'web', 'chrysalis', */ 'arcs', 'halos', 'lamina', 'raindrops', 'sacredGeometry'];
 
 export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   bars: 'Bars',
@@ -106,6 +106,7 @@ export const VISUALIZER_NAMES: Record<VisualizerType, string> = {
   particleField: 'Particle Field',
   arcs: 'Arcs',
   halos: 'Halos',
+  lamina: 'Lamina',
 };
 
 export const FONTS = [
