@@ -13,11 +13,12 @@
  *   the fringes stay pale: ink on paper.
  * - Dark mode adds, so each cell glows and the overlaps blow out to white.
  *
- * The motion is deliberately slow. Audio does not drive geometry directly: it
- * feeds a per-cell envelope with a fast attack and a multi-second release, and
- * a free-running breath LFO underneath keeps the stack drifting even in
- * silence. Transients land on opacity, never on position, so the stack reads
- * as breathing rather than reacting.
+ * The stack is driven by bass kicks rather than by the spectrum as a whole.
+ * Splitting 64 bands across the cells spread the energy so thin that nothing
+ * read; instead an onset detector watches the bass, and every kick enters the
+ * top cell and travels down the stack as a wave, each cell flashing and
+ * swelling as the front passes through it. A free-running breath LFO carries
+ * the stack between kicks, so quiet passages still drift.
  */
 
 import * as THREE from 'three';
@@ -28,9 +29,12 @@ import { attachPointerControls } from './pointerControls';
 /** Shader loop bound; the Cells control sets how many of these are drawn. */
 const MAX_CELLS = 16;
 
-/** Envelope time constants, in seconds. Slow up, far slower down. */
-const ATTACK_TAU = 0.35;
-const RELEASE_TAU = 2.5;
+/** Shortest gap between two kicks, in seconds — about 400bpm. */
+const KICK_REFRACTORY = 0.12;
+/** Rise time of a cell's flash. Short, so the wave front stays legible. */
+const FLASH_RISE = 0.045;
+/** Kicks still travelling down the stack; older ones are dropped. */
+const MAX_KICKS = 12;
 
 const vertexShader = /* glsl */`
   varying vec2 vUv;
@@ -49,6 +53,7 @@ const fragmentShader = /* glsl */`
   uniform vec2  resolution;
   uniform float time;
   uniform float cellEnergy[MAX_CELLS];
+  uniform float cellWave[MAX_CELLS];
   uniform float cellCount;
   uniform vec3  colorA;
   uniform vec3  colorB;
@@ -63,6 +68,7 @@ const fragmentShader = /* glsl */`
   uniform float taper;
   uniform float split;
   uniform float drift;
+  uniform float ripple;
   uniform float grain;
   uniform vec2  shift;
   uniform float zoom;
@@ -138,10 +144,13 @@ const fragmentShader = /* glsl */`
       float on = step(float(i), cellCount - 0.5);
       float t = float(i) / max(cellCount - 1.0, 1.0);
       float e = cellEnergy[i];
+      float w = cellWave[i];
 
       // Cell 0 sits at the top; each one after it steps further down, which
       // is what turns the stack into a cascade of arcs
-      float y = (0.5 - t) * spread;
+      // The wave front shoves each cell down a little as it passes, so a kick
+      // reads as travel through the stack and not just a flash
+      float y = (0.5 - t) * spread - ripple * w * 0.09;
       // A slow lateral sway, detuned per cell so the stack never moves as one
       float sway = drift * 0.05 * sin(time * 0.21 + float(i) * 0.6);
 
@@ -151,7 +160,7 @@ const fragmentShader = /* glsl */`
       float cover = cellCoverage(p - vec2(sway, y), halfSize, squircle, softness);
       // Energy rides on opacity rather than position: a transient makes a cell
       // bloom where it stands instead of shoving the composition around
-      float a = cover * on * density * (0.55 + 0.45 * e);
+      float a = cover * on * density * (0.62 + 0.3 * e);
 
       // How fast the palette crosses from one end to the other. Swept, the
       // stack reads as a continuous gradient; split, the cool cells meet the
@@ -198,10 +207,17 @@ export class LaminaVisualizer extends BaseVisualizer {
   private geometry: THREE.PlaneGeometry | null = null;
   private mesh: THREE.Mesh | null = null;
 
-  /** Per-cell audio envelopes, and the values actually sent to the shader. */
-  private envelopes = new Float32Array(MAX_CELLS);
+  /** Per-cell values sent to the shader: overall energy, and kick wave alone. */
   private energies = new Float32Array(MAX_CELLS);
+  private waves = new Float32Array(MAX_CELLS);
   private breathPhase = 0;
+
+  // Onset detection: a fast bass follower against a slow one acting as the
+  // running floor, plus the kicks currently travelling down the stack
+  private bassFast = 0;
+  private bassSlow = 0;
+  private lastKickAt = -Infinity;
+  private kicks: { at: number; strength: number }[] = [];
   private startTime = 0;
   private lastFrame = 0;
 
@@ -228,9 +244,12 @@ export class LaminaVisualizer extends BaseVisualizer {
       { name: 'Squircle', key: 'squircle', min: 2, max: 10, step: 0.5, default: 4, value: this.config.squircle ?? 4 },
       { name: 'Softness', key: 'softness', min: 0.001, max: 0.12, step: 0.001, default: 0.002, value: this.config.softness ?? 0.002 },
       { name: 'Density', key: 'density', min: 0.1, max: 1, step: 0.05, default: 0.6, value: this.config.density ?? 0.6 },
-      { name: 'Amplitude', key: 'amp', min: 0, max: 0.6, step: 0.02, default: 0.16, value: this.config.amp ?? 0.16 },
+      { name: 'Amplitude', key: 'amp', min: 0, max: 0.8, step: 0.02, default: 0.3, value: this.config.amp ?? 0.3 },
       { name: 'Breath', key: 'breath', min: 0.01, max: 0.4, step: 0.01, default: 0.07, value: this.config.breath ?? 0.07 },
-      { name: 'Reactivity', key: 'reactivity', min: 0, max: 1.5, step: 0.05, default: 0.8, value: this.config.reactivity ?? 0.8 },
+      { name: 'Sensitivity', key: 'sensitivity', min: 0, max: 1, step: 0.05, default: 0.6, value: this.config.sensitivity ?? 0.6 },
+      { name: 'Travel', key: 'travel', min: 0, max: 0.3, step: 0.01, default: 0.08, value: this.config.travel ?? 0.08 },
+      { name: 'Hold', key: 'hold', min: 0.1, max: 2, step: 0.05, default: 0.35, value: this.config.hold ?? 0.35 },
+      { name: 'Ripple', key: 'ripple', min: 0, max: 2, step: 0.05, default: 0.7, value: this.config.ripple ?? 0.7 },
       { name: 'Split', key: 'split', min: 0, max: 1, step: 0.05, default: 0.6, value: this.config.split ?? 0.6 },
       { name: 'Taper', key: 'taper', min: -0.6, max: 0.6, step: 0.05, default: 0.15, value: this.config.taper ?? 0.15 },
       { name: 'Drift', key: 'drift', min: 0, max: 1, step: 0.05, default: 0.25, value: this.config.drift ?? 0.25 },
@@ -254,13 +273,13 @@ export class LaminaVisualizer extends BaseVisualizer {
     return [
       // The reference poster: a deep stack of squircles on a long cascade,
       // complementary ends so the ramp runs cool at the top to warm at the base
-      { name: '1', config: { cells: 14, spread: 0.5, cellSize: 0.19, cellAspect: 1.25, squircle: 4, softness: 0.002, density: 0.6, amp: 0.16, breath: 0.07, reactivity: 0.8, split: 0.6, taper: 0.15, drift: 0.25, grain: 0.015, hue: 0, harmonyMode: 2 } },
+      { name: '1', config: { cells: 14, spread: 0.5, cellSize: 0.19, cellAspect: 1.25, squircle: 4, softness: 0.002, density: 0.6, amp: 0.3, breath: 0.07, sensitivity: 0.6, travel: 0.08, hold: 0.35, ripple: 0.7, split: 0.6, taper: 0.15, drift: 0.25, grain: 0.015, hue: 0, harmonyMode: 2 } },
       // Five big soft lenses, barely moving — the ambient end
-      { name: '2', config: { cells: 5, spread: 0.26, cellSize: 0.32, cellAspect: 1.3, squircle: 2, softness: 0.05, density: 0.6, amp: 0.1, breath: 0.03, reactivity: 0.5, split: 0.0, taper: 0.3, drift: 0.1, grain: 0.02, hue: 190, harmonyMode: 1 } },
+      { name: '2', config: { cells: 5, spread: 0.26, cellSize: 0.32, cellAspect: 1.3, squircle: 2, softness: 0.05, density: 0.6, amp: 0.22, breath: 0.03, sensitivity: 0.45, travel: 0.22, hold: 1.8, ripple: 0.45, split: 0.0, taper: 0.3, drift: 0.1, grain: 0.02, hue: 190, harmonyMode: 1 } },
       // A tight deck of rounded rectangles, dense and architectural
-      { name: '3', config: { cells: 16, spread: 0.6, cellSize: 0.18, cellAspect: 1.5, squircle: 8, softness: 0.001, density: 0.4, amp: 0.2, breath: 0.1, reactivity: 1.0, split: 0.85, taper: -0.2, drift: 0.35, grain: 0.01, hue: 40, harmonyMode: 2 } },
+      { name: '3', config: { cells: 16, spread: 0.6, cellSize: 0.18, cellAspect: 1.5, squircle: 8, softness: 0.001, density: 0.4, amp: 0.34, breath: 0.1, sensitivity: 0.7, travel: 0.05, hold: 0.55, ripple: 1.0, split: 0.85, taper: -0.2, drift: 0.35, grain: 0.01, hue: 40, harmonyMode: 2 } },
       // Few cells, wide open and highly reactive — the stack pumps visibly
-      { name: '4', config: { cells: 7, spread: 0.6, cellSize: 0.24, cellAspect: 0.8, squircle: 3, softness: 0.02, density: 0.55, amp: 0.4, breath: 0.16, reactivity: 1.3, split: 0.3, taper: 0.45, drift: 0.6, grain: 0.03, hue: 300, harmonyMode: 2 } }
+      { name: '4', config: { cells: 7, spread: 0.6, cellSize: 0.24, cellAspect: 0.8, squircle: 3, softness: 0.02, density: 0.55, amp: 0.6, breath: 0.16, sensitivity: 0.85, travel: 0.03, hold: 0.4, ripple: 1.6, split: 0.3, taper: 0.45, drift: 0.6, grain: 0.03, hue: 300, harmonyMode: 2 } }
     ];
   }
 
@@ -291,6 +310,7 @@ export class LaminaVisualizer extends BaseVisualizer {
         resolution: { value: new THREE.Vector2(width, height) },
         time: { value: 0 },
         cellEnergy: { value: this.energies },
+        cellWave: { value: this.waves },
         cellCount: { value: this.config.cells ?? 14 },
         colorA: { value: new THREE.Color(r, g, b) },
         colorB: { value: new THREE.Color(r, g, b) },
@@ -301,10 +321,11 @@ export class LaminaVisualizer extends BaseVisualizer {
         squircle: { value: this.config.squircle ?? 4 },
         softness: { value: this.config.softness ?? 0.002 },
         density: { value: this.config.density ?? 0.6 },
-        amp: { value: this.config.amp ?? 0.16 },
+        amp: { value: this.config.amp ?? 0.3 },
         taper: { value: this.config.taper ?? 0.15 },
         split: { value: this.config.split ?? 0.6 },
         drift: { value: this.config.drift ?? 0.25 },
+        ripple: { value: this.config.ripple ?? 0.7 },
         grain: { value: this.config.grain ?? 0.015 },
         shift: { value: new THREE.Vector2(0, 0) },
         zoom: { value: 1 },
@@ -351,7 +372,7 @@ export class LaminaVisualizer extends BaseVisualizer {
   update(audioAnalysis: AudioAnalysis): void {
     if (!this.isInitialized || !this.material) return;
 
-    const { audioData, isPlaying } = audioAnalysis;
+    const { bassAvg, isPlaying } = audioAnalysis;
     const uniforms = this.material.uniforms;
 
     const now = performance.now();
@@ -359,37 +380,71 @@ export class LaminaVisualizer extends BaseVisualizer {
     const dt = Math.min(0.1, (now - this.lastFrame) * 0.001);
     this.lastFrame = now;
 
-    const count = Math.max(3, Math.min(MAX_CELLS, Math.round(this.config.cells ?? 12)));
-    const reactivity = this.config.reactivity ?? 0.8;
+    const count = Math.max(3, Math.min(MAX_CELLS, Math.round(this.config.cells ?? 14)));
+    const nowSec = (now - this.startTime) * 0.001;
 
     this.breathPhase += dt * (this.config.breath ?? 0.07) * Math.PI * 2;
 
-    const binsPerCell = Math.max(1, Math.floor(audioData.length / count));
+    // ── Onset detection ──
+    // The fast follower tracks the kick itself; the slow one is the running
+    // bass floor it has to beat, which keeps a loud passage from reading as
+    // one continuous kick and a quiet one from going dead.
+    const bass = isPlaying ? bassAvg : 0;
+    this.bassFast += (bass - this.bassFast) * (1 - Math.exp(-dt / 0.035));
+    // The floor is deliberately slow: at a shorter time constant it climbs
+    // into each kick it is supposed to be measuring against, and a steady
+    // four-to-the-floor stops registering after a couple of seconds
+    this.bassSlow += (bass - this.bassSlow) * (1 - Math.exp(-dt / 1.4));
+
+    const sensitivity = this.config.sensitivity ?? 0.6;
+    const threshold = 0.1 * (1.15 - sensitivity) + 0.012;
+    const excess = this.bassFast - this.bassSlow * 1.15;
+
+    if (isPlaying && excess > threshold && nowSec - this.lastKickAt > KICK_REFRACTORY) {
+      this.lastKickAt = nowSec;
+      this.kicks.push({ at: nowSec, strength: Math.max(0.45, Math.min(1, excess / 0.22)) });
+      if (this.kicks.length > MAX_KICKS) this.kicks.shift();
+    }
+
+    const travel = this.config.travel ?? 0.08;
+    const hold = this.config.hold ?? 0.35;
+
+    // Drop kicks whose wave has left the bottom of the stack
+    const lifetime = hold * 4 + travel * count;
+    while (this.kicks.length > 0 && nowSec - this.kicks[0].at > lifetime) {
+      this.kicks.shift();
+    }
+
+    // The flash shape peaks below 1, so normalise by its own peak: a kick's
+    // strength then means the same thing at any Hold
+    const peakAt = FLASH_RISE * Math.log(1 + hold / FLASH_RISE);
+    const peak = (1 - Math.exp(-peakAt / FLASH_RISE)) * Math.exp(-peakAt / hold);
 
     for (let i = 0; i < MAX_CELLS; i++) {
       if (i >= count) {
         this.energies[i] = 0;
+        this.waves[i] = 0;
         continue;
       }
 
-      // The bottom cell owns the lowest band, so weight sits at the base of
-      // the stack and the airy cells at the top ride the highs
-      const group = count - 1 - i;
-      let sum = 0;
-      for (let b = 0; b < binsPerCell; b++) {
-        sum += audioData[group * binsPerCell + b] ?? 0;
+      // Every kick enters at the top and reaches cell i one travel-step later.
+      // Taking the strongest rather than the sum keeps each front its own
+      // event: four-to-the-floor would otherwise pile up into a constant glow.
+      let wave = 0;
+      for (let k = 0; k < this.kicks.length; k++) {
+        const age = nowSec - this.kicks[k].at - i * travel;
+        if (age < 0) continue;
+        const shape = (1 - Math.exp(-age / FLASH_RISE)) * Math.exp(-age / hold);
+        wave = Math.max(wave, this.kicks[k].strength * (shape / peak));
       }
-      const target = isPlaying ? (sum / binsPerCell / 255) * reactivity : 0;
 
-      // Time-based easing, so the multi-second release holds its shape
-      // regardless of frame rate
-      const tau = target > this.envelopes[i] ? ATTACK_TAU : RELEASE_TAU;
-      this.envelopes[i] += (target - this.envelopes[i]) * (1 - Math.exp(-dt / tau));
-
-      // A detuned breath underneath keeps the stack alive through silence and
-      // stops the cells from ever moving in unison
+      // A detuned breath underneath keeps the stack alive between kicks, and
+      // the slow bass floor lets sustained low end swell it without an onset
       const lfo = 0.5 + 0.5 * Math.sin(this.breathPhase + i * 0.7);
-      this.energies[i] = Math.min(1, this.envelopes[i] + lfo * 0.35);
+      const ambient = lfo * 0.25 + this.bassSlow * 0.12;
+
+      this.waves[i] = wave;
+      this.energies[i] = Math.min(1.3, ambient + wave);
     }
 
     const { dominant, accent } = this.harmonyColorScheme(
@@ -409,10 +464,11 @@ export class LaminaVisualizer extends BaseVisualizer {
     uniforms.squircle.value = this.config.squircle ?? 4;
     uniforms.softness.value = this.config.softness ?? 0.002;
     uniforms.density.value = this.config.density ?? 0.6;
-    uniforms.amp.value = this.config.amp ?? 0.16;
+    uniforms.amp.value = this.config.amp ?? 0.3;
     uniforms.taper.value = this.config.taper ?? 0.15;
     uniforms.split.value = this.config.split ?? 0.6;
     uniforms.drift.value = this.config.drift ?? 0.25;
+    uniforms.ripple.value = this.config.ripple ?? 0.7;
     uniforms.grain.value = this.config.grain ?? 0.015;
     uniforms.shift.value.set(this.shift.x, this.shift.y);
     uniforms.zoom.value = this.zoom;
