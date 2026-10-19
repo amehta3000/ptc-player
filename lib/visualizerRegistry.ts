@@ -21,6 +21,7 @@ import { ParticleFieldVisualizer } from './visualizers/ParticleFieldVisualizer';
 import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
 import { HalosVisualizer } from './visualizers/HalosVisualizer';
 import { LaminaVisualizer } from './visualizers/LaminaVisualizer';
+import { DopplerVisualizer } from './visualizers/DopplerVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -390,4 +391,22 @@ VisualizerRegistry.register('lamina', 'Lamina', LaminaVisualizer, {
   cells: 11,
   cellSize: 0.32,
   spread: 0.9,
+});
+
+VisualizerRegistry.register('doppler', 'Doppler', DopplerVisualizer, {
+  orbRadius: 0.36,
+  speed: 0.75,
+  thickness: 0.01,
+  sensitivity: 0.65,
+  pulse: 0.8,
+  backside: 0.45,
+  glow: 0.35,
+  spin: 0.18,
+  tilt: 0.5,
+  wobble: 0.5,
+  trail: 0.35,
+  hue: 0,
+  harmonyMode: 0,
+}, {
+  orbRadius: 0.4,
 });
