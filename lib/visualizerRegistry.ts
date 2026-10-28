@@ -22,6 +22,7 @@ import { ArcsVisualizer } from './visualizers/ArcsVisualizer';
 import { HalosVisualizer } from './visualizers/HalosVisualizer';
 import { LaminaVisualizer } from './visualizers/LaminaVisualizer';
 import { DopplerVisualizer } from './visualizers/DopplerVisualizer';
+import { ReedsVisualizer } from './visualizers/ReedsVisualizer';
 
 // Re-export the canonical type from the store
 export type { VisualizerType } from '../store/usePlayerStore';
@@ -409,4 +410,24 @@ VisualizerRegistry.register('doppler', 'Doppler', DopplerVisualizer, {
   harmonyMode: 0,
 }, {
   orbRadius: 0.4,
+});
+
+VisualizerRegistry.register('reeds', 'Reeds', ReedsVisualizer, {
+  count: 220,
+  wrap: 0.55,
+  converge: 0.5,
+  focus: 0.16,
+  height: 0.62,
+  fringe: 0.4,
+  floor: 0.18,
+  thickness: 0.45,
+  dashes: 0.6,
+  sway: 0.3,
+  smoothing: 0.3,
+  reactivity: 1,
+  duotone: 0.85,
+  hue: 0,
+  harmonyMode: 2,
+}, {
+  count: 120,
 });
