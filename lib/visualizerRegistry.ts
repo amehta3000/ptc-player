@@ -404,6 +404,7 @@ VisualizerRegistry.register('doppler', 'Doppler', DopplerVisualizer, {
   glow: 0.35,
   spin: 0.18,
   tilt: 0.5,
+  glide: 0.55,
   wobble: 0.5,
   trail: 0.35,
   hue: 0,

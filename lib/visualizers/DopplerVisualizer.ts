@@ -23,6 +23,12 @@ import { BaseVisualizer, VisualizerControl, VisualizerPreset, VisualizerConfig, 
 import { attachPointerControls } from './pointerControls';
 import { OnsetDetector } from './onsetDetector';
 
+/** How far a pixel of drag turns the orb. */
+const DRAG_RADIANS_PER_PIXEL = 0.006;
+
+/** Yaw runs free; pitch stops at the poles, as the other orbiters do. */
+const clampPitch = (p: number) => Math.max(-Math.PI / 2, Math.min(Math.PI / 2, p));
+
 /** Rings in flight at once. A ring's whole life is one sweep pole to pole. */
 const MAX_WAVES = 24;
 /**
@@ -59,7 +65,8 @@ const fragmentShader = /* glsl */`
   uniform float spin;
   uniform float tilt;
   uniform float wobble;
-  uniform vec2  shift;
+  uniform float userYaw;
+  uniform float userPitch;
   uniform float zoom;
   uniform float darkMode;
 
@@ -115,7 +122,7 @@ const fragmentShader = /* glsl */`
     vec2 uv = vUv - 0.5;
     uv.x *= aspect;
 
-    vec2 p = (uv - shift) / max(zoom, 0.05);
+    vec2 p = uv / max(zoom, 0.05);
     // Sizes are set against the viewport height, so scaling to the narrow
     // axis keeps the orb inside a portrait frame
     p /= min(1.0, aspect);
@@ -134,7 +141,14 @@ const fragmentShader = /* glsl */`
       // into longitudes running pole to pole.
       float precess = time * spin;
       float lean = tilt + wobble * 0.12 * sin(time * 0.31);
-      mat3 orient = rotY(lean * cos(precess)) * rotX(lean * sin(precess));
+
+      // Dragging turns the ball itself. The user's rotation is applied to
+      // the surface point first, in view space, so the orb follows the hand;
+      // the idle lean and precession then ride on top of wherever it was
+      // left. Rings are symmetric about their axis, so what reads on screen
+      // is the axis being moved, not rotation around it.
+      mat3 orient = rotY(lean * cos(precess)) * rotX(lean * sin(precess))
+                  * rotX(userPitch) * rotY(userYaw);
 
       vec3 front = orient * vec3(q, z);
       vec3 back = orient * vec3(q, -z);
@@ -173,8 +187,13 @@ export class DopplerVisualizer extends BaseVisualizer {
   private startTime = 0;
   private lastFrame = 0;
 
-  // Pointer state
-  private shift = { x: 0, y: 0 };
+  // Pointer state: where the ball has been turned to, and how fast it is
+  // still turning after the hand let go
+  private yaw = 0;
+  private pitch = 0;
+  private yawVelocity = 0;
+  private pitchVelocity = 0;
+  private dragging = false;
   private zoom = 1;
   private detachPointerControls: (() => void) | null = null;
   private handleResize: (() => void) | null = null;
@@ -200,6 +219,7 @@ export class DopplerVisualizer extends BaseVisualizer {
       { name: 'Glow', key: 'glow', min: 0, max: 1.5, step: 0.05, default: 0.35, value: this.config.glow ?? 0.35 },
       { name: 'Spin', key: 'spin', min: 0, max: 1, step: 0.02, default: 0.18, value: this.config.spin ?? 0.18 },
       { name: 'Tilt', key: 'tilt', min: -1.2, max: 1.2, step: 0.05, default: 0.5, value: this.config.tilt ?? 0.5 },
+      { name: 'Glide', key: 'glide', min: 0, max: 1, step: 0.05, default: 0.55, value: this.config.glide ?? 0.55 },
       { name: 'Wobble', key: 'wobble', min: 0, max: 1.5, step: 0.05, default: 0.5, value: this.config.wobble ?? 0.5 },
       { name: 'Trail', key: 'trail', min: 0, max: 1, step: 0.05, default: 0.35, value: this.config.trail ?? 0.35 },
       { name: 'View', key: 'resetView', min: 0, max: 0, step: 1, default: 0, value: 0, labels: ['Reset'] },
@@ -220,13 +240,13 @@ export class DopplerVisualizer extends BaseVisualizer {
   getPresets(): VisualizerPreset[] {
     return [
       // Thin white wireframe, close to the reference
-      { name: '1', config: { orbRadius: 0.36, speed: 0.75, thickness: 0.01, sensitivity: 0.65, pulse: 0.8, backside: 0.45, glow: 0.35, spin: 0.18, tilt: 0.5, wobble: 0.5, trail: 0.35, hue: 0, harmonyMode: 0 } },
+      { name: '1', config: { orbRadius: 0.36, speed: 0.75, thickness: 0.01, sensitivity: 0.65, pulse: 0.8, backside: 0.45, glow: 0.35, spin: 0.18, tilt: 0.5, glide: 0.55, wobble: 0.5, trail: 0.35, hue: 0, harmonyMode: 0 } },
       // Slow and sparse: a few wide rings drifting across a big orb
-      { name: '2', config: { orbRadius: 0.46, speed: 0.3, thickness: 0.016, sensitivity: 0.45, pulse: 0.3, backside: 0.7, glow: 0.6, spin: 0.06, tilt: 0.8, wobble: 0.9, trail: 0.6, hue: 200, harmonyMode: 2 } },
+      { name: '2', config: { orbRadius: 0.46, speed: 0.3, thickness: 0.016, sensitivity: 0.45, pulse: 0.3, backside: 0.7, glow: 0.6, spin: 0.06, tilt: 0.8, glide: 0.8, wobble: 0.9, trail: 0.6, hue: 200, harmonyMode: 2 } },
       // Dense and fast — rings stack into a woven ball on a busy beat
-      { name: '3', config: { orbRadius: 0.34, speed: 1.6, thickness: 0.005, sensitivity: 0.85, pulse: 1.6, backside: 0.3, glow: 0.2, spin: 0.4, tilt: 0.35, wobble: 0.2, trail: 0.15, hue: 40, harmonyMode: 1 } },
+      { name: '3', config: { orbRadius: 0.34, speed: 1.6, thickness: 0.005, sensitivity: 0.85, pulse: 1.6, backside: 0.3, glow: 0.2, spin: 0.4, tilt: 0.35, glide: 0.3, wobble: 0.2, trail: 0.15, hue: 40, harmonyMode: 1 } },
       // Heavy bloom, slow spin — the orb as a lamp
-      { name: '4', config: { orbRadius: 0.42, speed: 0.5, thickness: 0.022, sensitivity: 0.6, pulse: 0.5, backside: 0.6, glow: 1.1, spin: 0.1, tilt: 0.65, wobble: 0.7, trail: 0.7, hue: 300, harmonyMode: 2 } }
+      { name: '4', config: { orbRadius: 0.42, speed: 0.5, thickness: 0.022, sensitivity: 0.6, pulse: 0.5, backside: 0.6, glow: 1.1, spin: 0.1, tilt: 0.65, glide: 0.9, wobble: 0.7, trail: 0.7, hue: 300, harmonyMode: 2 } }
     ];
   }
 
@@ -267,7 +287,8 @@ export class DopplerVisualizer extends BaseVisualizer {
         spin: { value: this.config.spin ?? 0.18 },
         tilt: { value: this.config.tilt ?? 0.5 },
         wobble: { value: this.config.wobble ?? 0.5 },
-        shift: { value: new THREE.Vector2(0, 0) },
+        userYaw: { value: 0 },
+        userPitch: { value: 0 },
         zoom: { value: 1 },
         darkMode: { value: this.darkMode ? 1 : 0 }
       },
@@ -295,10 +316,25 @@ export class DopplerVisualizer extends BaseVisualizer {
 
     this.detachPointerControls = attachPointerControls(this.container, {
       cursor: true,
+      onDragStart: () => {
+        this.dragging = true;
+        // Catching the ball stops it dead, the way a hand on a spinning
+        // globe does
+        this.yawVelocity = 0;
+        this.pitchVelocity = 0;
+      },
+      onDragEnd: () => { this.dragging = false; },
       onDrag: (dx, dy) => {
-        const h = this.container.clientHeight || 600;
-        this.shift.x += (dx / h) * this.zoom;
-        this.shift.y -= (dy / h) * this.zoom;
+        const yawStep = dx * DRAG_RADIANS_PER_PIXEL;
+        const pitchStep = dy * DRAG_RADIANS_PER_PIXEL;
+        this.yaw += yawStep;
+        this.pitch = clampPitch(this.pitch + pitchStep);
+
+        // Carry the last of the drag into velocity, so letting go mid-sweep
+        // throws the orb instead of dropping it. Blended rather than
+        // replaced: one jittery sample shouldn't decide the whole throw.
+        this.yawVelocity += (yawStep * 60 - this.yawVelocity) * 0.35;
+        this.pitchVelocity += (pitchStep * 60 - this.pitchVelocity) * 0.35;
       },
       onZoom: (delta) => {
         this.zoom = Math.max(0.2, Math.min(5, this.zoom * Math.exp(-delta * 0.0015)));
@@ -384,6 +420,28 @@ export class DopplerVisualizer extends BaseVisualizer {
       this.fades[i] = this.strengths[i] * tail * tail;
     }
 
+    // Coast after the hand lets go, slowing on an exponential curve so a
+    // flick can be thrown into a long spin. Time-based, so the ball travels
+    // the same arc whatever the frame rate.
+    if (!this.dragging) {
+      const glide = this.config.glide ?? 0.55;
+      this.yaw += this.yawVelocity * dt;
+      const pitched = clampPitch(this.pitch + this.pitchVelocity * dt);
+      // Spend the vertical throw when it reaches the stop, rather than
+      // leaving it pressed against the limit while it decays
+      if (pitched === this.pitch) this.pitchVelocity = 0;
+      this.pitch = pitched;
+
+      const tau = 0.08 + glide * 2.4;
+      const decay = Math.exp(-dt / tau);
+      this.yawVelocity *= decay;
+      this.pitchVelocity *= decay;
+
+      // Below a turn the eye can follow, stop rather than creep forever
+      if (Math.abs(this.yawVelocity) < 0.002) this.yawVelocity = 0;
+      if (Math.abs(this.pitchVelocity) < 0.002) this.pitchVelocity = 0;
+    }
+
     const { dominant, accent } = this.harmonyColorScheme(
       this.config.harmonyMode ?? 2,
       this.config.hue ?? 0
@@ -401,7 +459,8 @@ export class DopplerVisualizer extends BaseVisualizer {
     uniforms.spin.value = this.config.spin ?? 0.18;
     uniforms.tilt.value = this.config.tilt ?? 0.5;
     uniforms.wobble.value = this.config.wobble ?? 0.5;
-    uniforms.shift.value.set(this.shift.x, this.shift.y);
+    uniforms.userYaw.value = this.yaw;
+    uniforms.userPitch.value = this.pitch;
     uniforms.zoom.value = this.zoom;
   }
 
@@ -412,7 +471,10 @@ export class DopplerVisualizer extends BaseVisualizer {
 
   /** Put the pointer-driven view back to square one. */
   private resetView(): void {
-    this.shift = { x: 0, y: 0 };
+    this.yaw = 0;
+    this.pitch = 0;
+    this.yawVelocity = 0;
+    this.pitchVelocity = 0;
     this.zoom = 1;
   }
 
