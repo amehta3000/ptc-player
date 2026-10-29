@@ -184,7 +184,8 @@ export class DopplerVisualizer extends BaseVisualizer {
 
   private onset = new OnsetDetector();
   private lastEmitAt = -Infinity;
-  private startTime = 0;
+  /** Advances only while audio plays; everything time-driven reads it. */
+  private playTime = 0;
   private lastFrame = 0;
 
   // Pointer state: where the ball has been turned to, and how fast it is
@@ -303,8 +304,7 @@ export class DopplerVisualizer extends BaseVisualizer {
     this.mesh.frustumCulled = false;
     this.scene.add(this.mesh);
 
-    this.startTime = performance.now();
-    this.lastFrame = this.startTime;
+    this.lastFrame = performance.now();
 
     // Seed a few rings spread across the sweep so the orb is already woven on
     // the first frame instead of fading in from an empty screen
@@ -375,7 +375,12 @@ export class DopplerVisualizer extends BaseVisualizer {
     // Clamped so a backgrounded tab doesn't resume with one enormous step
     const dt = Math.min(0.1, (now - this.lastFrame) * 0.001);
     this.lastFrame = now;
-    const nowSec = (now - this.startTime) * 0.001;
+
+    // The orb runs on a clock that only turns while the music does, so
+    // paused it holds still rather than carrying on breathing on its own.
+    // Rings, their sweep, the precession and the wobble all read from this.
+    if (isPlaying) this.playTime += dt;
+    const nowSec = this.playTime;
 
     const strength = this.onset.update(
       audioData,
@@ -389,10 +394,11 @@ export class DopplerVisualizer extends BaseVisualizer {
       this.lastEmitAt = nowSec;
     }
 
-    // Keep the orb alive when nothing is playing, or through a passage with
-    // no percussion: without this it empties out and the screen goes black
+    // Carry the orb through a passage with no percussion, so a breakdown
+    // doesn't empty it out. Only while playing: idle emission was what kept
+    // it pulsing with the music paused.
     const pulse = this.config.pulse ?? 0.8;
-    if (pulse > 0 && nowSec - this.lastEmitAt > 1 / pulse) {
+    if (isPlaying && pulse > 0 && nowSec - this.lastEmitAt > 1 / pulse) {
       this.emit(0.75);
       this.lastEmitAt = nowSec;
     }
@@ -407,7 +413,9 @@ export class DopplerVisualizer extends BaseVisualizer {
 
     for (let i = 0; i < MAX_WAVES; i++) {
       if (this.phases[i] > Math.PI) continue;
-      this.phases[i] += dt * speed;
+      // Paused, rings hold where they are instead of sweeping off the far
+      // pole and leaving an empty screen
+      if (isPlaying) this.phases[i] += dt * speed;
       const travelled = this.phases[i] / Math.PI;
       if (travelled >= 1) {
         this.phases[i] = SPENT;
