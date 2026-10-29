@@ -63,6 +63,11 @@ export function parseShareParam(param: string): ShareState | null {
     if (state && typeof state.v === 'string' && state.c && typeof state.c === 'object') {
       // Default d to true for old links that predate the darkMode field
       if (typeof state.d !== 'boolean') state.d = true;
+      // A link naming a retired visualizer would otherwise mount nothing and
+      // leave a blank screen, so drop back to the default rather than honour it
+      if (!VisualizerRegistry.getTypes().includes(state.v)) {
+        return { ...state, v: 'terrain' } as ShareState;
+      }
       return state as ShareState;
     }
     return null;
