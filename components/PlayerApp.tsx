@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useKeyboardShortcuts } from '../lib/useKeyboardShortcuts';
 import { useVisualizer } from '../lib/useVisualizer';
 import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
@@ -330,25 +331,6 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     trackEvent('share_link_copied', currentMix.title);
   }, [currentMix, visualizerType, visualizerControls, darkMode, studioMode]);
 
-  // Keyboard shortcuts for volume and spacebar
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        const s = usePlayerStore.getState();
-        s.setVolume(Math.min(1, s.volume + 0.05));
-      } else if (e.key === 'ArrowDown' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        const s = usePlayerStore.getState();
-        s.setVolume(Math.max(0, s.volume - 0.05));
-      } else if (e.key === ' ' && e.target === document.body) {
-        e.preventDefault();
-        togglePlay();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // Visualizer dwell time tracking
   const dwellStartRef = useRef<number>(Date.now());
@@ -422,6 +404,33 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
       }
     }
   }, [setIsPlaying, audioContextRef]);
+
+  // Keyboard shortcuts. State is read off the store at press time rather than
+  // captured, so a toggle always flips what is on screen now.
+  useKeyboardShortcuts({
+    onTogglePlay: togglePlay,
+    onToggleInfo: handleShowAbout,
+    onToggleDarkMode: toggleDarkMode,
+    onToggleControls: () => {
+      const s = usePlayerStore.getState();
+      s.setShowControls(!s.showControls);
+    },
+    onTogglePlaylist: () => {
+      const s = usePlayerStore.getState();
+      s.setShowPlaylist(!s.showPlaylist);
+    },
+    // The ratio and format pickers live in the tools menu; a keyboard take
+    // uses the same defaults the menu opens on
+    onToggleRecording: () => toggleRecording(),
+    onVolumeUp: () => {
+      const s = usePlayerStore.getState();
+      s.setVolume(Math.min(1, s.volume + 0.05));
+    },
+    onVolumeDown: () => {
+      const s = usePlayerStore.getState();
+      s.setVolume(Math.max(0, s.volume - 0.05));
+    }
+  });
 
   const playNext = useCallback(() => {
     if (studioMode) {
