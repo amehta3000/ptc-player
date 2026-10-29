@@ -28,6 +28,9 @@ interface PlayerState {
   showPlaylist: boolean;
   showDebug: boolean;
   darkMode: boolean;
+  /** Chosen export preset id, shared so the R shortcut records what the
+   *  tools menu is showing rather than a default of its own. */
+  exportPresetId: string;
   visualizerType: VisualizerType;
   currentFont: string;
   /** Feature flag: Apple-Photos-style mobile control sheet instead of the classic panel */
@@ -61,6 +64,7 @@ interface PlayerActions {
   setShowControls: (show: boolean) => void;
   setShowPlaylist: (show: boolean) => void;
   setShowDebug: (show: boolean) => void;
+  setExportPresetId: (id: string) => void;
   toggleDarkMode: () => void;
   setDarkMode: (dark: boolean) => void;
   setVisualizerType: (type: VisualizerType) => void;
@@ -142,6 +146,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   showControls: false,
   showPlaylist: false,
   showDebug: false,
+  exportPresetId: 'screen',
   darkMode: true,
   visualizerType: 'terrain',
   currentFont: 'Stint Ultra Expanded',
@@ -182,6 +187,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   setShowControls: (show) => set({ showControls: show }),
   setShowPlaylist: (show) => set({ showPlaylist: show }),
   setShowDebug: (show) => set({ showDebug: show }),
+  setExportPresetId: (id) => set({ exportPresetId: id }),
   toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
   setDarkMode: (dark) => set({ darkMode: dark }),
   setVisualizerType: (type) => set({ visualizerType: type }),

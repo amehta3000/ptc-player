@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useKeyboardShortcuts } from '../lib/useKeyboardShortcuts';
+import ShortcutsOverlay from './ShortcutsOverlay';
+import { getExportPreset } from '../lib/exportManager';
 import { useVisualizer } from '../lib/useVisualizer';
 import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
@@ -33,6 +35,8 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     setShowIntro(false);
     setIntroForceOut(false);
   }, []);
+
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const handleShowAbout = useCallback(() => {
     if (showIntro) {
@@ -419,9 +423,12 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
       const s = usePlayerStore.getState();
       s.setShowPlaylist(!s.showPlaylist);
     },
-    // The ratio and format pickers live in the tools menu; a keyboard take
-    // uses the same defaults the menu opens on
-    onToggleRecording: () => toggleRecording(),
+    // Record at whatever the tools menu is set to, not at a default of its
+    // own: picking TikTok there and pressing R has to give a vertical MP4
+    onToggleRecording: () => {
+      const preset = getExportPreset(usePlayerStore.getState().exportPresetId);
+      toggleRecording(preset.ratio, preset.format);
+    },
     onVolumeUp: () => {
       const s = usePlayerStore.getState();
       s.setVolume(Math.min(1, s.volume + 0.05));
@@ -429,7 +436,9 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     onVolumeDown: () => {
       const s = usePlayerStore.getState();
       s.setVolume(Math.max(0, s.volume - 0.05));
-    }
+    },
+    onToggleShortcuts: () => setShowShortcuts((open) => !open),
+    onDismiss: () => setShowShortcuts(false)
   });
 
   const playNext = useCallback(() => {
@@ -495,6 +504,12 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
         onIntroDismiss={handleIntroDismiss}
         studioMode={studioMode}
         onStudioNewTrack={onStudioNewTrack}
+      />
+
+      <ShortcutsOverlay
+        open={showShortcuts}
+        darkMode={darkMode}
+        onClose={() => setShowShortcuts(false)}
       />
     </div>
   );

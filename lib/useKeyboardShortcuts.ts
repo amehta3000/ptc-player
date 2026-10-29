@@ -8,6 +8,24 @@
 
 import { useEffect, useRef } from 'react';
 
+/** One row of the help overlay. Kept beside the bindings below so the list
+ *  the user reads and the keys that actually fire cannot drift apart. */
+export interface ShortcutHint {
+  keys: string;
+  label: string;
+}
+
+export const SHORTCUT_HINTS: ShortcutHint[] = [
+  { keys: 'Space', label: 'Play / pause' },
+  { keys: '\u2191 \u2193', label: 'Volume' },
+  { keys: 'P', label: 'Playlist' },
+  { keys: 'C', label: 'Controls' },
+  { keys: 'D', label: 'Light / dark' },
+  { keys: 'R', label: 'Record' },
+  { keys: 'I', label: 'Info' },
+  { keys: '?', label: 'Shortcuts' }
+];
+
 export interface KeyboardShortcutHandlers {
   /** Space — only when nothing is focused, so it still activates buttons. */
   onTogglePlay: () => void;
@@ -18,6 +36,9 @@ export interface KeyboardShortcutHandlers {
   onTogglePlaylist: () => void;
   onVolumeUp: () => void;
   onVolumeDown: () => void;
+  onToggleShortcuts: () => void;
+  /** Escape — close whatever is open on top. */
+  onDismiss: () => void;
 }
 
 /** Typing somewhere shouldn't trigger shortcuts. */
@@ -50,6 +71,13 @@ export function useKeyboardShortcuts(handlers: KeyboardShortcutHandlers): void {
         case 'ArrowDown':
           e.preventDefault();
           h.onVolumeDown();
+          return;
+        case 'Escape':
+          h.onDismiss();
+          return;
+        case '?':
+          e.preventDefault();
+          h.onToggleShortcuts();
           return;
         case ' ':
           // Only when focus is nowhere: space is also how a focused button is
