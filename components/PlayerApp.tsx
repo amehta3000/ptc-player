@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useKeyboardShortcuts } from '../lib/useKeyboardShortcuts';
+import ShortcutsOverlay from './ShortcutsOverlay';
 import { useVisualizer } from '../lib/useVisualizer';
 import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
@@ -33,6 +34,8 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     setShowIntro(false);
     setIntroForceOut(false);
   }, []);
+
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const handleShowAbout = useCallback(() => {
     if (showIntro) {
@@ -429,7 +432,9 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     onVolumeDown: () => {
       const s = usePlayerStore.getState();
       s.setVolume(Math.max(0, s.volume - 0.05));
-    }
+    },
+    onToggleShortcuts: () => setShowShortcuts((open) => !open),
+    onDismiss: () => setShowShortcuts(false)
   });
 
   const playNext = useCallback(() => {
@@ -495,6 +500,12 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
         onIntroDismiss={handleIntroDismiss}
         studioMode={studioMode}
         onStudioNewTrack={onStudioNewTrack}
+      />
+
+      <ShortcutsOverlay
+        open={showShortcuts}
+        darkMode={darkMode}
+        onClose={() => setShowShortcuts(false)}
       />
     </div>
   );
