@@ -146,7 +146,17 @@ export default function DetailView({
 
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const socialMenuRef = useRef<HTMLDivElement>(null);
-  const [exportPresetId, setExportPresetId] = useState(studioMode ? 'tiktok' : 'screen');
+  // Lives in the store so the R shortcut records the preset shown here
+  const exportPresetId = usePlayerStore((s) => s.exportPresetId);
+  const setExportPresetId = usePlayerStore((s) => s.setExportPresetId);
+
+  // The studio opens on a vertical take; a later choice is the user's and is
+  // left alone, since this runs once on mount
+  useEffect(() => {
+    if (studioMode) setExportPresetId('tiktok');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const exportRatio: AspectRatio = getExportPreset(exportPresetId).ratio;
   const exportFormat: ExportFormat = getExportPreset(exportPresetId).format;
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
