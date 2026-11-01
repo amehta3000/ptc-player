@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { usePlayerStore } from '../store/usePlayerStore';
+import { usePlayerStore, VisualizerType } from '../store/usePlayerStore';
 import { useKeyboardShortcuts } from '../lib/useKeyboardShortcuts';
 import ShortcutsOverlay from './ShortcutsOverlay';
 import { getExportPreset } from '../lib/exportManager';
+import { useAutoSwitch } from '../lib/useAutoSwitch';
 import { useVisualizer } from '../lib/useVisualizer';
 import { useFontTools } from '../lib/useFontTools';
 import { extractColors } from '../lib/colorExtractor';
@@ -465,6 +466,81 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     }
   }, [handleMixSelect, studioMode]);
 
+  // ── Auto-switch ──
+  const autoSwitch = usePlayerStore((s) => s.autoSwitch);
+  const autoSwitchSeconds = usePlayerStore((s) => s.autoSwitchSeconds);
+  const autoSwitchMode = usePlayerStore((s) => s.autoSwitchMode);
+  const autoSwitchTypes = usePlayerStore((s) => s.autoSwitchTypes);
+
+  // The look to apply once the incoming visualizer has mounted and published
+  // its presets; applying it before then would hit the outgoing one
+  const pendingLook = useRef<number | null>(null);
+
+  const switchWithFade = useCallback((next: VisualizerType) => {
+    const el = visualizerContainerRef.current;
+    const mode = usePlayerStore.getState().autoSwitchMode;
+
+    // A real crossfade would mean two live WebGL contexts, so this dips
+    // through the background instead — cheap, and it reads as deliberate
+    if (el) {
+      el.style.transition = 'opacity 220ms ease';
+      el.style.opacity = '0';
+    }
+    window.setTimeout(() => {
+      pendingLook.current = mode;
+      setVisualizerType(next);
+      window.setTimeout(() => {
+        if (el) el.style.opacity = '1';
+      }, 60);
+    }, 220);
+  }, [setVisualizerType]);
+
+  const { deferAutoSwitch } = useAutoSwitch({
+    enabled: autoSwitch,
+    seconds: autoSwitchSeconds,
+    types: autoSwitchTypes,
+    currentType: visualizerType,
+    isPlaying,
+    isRecording: recordingState.isRecording,
+    onSwitch: switchWithFade
+  });
+
+  // Apply the queued look after the switch: the type effect inside
+  // useVisualizer has run by now, so these presets belong to the new one
+  useEffect(() => {
+    const mode = pendingLook.current;
+    if (mode === null) return;
+    pendingLook.current = null;
+
+    if (mode === 3) return;                       // keep the look as it is
+    if (mode === 2) { randomizeControls(); return; }
+
+    if (visualizerPresets.length > 0) {
+      const preset = visualizerPresets[Math.floor(Math.random() * visualizerPresets.length)];
+      const config = { ...preset.config };
+      // Presets + hue: the composition is kept, only the palette moves
+      if (mode === 1 && 'hue' in config) config.hue = Math.floor(Math.random() * 360);
+      applyPreset(config);
+    }
+  }, [visualizerType, visualizerPresets, applyPreset, randomizeControls]);
+
+  // Touching anything by hand restarts the countdown, so auto-switch never
+  // pulls the view away mid-adjustment
+  const handleUpdateConfig = useCallback((key: string, value: number) => {
+    deferAutoSwitch();
+    updateConfig(key, value);
+  }, [deferAutoSwitch, updateConfig]);
+
+  const handleApplyPreset = useCallback((config: Record<string, number>) => {
+    deferAutoSwitch();
+    applyPreset(config);
+  }, [deferAutoSwitch, applyPreset]);
+
+  const handleRandomizeControls = useCallback(() => {
+    deferAutoSwitch();
+    randomizeControls();
+  }, [deferAutoSwitch, randomizeControls]);
+
   const handleRandomize = useCallback(() => {
     const newType = randomize();
     setVisualizerType(newType);
@@ -484,11 +560,11 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
         onPlayPrevious={playPrevious}
         visualizerControls={visualizerControls}
         visualizerPresets={visualizerPresets}
-        onUpdateConfig={updateConfig}
+        onUpdateConfig={handleUpdateConfig}
         onResetConfig={resetToDefaults}
         onRandomize={handleRandomize}
-        onApplyPreset={applyPreset}
-        onRandomizeControls={randomizeControls}
+        onApplyPreset={handleApplyPreset}
+        onRandomizeControls={handleRandomizeControls}
         visualizerName={visualizerName}
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
