@@ -21,6 +21,11 @@ interface PlayerAppProps {
   onStudioNewTrack?: () => void;
 }
 
+/** Auto-switch crossfade timings, in milliseconds. */
+const FADE_OUT_MS = 500;
+const FADE_HOLD_MS = 90;
+const FADE_IN_MS = 700;
+
 export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: PlayerAppProps) {
   const studioMode = !!studioMix;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -481,18 +486,25 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
     const mode = usePlayerStore.getState().autoSwitchMode;
 
     // A real crossfade would mean two live WebGL contexts, so this dips
-    // through the background instead — cheap, and it reads as deliberate
+    // through the background instead — cheap, and it reads as deliberate.
+    // Out a little quicker than back in: the leaving image is already known,
+    // the arriving one is worth revealing slowly.
     if (el) {
-      el.style.transition = 'opacity 220ms ease';
+      el.style.transition = `opacity ${FADE_OUT_MS}ms ease-in`;
       el.style.opacity = '0';
     }
     window.setTimeout(() => {
       pendingLook.current = mode;
       setVisualizerType(next);
+      // A few frames at black so the incoming visualizer has rendered
+      // something before the reveal starts
       window.setTimeout(() => {
-        if (el) el.style.opacity = '1';
-      }, 60);
-    }, 220);
+        if (el) {
+          el.style.transition = `opacity ${FADE_IN_MS}ms ease-out`;
+          el.style.opacity = '1';
+        }
+      }, FADE_HOLD_MS);
+    }, FADE_OUT_MS);
   }, [setVisualizerType]);
 
   const { deferAutoSwitch } = useAutoSwitch({
