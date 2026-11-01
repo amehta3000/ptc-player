@@ -36,6 +36,14 @@ interface PlayerState {
   /** Feature flag: Apple-Photos-style mobile control sheet instead of the classic panel */
   mobileControlsV2: boolean;
 
+  /** Auto-switch: cycle the visualizer on a timer. Persisted. */
+  autoSwitch: boolean;
+  autoSwitchSeconds: number;
+  /** 0 Presets · 1 Presets + random hue · 2 Random · 3 Keep current look */
+  autoSwitchMode: number;
+  /** Which visualizers to cycle. Empty means every one in the cycle. */
+  autoSwitchTypes: VisualizerType[];
+
   // Colors
   dominantColor: string;
   accentColor: string;
@@ -70,6 +78,10 @@ interface PlayerActions {
   setVisualizerType: (type: VisualizerType) => void;
   setCurrentFont: (font: string) => void;
   setMobileControlsV2: (on: boolean) => void;
+  setAutoSwitch: (on: boolean) => void;
+  setAutoSwitchSeconds: (seconds: number) => void;
+  setAutoSwitchMode: (mode: number) => void;
+  toggleAutoSwitchType: (type: VisualizerType) => void;
 
   // Color actions
   setDominantColor: (color: string) => void;
@@ -126,6 +138,32 @@ export const FONTS = [
   'Barriecito',
 ];
 
+type AutoSwitchPatch = Partial<Pick<PlayerState, 'autoSwitch' | 'autoSwitchSeconds' | 'autoSwitchMode' | 'autoSwitchTypes'>>;
+
+/**
+ * Writes the auto-switch settings through to localStorage on every change and
+ * returns the same patch for the store. Zustand hands a setter only its patch,
+ * so the rest is read back off the store to save the whole blob at once.
+ */
+function persistAutoSwitch(patch: AutoSwitchPatch): AutoSwitchPatch {
+  if (typeof window !== 'undefined') {
+    const s = usePlayerStore.getState();
+    const merged = {
+      autoSwitch: s.autoSwitch,
+      autoSwitchSeconds: s.autoSwitchSeconds,
+      autoSwitchMode: s.autoSwitchMode,
+      autoSwitchTypes: s.autoSwitchTypes,
+      ...patch
+    };
+    try {
+      window.localStorage.setItem('ptc-autoswitch', JSON.stringify(merged));
+    } catch {
+      // Private browsing or blocked storage: the setting just won't persist
+    }
+  }
+  return patch;
+}
+
 export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => ({
   // Initial state
   currentMix: null,
@@ -157,6 +195,28 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     if (param === 'v2') return true;
     if (param === 'classic') return false;
     return window.localStorage.getItem('ptc-controls-v2') !== '0';
+  })(),
+
+  ...(() => {
+    // One blob so the whole auto-switch setup survives a reload together
+    const fallback = { autoSwitch: false, autoSwitchSeconds: 45, autoSwitchMode: 0, autoSwitchTypes: [] as VisualizerType[] };
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const raw = window.localStorage.getItem('ptc-autoswitch');
+      if (!raw) return fallback;
+      const saved = JSON.parse(raw);
+      return {
+        autoSwitch: typeof saved.autoSwitch === 'boolean' ? saved.autoSwitch : fallback.autoSwitch,
+        autoSwitchSeconds: typeof saved.autoSwitchSeconds === 'number' ? saved.autoSwitchSeconds : fallback.autoSwitchSeconds,
+        autoSwitchMode: typeof saved.autoSwitchMode === 'number' ? saved.autoSwitchMode : fallback.autoSwitchMode,
+        // Drop any retired visualizer a stored list still names
+        autoSwitchTypes: Array.isArray(saved.autoSwitchTypes)
+          ? saved.autoSwitchTypes.filter((t: VisualizerType) => VISUALIZER_TYPES.includes(t))
+          : fallback.autoSwitchTypes
+      };
+    } catch {
+      return fallback;
+    }
   })(),
 
   dominantColor: 'rgb(115, 115, 115)',
@@ -195,6 +255,20 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     if (typeof window !== 'undefined') window.localStorage.setItem('ptc-controls-v2', on ? '1' : '0');
     set({ mobileControlsV2: on });
   },
+
+  setAutoSwitch: (on) => set(persistAutoSwitch({ autoSwitch: on })),
+  setAutoSwitchSeconds: (seconds) => set(persistAutoSwitch({ autoSwitchSeconds: seconds })),
+  setAutoSwitchMode: (mode) => set(persistAutoSwitch({ autoSwitchMode: mode })),
+  toggleAutoSwitchType: (type) => set((s) => {
+    // An empty list means "all", so the first click has to start from the
+    // full set and remove one, not from nothing
+    const current = s.autoSwitchTypes.length ? s.autoSwitchTypes : VISUALIZER_TYPES;
+    const next = current.includes(type)
+      ? current.filter((t) => t !== type)
+      : [...current, type];
+    // Never leave it with nothing to switch to
+    return persistAutoSwitch({ autoSwitchTypes: next.length ? next : [type] });
+  }),
 
   // Color actions
   setDominantColor: (color) => set({ dominantColor: color }),

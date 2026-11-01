@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { usePlayerStore, VISUALIZER_NAMES, VISUALIZER_TYPES, FONTS } from '../store/usePlayerStore';
+import { AUTO_SWITCH_MODES } from '../lib/useAutoSwitch';
 import { VisualizerControl, VisualizerPreset } from '../lib/visualizers/BaseVisualizer';
 import { RecordingState, AspectRatio, ExportFormat, EXPORT_PRESETS, getExportPreset } from '../lib/exportManager';
 import VisualizerControls from './VisualizerControls';
@@ -146,6 +147,15 @@ export default function DetailView({
 
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const socialMenuRef = useRef<HTMLDivElement>(null);
+  const autoSwitch = usePlayerStore((s) => s.autoSwitch);
+  const autoSwitchSeconds = usePlayerStore((s) => s.autoSwitchSeconds);
+  const autoSwitchMode = usePlayerStore((s) => s.autoSwitchMode);
+  const autoSwitchTypes = usePlayerStore((s) => s.autoSwitchTypes);
+  const setAutoSwitch = usePlayerStore((s) => s.setAutoSwitch);
+  const setAutoSwitchSeconds = usePlayerStore((s) => s.setAutoSwitchSeconds);
+  const setAutoSwitchMode = usePlayerStore((s) => s.setAutoSwitchMode);
+  const toggleAutoSwitchType = usePlayerStore((s) => s.toggleAutoSwitchType);
+
   // Lives in the store so the R shortcut records the preset shown here
   const exportPresetId = usePlayerStore((s) => s.exportPresetId);
   const setExportPresetId = usePlayerStore((s) => s.setExportPresetId);
@@ -793,6 +803,95 @@ export default function DetailView({
                         Cancel
                       </button>
                     </div>
+                  </>
+                )}
+                {/* Auto-switch: move to another visualizer on a timer */}
+                {showVisualizer && (
+                  <>
+                    <div className="border-t border-white/10" />
+                    <button
+                      onClick={() => setAutoSwitch(!autoSwitch)}
+                      className="w-full px-3 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-3"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.3 5.3M4 15a8 8 0 0013.7 3.7" />
+                      </svg>
+                      <span className="flex-1">Auto-switch</span>
+                      <span className={`text-xs ${autoSwitch ? 'text-emerald-400' : 'text-white/40'}`}>
+                        {autoSwitch ? `${autoSwitchSeconds}s` : 'Off'}
+                      </span>
+                    </button>
+
+                    {autoSwitch && (
+                      <div className="px-3 pb-3 space-y-2.5">
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] text-white/50 mb-1">
+                            <span>Every</span>
+                            <span className="tabular-nums">
+                              {autoSwitchSeconds >= 60
+                                ? `${Math.round(autoSwitchSeconds / 60 * 10) / 10}m`
+                                : `${autoSwitchSeconds}s`}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={10}
+                            max={300}
+                            step={5}
+                            value={autoSwitchSeconds}
+                            onChange={(e) => setAutoSwitchSeconds(parseInt(e.target.value, 10))}
+                            className="w-full accent-white/80 cursor-pointer"
+                            aria-label="Auto-switch interval"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="text-[11px] text-white/50 mb-1">On switch</div>
+                          <div className="grid grid-cols-2 gap-1">
+                            {AUTO_SWITCH_MODES.map((label, i) => (
+                              <button
+                                key={label}
+                                onClick={() => setAutoSwitchMode(i)}
+                                className={`text-[11px] rounded px-1.5 py-1 border transition-colors ${
+                                  autoSwitchMode === i
+                                    ? 'bg-white/20 border-white/30 text-white'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-[11px] text-white/50 mb-1">
+                            Switch between
+                            {autoSwitchTypes.length > 0 && ` (${autoSwitchTypes.length})`}
+                          </div>
+                          <div className="max-h-36 overflow-y-auto overscroll-contain grid grid-cols-2 gap-1 pr-0.5">
+                            {VISUALIZER_TYPES.map((type) => {
+                              // An empty selection means every one of them
+                              const on = autoSwitchTypes.length === 0 || autoSwitchTypes.includes(type);
+                              return (
+                                <button
+                                  key={type}
+                                  onClick={() => toggleAutoSwitchType(type)}
+                                  className={`text-[11px] rounded px-1.5 py-1 border text-left truncate transition-colors ${
+                                    on
+                                      ? 'bg-white/20 border-white/30 text-white'
+                                      : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                                  }`}
+                                  title={VISUALIZER_NAMES[type]}
+                                >
+                                  {VISUALIZER_NAMES[type]}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
                 {/* Export preset: platform-labeled crop + format */}
