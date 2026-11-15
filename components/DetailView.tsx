@@ -1095,14 +1095,22 @@ export default function DetailView({
             <div
               key={idx}
               onClick={() => handleMixSelect(mix)}
-              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
+              className={`group flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
                 currentMix?.title === mix.title ? listRowActive : ''
               }`}
             >
+              {/* Desktop: the artwork rests in grey so a column of covers
+                  doesn't compete with the visualizer, and comes back to
+                  colour on hover or while it is the track playing. Phones
+                  have no visualizer beside the list, so they keep colour. */}
               <img
                 src={mix.cover}
                 alt={mix.title}
-                className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
+                className={`w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0 transition duration-500 ${
+                  currentMix?.title === mix.title
+                    ? ''
+                    : 'sm:grayscale sm:opacity-60 sm:group-hover:grayscale-0 sm:group-hover:opacity-100'
+                }`}
               />
               <div className="flex-1 min-w-0">
                 <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
