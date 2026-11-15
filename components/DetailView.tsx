@@ -60,9 +60,6 @@ function formatTime(seconds: number) {
  */
 const RAIL_WIDTH = 'clamp(260px, 28vw, 380px)';
 
-/** Milliseconds the rail takes to slide; the canvas resizes in step. */
-const RAIL_SLIDE_MS = 300;
-
 /** True at the `sm` breakpoint and up, where the playlist becomes a rail.
  *  Starts false so the first client paint matches the static export; the
  *  playlist is closed by default, so nothing visibly flips. */
@@ -76,25 +73,6 @@ function useIsDesktop(): boolean {
     return () => mq.removeEventListener('change', sync);
   }, []);
   return isDesktop;
-}
-
-/** Live offsetHeight of an element, so the rail can sit exactly between the
- *  header and the player bar without either height being hard-coded.
- *  A callback ref, not an effect over a RefObject: these elements render
- *  behind an early return, so an effect would run once against null and
- *  never see them appear. */
-function useBoxHeight(): [(el: HTMLElement | null) => void, number] {
-  const [height, setHeight] = useState(0);
-  const observer = useRef<ResizeObserver | null>(null);
-  const ref = useCallback((el: HTMLElement | null) => {
-    observer.current?.disconnect();
-    observer.current = null;
-    if (!el) return;
-    setHeight(el.offsetHeight);
-    observer.current = new ResizeObserver(() => setHeight(el.offsetHeight));
-    observer.current.observe(el);
-  }, []);
-  return [ref, height];
 }
 
 export default function DetailView({
@@ -219,22 +197,16 @@ export default function DetailView({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMediaLoading, setIsMediaLoading] = useState(false);
 
-  // ── Desktop layout: playlist as a left rail, visualizer in what is left ──
+  // ── Desktop layout: playlist as a left column beside the visualizer ──
   const isDesktop = useIsDesktop();
-  const [headerRef, headerHeight] = useBoxHeight();
-  const [playerBarRef, playerBarHeight] = useBoxHeight();
   const railOpen = isDesktop && showPlaylist && !studioMode;
-  // The rail spans the gap between header and player bar; on phones the
-  // playlist stays the full-screen sheet it already was.
+  // Closed, the rail keeps its width and is pulled out of the row by a
+  // negative margin, so its contents never squash mid-slide. The right
+  // column takes the space back, the canvas container shrinks or grows with
+  // it, and visualizerManager's ResizeObserver refits the visualizer.
   const railStyle: React.CSSProperties = isDesktop
-    ? { width: RAIL_WIDTH, top: headerHeight, bottom: playerBarHeight }
+    ? { width: RAIL_WIDTH, marginLeft: railOpen ? 0 : `calc(-1 * ${RAIL_WIDTH})` }
     : {};
-  // Giving up the left edge is what shrinks the canvas: the container's
-  // ResizeObserver fires and every visualizer refits to the new box.
-  const stageStyle: React.CSSProperties = {
-    left: railOpen ? RAIL_WIDTH : 0,
-    transition: `left ${RAIL_SLIDE_MS}ms ease`,
-  };
 
   // Mobile control sheet (feature flag): only kicks in below the sm breakpoint
   const mobileControlsV2 = usePlayerStore((s) => s.mobileControlsV2);
@@ -396,14 +368,17 @@ export default function DetailView({
     setProgress(0);
     setCurrentTime(0);
     setDuration(0);
-    setShowPlaylist(false);
+    // The desktop rail sits beside the visual, so picking a track leaves it
+    // open — it closes only when asked. The phone sheet covers the screen,
+    // so it still gets out of the way.
+    if (!isDesktop) setShowPlaylist(false);
 
     const colors = await extractColors(mix.cover);
     setDominantColor(colors.dominant);
     setAccentColor(colors.accent);
 
     trackEvent('song_selected', mix.title);
-  }, [setCurrentMix, setProgress, setCurrentTime, setDuration, setShowPlaylist, setDominantColor, setAccentColor]);
+  }, [isDesktop, setCurrentMix, setProgress, setCurrentTime, setDuration, setShowPlaylist, setDominantColor, setAccentColor]);
 
   const handleSwipeStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length > 1) {
@@ -447,13 +422,10 @@ export default function DetailView({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col${!uiVisible ? ' cursor-none' : ''}`}
+      className={`fixed inset-0 z-50 flex${!uiVisible ? ' cursor-none' : ''}`}
       onTouchStart={handleSwipeStart}
       onTouchEnd={handleSwipeEnd}
     >
-      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
-      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
-
       {/* Background */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"
@@ -467,8 +439,105 @@ export default function DetailView({
         <div className="absolute inset-0 bg-black/85 backdrop-blur-3xl" />
       </div>
 
+      {/* Playlist — full-screen sheet on phones, left rail on desktop.
+          On desktop this is a real column in the row, not an overlay: it
+          slides on its own margin and the right column simply gets what is
+          left, so nothing beside it is ever covered or clipped. On phones it
+          stays `fixed`, out of flow, and the row collapses to one column. */}
+      <div
+        className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
+          fixed inset-0 w-full ${listSurface}
+          sm:static sm:w-auto sm:self-stretch sm:rounded-none sm:border-0 sm:border-r ${
+          showPlaylist && !studioMode
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full opacity-0 pointer-events-none sm:translate-y-0'
+        }`}
+        style={railStyle}
+      >
+        {/* Sheet header — phones only; desktop keeps the page header visible */}
+        <div className="sm:hidden flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
+          <img
+            src="https://media.parttimechiller.com/logo3.png"
+            alt="PTC"
+            className={`h-10 w-10${!darkMode ? ' invert' : ''}`}
+          />
+          <button
+            onClick={() => setShowPlaylist(false)}
+            aria-label="Close playlist"
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${listCloseBtn}`}
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl border-b flex items-center justify-between ${listBarBg} ${listDivider}`}>
+          <span className={`text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
+          <div className="flex gap-1">
+            {(['all', 'track', 'mix'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? listFilterOn : listFilterOff}`}
+              >
+                {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
+              </button>
+            ))}
+            {/* The sheet's close button is phone-only, so the rail needs its
+                own way out besides the logo and the P shortcut */}
+            <button
+              onClick={() => setShowPlaylist(false)}
+              aria-label="Hide playlist"
+              className={`hidden sm:flex w-6 h-6 ml-1 items-center justify-center rounded transition-colors ${listFilterOff}`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        {/* Scrolls on its own so the header and filters stay put; the bottom
+            padding clears the player bar riding over the sheet */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-24 sm:pb-3 space-y-1">
+          {filteredMixes.map((mix, idx) => (
+            <div
+              key={idx}
+              onClick={() => handleMixSelect(mix)}
+              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
+                currentMix?.title === mix.title ? `border ${listRowActive}` : 'border border-transparent'
+              }`}
+            >
+              <img
+                src={mix.cover}
+                alt={mix.title}
+                className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
+                <div className={`text-xs truncate ${listSubtle}`}>{mix.description} &bull; {mix.duration}</div>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                mix.type === 'mix' ? pillMix : pillTrack
+              }`}>
+                {mix.type}
+              </span>
+              <TrackMenu mix={mix} position="below" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right column — everything that is not the rail. The rail is a real
+          sibling in the row, so this column is simply what is left over:
+          header, visualizer, intro titles and player bar all reflow with it
+          instead of being overlaid and clipped by the list. */}
+      <div className="relative flex-1 min-w-0 flex flex-col">
+      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
+      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
+
       {/* Header */}
-      <div ref={headerRef} className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
+      <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => (studioMode ? onStudioNewTrack?.() : setShowPlaylist(!showPlaylist))}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
           <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>{studioMode ? 'PTC Studio' : 'Part Time Chiller'}</span>
@@ -1014,7 +1083,6 @@ export default function DetailView({
       {showVisualizer && (
         <div
           className="absolute inset-0 z-[5] p-0 sm:p-4"
-          style={stageStyle}
           onClick={() => { if (showControls && window.innerWidth < 640) setShowControls(false); }}
         >
           <VisualizerContainer containerRef={containerRef} />
@@ -1022,104 +1090,13 @@ export default function DetailView({
       )}
 
       {/* Middle area — album art when not visualizing, spacer when visualizing */}
-      <div
-        className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}
-        style={{ paddingLeft: railOpen ? RAIL_WIDTH : undefined, transition: `padding-left ${RAIL_SLIDE_MS}ms ease` }}
-      >
+      <div className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}>
         {!showVisualizer && <VisualizerContainer containerRef={containerRef} />}
       </div>
 
-      {/* Playlist — full-screen sheet on phones, left rail on desktop. The rail
-          slides in between the header and the player bar and the visualizer
-          stage gives up exactly its width, so the two never overlap and you
-          can pick the next track with the visual still running beside it. */}
-      <div
-        className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
-          fixed inset-0 w-full ${listSurface}
-          sm:absolute sm:inset-auto sm:left-0 sm:rounded-none sm:border-0 sm:border-r ${
-          showPlaylist && !studioMode
-            ? 'translate-y-0 opacity-100 sm:translate-x-0'
-            : 'translate-y-full opacity-0 pointer-events-none sm:translate-y-0 sm:-translate-x-full'
-        }`}
-        style={railStyle}
-      >
-        {/* Sheet header — phones only; desktop keeps the page header visible */}
-        <div className="sm:hidden flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
-          <img
-            src="https://media.parttimechiller.com/logo3.png"
-            alt="PTC"
-            className={`h-10 w-10${!darkMode ? ' invert' : ''}`}
-          />
-          <button
-            onClick={() => setShowPlaylist(false)}
-            aria-label="Close playlist"
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${listCloseBtn}`}
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-        </div>
-
-        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl border-b flex items-center justify-between ${listBarBg} ${listDivider}`}>
-          <span className={`text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
-          <div className="flex gap-1">
-            {(['all', 'track', 'mix'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? listFilterOn : listFilterOff}`}
-              >
-                {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
-              </button>
-            ))}
-            {/* The sheet's close button is phone-only, so the rail needs its
-                own way out besides the logo and the P shortcut */}
-            <button
-              onClick={() => setShowPlaylist(false)}
-              aria-label="Hide playlist"
-              className={`hidden sm:flex w-6 h-6 ml-1 items-center justify-center rounded transition-colors ${listFilterOff}`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        {/* Scrolls on its own so the header and filters stay put; the bottom
-            padding clears the player bar riding over the sheet */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-24 sm:pb-3 space-y-1">
-          {filteredMixes.map((mix, idx) => (
-            <div
-              key={idx}
-              onClick={() => handleMixSelect(mix)}
-              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
-                currentMix?.title === mix.title ? `border ${listRowActive}` : 'border border-transparent'
-              }`}
-            >
-              <img
-                src={mix.cover}
-                alt={mix.title}
-                className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
-                <div className={`text-xs truncate ${listSubtle}`}>{mix.description} &bull; {mix.duration}</div>
-              </div>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                mix.type === 'mix' ? pillMix : pillTrack
-              }`}>
-                {mix.type}
-              </span>
-              <TrackMenu mix={mix} position="below" />
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Slim Player Bar */}
       <div
-        ref={playerBarRef}
         className={`relative z-30 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
         style={{
           background: `linear-gradient(to right, rgba(10,10,10,0.85), ${accentColor}15)`,
@@ -1314,6 +1291,7 @@ export default function DetailView({
 
         {/* Track menu */}
         <TrackMenu mix={currentMix} position="above" />
+      </div>
       </div>
     </div>
   );

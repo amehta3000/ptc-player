@@ -38,36 +38,40 @@ export default function IntroSequence({ onDismiss, autoTimeout = 5500, forceOut,
     : { primary: 'text-black/70', secondary: 'text-black/55', muted: 'text-black/40', divider: 'border-black/20' };
 
   return (
-    <div
-      className={`fixed inset-0 z-[18] flex flex-col items-start justify-center cursor-pointer select-none pl-12 sm:pl-16 md:pl-20 lg:pl-28 ${animatingOut ? 'intro-out' : ''}`}
-      onClick={handleDismiss}
-    >
+    // intro-stage makes this the sizing container: the type below is measured
+    // against this column's width, which narrows when the playlist rail opens.
+    <div className="intro-stage absolute inset-0 z-[18]">
       <div
-        className={`intro-word ${c.primary} font-bold leading-none tracking-tight text-[8vw] sm:text-[7vw] md:text-[6.5vw]`}
+        className={`w-full h-full flex flex-col items-start justify-center cursor-pointer select-none pl-12 sm:pl-16 md:pl-20 lg:pl-28 ${animatingOut ? 'intro-out' : ''}`}
+        onClick={handleDismiss}
+      >
+      <div
+        className={`intro-word intro-title ${c.primary} font-bold leading-none tracking-tight`}
         style={{ animationDelay: '100ms' }}
       >
         PART TIME CHILLER
       </div>
       <div
-        className={`intro-word ${c.secondary} font-bold leading-tight tracking-tight text-[3.8vw] sm:text-[3vw] md:text-[2.6vw] mt-4`}
+        className={`intro-word intro-tagline ${c.secondary} font-bold leading-tight tracking-tight mt-4`}
         style={{ animationDelay: '500ms' }}
       >
         MUSIC FOR THE IN BETWEEN
       </div>
       <div
-        className={`intro-word ${c.muted} font-bold leading-tight tracking-tight text-[2.4vw] sm:text-[1.9vw] md:text-[1.6vw]`}
+        className={`intro-word intro-sub ${c.muted} font-bold leading-tight tracking-tight`}
         style={{ animationDelay: '900ms' }}
       >
         A VISUAL BEAT TAPE + DJ MIXES
       </div>
       {currentMixTitle && (
         <div
-          className={`intro-word ${c.primary} font-bold leading-tight tracking-tight text-[3.8vw] sm:text-[3vw] md:text-[2.6vw] mt-6 border-t ${c.divider} pt-4`}
+          className={`intro-word intro-tagline ${c.primary} font-bold leading-tight tracking-tight mt-6 border-t ${c.divider} pt-4`}
           style={{ animationDelay: '1200ms' }}
         >
           {currentMixTitle.toUpperCase()}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
