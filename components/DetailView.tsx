@@ -126,7 +126,8 @@ export default function DetailView({
   const listTitle = darkMode ? 'text-white' : 'text-neutral-900';
   const listSubtle = darkMode ? 'text-neutral-400' : 'text-neutral-600';
   const listRowHover = darkMode ? 'hover:bg-white/10' : 'hover:bg-black/5';
-  const listRowActive = darkMode ? 'bg-white/10 border-white/20' : 'bg-black/[0.07] border-black/20';
+  // The playing row is marked by its fill alone — no outline around it
+  const listRowActive = darkMode ? 'bg-white/10' : 'bg-black/[0.07]';
   const listFilterOn = darkMode ? 'bg-white/20 text-white' : 'bg-black/10 text-neutral-900';
   const listFilterOff = darkMode ? 'text-white/50 hover:text-white/70' : 'text-neutral-500 hover:text-neutral-900';
   const listCloseBtn = darkMode
@@ -213,6 +214,12 @@ export default function DetailView({
   const railStyle: React.CSSProperties = isDesktop
     ? { width: RAIL_WIDTH, marginLeft: railOpen ? 0 : `calc(-1 * ${RAIL_WIDTH})` }
     : {};
+  // Where the full-height overlays start. It tracks the rail's slide at the
+  // same duration, so the canvas edge and the rail edge move together.
+  const stageLeftStyle: React.CSSProperties = {
+    left: railOpen ? RAIL_WIDTH : 0,
+    transition: 'left 300ms ease',
+  };
 
   // Mobile control sheet (feature flag): only kicks in below the sm breakpoint
   const mobileControlsV2 = usePlayerStore((s) => s.mobileControlsV2);
@@ -448,6 +455,57 @@ export default function DetailView({
           className="absolute inset-0 backdrop-blur-3xl"
           style={{ background: darkMode ? 'rgba(0,0,0,0.85)' : LIGHT_BG }}
         />
+      </div>
+
+      {/* Stage overlays — the visualizer, its intro titles and the control
+          panel span the full height of the window and start where the rail
+          ends, so the visual is as tall as the window allows and the header
+          and player bar ride over it. The rail itself stays in the flow
+          below, between them. */}
+      <div className="absolute inset-y-0 right-0 z-[5]" style={stageLeftStyle}>
+      {/* Full-viewport visualizer layer (behind UI) */}
+      {showVisualizer && (
+        <div
+          className="absolute inset-0 z-[5] p-0 sm:p-4"
+          onClick={() => { if (showControls && window.innerWidth < 640) setShowControls(false); }}
+        >
+          <VisualizerContainer containerRef={containerRef} />
+        </div>
+      )}
+      </div>
+      <div className="absolute inset-y-0 right-0 z-[18]" style={stageLeftStyle}>
+      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
+      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
+      </div>
+      <div className="absolute inset-y-0 right-0 z-20" style={stageLeftStyle}>
+      {/* Control Panel: classic side panel, or the mobile sheet behind the feature flag */}
+      {showControls && showVisualizer && (
+        isMobileViewport && mobileControlsV2 ? (
+          <MobileVizControls
+            controls={visualizerControls}
+            presets={visualizerPresets}
+            onUpdateConfig={onUpdateConfig}
+            onReset={onResetConfig}
+            onApplyPreset={onApplyPreset}
+            onRandomizeControls={onRandomizeControls}
+            onRandomize={onRandomize}
+            visualizerName={visualizerName}
+            onChangeVisualizer={(type) => setVisualizerType(type)}
+          />
+        ) : (
+          <VisualizerControls
+            controls={visualizerControls}
+            presets={visualizerPresets}
+            onUpdateConfig={onUpdateConfig}
+            onReset={onResetConfig}
+            onApplyPreset={onApplyPreset}
+            onRandomizeControls={onRandomizeControls}
+            onRandomize={onRandomize}
+            visualizerName={visualizerName}
+            onChangeVisualizer={(type) => setVisualizerType(type)}
+          />
+        )
+      )}
       </div>
 
       {/* Header */}
@@ -964,13 +1022,10 @@ export default function DetailView({
         </div>
       </div>
 
-      {/* Middle row — the rail and the stage sit side by side under the
-          full-width header and above the full-width player bar.
-          Positioned only from `sm` up, on purpose: on a phone neither this
-          nor the stage column is a containing block, so the visualizer's
-          `absolute inset-0` still resolves against the viewport and keeps
-          running full-bleed behind the header and the player bar. */}
-      <div className="sm:relative flex-1 min-h-0 flex">
+      {/* Middle row — the rail, and beside it the album-art view. This is
+          what pins the rail between the header and the player bar; the
+          visualizer is not in here, it spans the window behind all three. */}
+      <div className="flex-1 min-h-0 flex">
       {/* Playlist — full-screen sheet on phones, left rail on desktop.
           On desktop this is a real column in the row, not an overlay: it
           slides on its own margin and the right column simply gets what is
@@ -1037,7 +1092,7 @@ export default function DetailView({
               key={idx}
               onClick={() => handleMixSelect(mix)}
               className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
-                currentMix?.title === mix.title ? `border ${listRowActive}` : 'border border-transparent'
+                currentMix?.title === mix.title ? listRowActive : ''
               }`}
             >
               <img
@@ -1060,59 +1115,9 @@ export default function DetailView({
         </div>
       </div>
 
-      {/* Stage column — what is left of the row once the rail has its width.
-          The visualizer and the intro titles live here, so both reflow with
-          the rail instead of being overlaid and clipped by the list. */}
-      <div className="sm:relative flex-1 min-w-0 flex flex-col">
-      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
-      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
-
-
-      {/* Control Panel: classic side panel, or the mobile sheet behind the feature flag */}
-      {showControls && showVisualizer && (
-        isMobileViewport && mobileControlsV2 ? (
-          <MobileVizControls
-            controls={visualizerControls}
-            presets={visualizerPresets}
-            onUpdateConfig={onUpdateConfig}
-            onReset={onResetConfig}
-            onApplyPreset={onApplyPreset}
-            onRandomizeControls={onRandomizeControls}
-            onRandomize={onRandomize}
-            visualizerName={visualizerName}
-            onChangeVisualizer={(type) => setVisualizerType(type)}
-          />
-        ) : (
-          <VisualizerControls
-            controls={visualizerControls}
-            presets={visualizerPresets}
-            onUpdateConfig={onUpdateConfig}
-            onReset={onResetConfig}
-            onApplyPreset={onApplyPreset}
-            onRandomizeControls={onRandomizeControls}
-            onRandomize={onRandomize}
-            visualizerName={visualizerName}
-            onChangeVisualizer={(type) => setVisualizerType(type)}
-          />
-        )
-      )}
-
-      {/* Full-viewport visualizer layer (behind UI) */}
-      {showVisualizer && (
-        <div
-          className="absolute inset-0 z-[5] p-0 sm:p-4"
-          onClick={() => { if (showControls && window.innerWidth < 640) setShowControls(false); }}
-        >
-          <VisualizerContainer containerRef={containerRef} />
-        </div>
-      )}
-
       {/* Middle area — album art when not visualizing, spacer when visualizing */}
       <div className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}>
         {!showVisualizer && <VisualizerContainer containerRef={containerRef} />}
-      </div>
-
-
       </div>
       </div>
 
