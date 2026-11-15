@@ -13,6 +13,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
 import { drawMirrored, createMirrorScratch, MirrorState } from './mirrorCompositor';
+import { pageBackground } from './theme';
 
 export type AspectRatio = 'browser' | '9:16' | '4:5' | '1:1' | '16:9';
 export type OverlayDrawerFn = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
@@ -128,7 +129,7 @@ function getExportDimensions(
 export function captureScreenshot(canvas: HTMLCanvasElement, filename: string = 'visualizer.png', ratio: AspectRatio = 'browser', darkMode: boolean = true, overlayDrawer?: OverlayDrawerFn, mirror?: MirrorState): void {
   // Screenshots keep full canvas resolution (no cap)
   const { sx, sy, sw, sh, outW, outH } = getExportDimensions(canvas, ratio);
-  const bgColor = darkMode ? '#000000' : '#e8ebed';
+  const bgColor = pageBackground(darkMode);
 
   // Always use offscreen canvas to composite onto opaque background
   const offscreen = document.createElement('canvas');
@@ -277,7 +278,7 @@ export class VideoRecorder {
     this.offscreenCanvas.width = outW;
     this.offscreenCanvas.height = outH;
     const ctx = this.offscreenCanvas.getContext('2d', { alpha: false })!;
-    const bgColor = darkMode ? '#000000' : '#e8ebed';
+    const bgColor = pageBackground(darkMode);
     const mirrorScratch = createMirrorScratch();
 
     const drawFrame = () => {

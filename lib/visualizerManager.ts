@@ -22,6 +22,8 @@ export class VisualizerManager {
   private isPlaying: boolean = false;
   private darkMode: boolean = true;
   private resizeObserver: ResizeObserver | null = null;
+  // Set when the container changes size, consumed by the animation loop
+  private pendingResize: boolean = false;
   // 0 = off, 1 = mirror X, 2 = mirror Y, 3 = both (kaleidoscope base)
   private mirrorMode: number = 0;
   // Seam position as a fraction of the frame (0.5 = center). The mirrored
@@ -34,10 +36,13 @@ export class VisualizerManager {
     this.audioEngine = audioEngine;
     this.container = container;
 
-    // Observe container size changes and dispatch window resize
-    // so all visualizers (which listen on window resize) get notified
+    // Observe container size changes and flag them for the animation loop,
+    // which dispatches a window resize so every visualizer (they all listen
+    // for one) refits. Dispatching here instead would resize the drawing
+    // buffer during layout, and the browser could paint that frame before
+    // the next render reached it — the image blinks out mid-transition.
     this.resizeObserver = new ResizeObserver(() => {
-      window.dispatchEvent(new Event('resize'));
+      this.pendingResize = true;
     });
     this.resizeObserver.observe(this.container);
   }
@@ -67,6 +72,7 @@ export class VisualizerManager {
       this.currentVisualizer.init();
       this.currentVisualizer.isInitialized = true;
       this.currentVisualizer.setDarkMode(this.darkMode);
+      this.fitSourceCanvas();
       this.startAnimationLoop();
     }
   }
@@ -192,6 +198,14 @@ export class VisualizerManager {
     const animate = () => {
       this.animationFrameId = requestAnimationFrame(animate);
       
+      // Refit and redraw in the same frame, so nothing is ever shown at a
+      // size it has not been drawn at
+      if (this.pendingResize) {
+        this.pendingResize = false;
+        window.dispatchEvent(new Event('resize'));
+        this.fitSourceCanvas();
+      }
+
       if (this.currentVisualizer) {
         const audioAnalysis = this.audioEngine.getAnalysis(this.isPlaying);
         this.currentVisualizer.update(audioAnalysis);
@@ -260,6 +274,23 @@ export class VisualizerManager {
    * The visualizer's own WebGL canvas (first canvas in the container —
    * the mirror overlay, when present, is appended after it)
    */
+  /**
+   * Let the canvas fill its container in CSS, whatever its backing store is.
+   *
+   * Renderers set an explicit pixel width and height on the element, so a
+   * container that is animating its width leaves the canvas a step behind on
+   * every frame — the image jumps rather than flows. Stretching it instead
+   * means the element always matches the container exactly and only the
+   * resolution catches up, which is how a window resize already behaves.
+   */
+  private fitSourceCanvas(): void {
+    const src = this.getSourceCanvas();
+    if (!src) return;
+    src.style.width = '100%';
+    src.style.height = '100%';
+    src.style.display = 'block';
+  }
+
   private getSourceCanvas(): HTMLCanvasElement | null {
     return this.container.querySelector('canvas');
   }

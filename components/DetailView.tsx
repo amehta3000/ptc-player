@@ -11,6 +11,7 @@ import { trackEvent } from '../lib/analytics';
 import { Mix } from '../data/mixes';
 import { extractColors } from '../lib/colorExtractor';
 import TrackMenu from './TrackMenu';
+import { LIGHT_BG } from '../lib/theme';
 
 interface DetailViewProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -131,6 +132,11 @@ export default function DetailView({
   const listCloseBtn = darkMode
     ? 'bg-white/10 active:bg-white/20 text-white'
     : 'bg-black/10 active:bg-black/20 text-neutral-900';
+  // Player-bar chrome. The bar is translucent over the page background, so
+  // with a light page its icons need dark ink to stay legible.
+  const barActive = darkMode ? 'text-white' : 'text-neutral-900';
+  const barMuted = darkMode ? 'text-white/40 hover:text-white/70' : 'text-neutral-500 hover:text-neutral-900';
+  const barSubtle = darkMode ? 'text-neutral-300' : 'text-neutral-600';
   const pillMix = darkMode ? 'border-purple-500/40 text-purple-400/90' : 'border-purple-600/50 text-purple-700';
   const pillTrack = darkMode ? 'border-blue-500/40 text-blue-400/90' : 'border-blue-600/50 text-blue-700';
   const showVisualizer = usePlayerStore((s) => s.showVisualizer);
@@ -422,7 +428,7 @@ export default function DetailView({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex${!uiVisible ? ' cursor-none' : ''}`}
+      className={`fixed inset-0 z-50 flex flex-col${!uiVisible ? ' cursor-none' : ''}`}
       onTouchStart={handleSwipeStart}
       onTouchEnd={handleSwipeEnd}
     >
@@ -436,105 +442,13 @@ export default function DetailView({
           backgroundRepeat: 'no-repeat',
         }}
       >
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-3xl" />
+        {/* Light mode uses the visualizers' own clear colour, opaque, so the
+            padding around the canvas blends into it instead of framing it. */}
+        <div
+          className="absolute inset-0 backdrop-blur-3xl"
+          style={{ background: darkMode ? 'rgba(0,0,0,0.85)' : LIGHT_BG }}
+        />
       </div>
-
-      {/* Playlist — full-screen sheet on phones, left rail on desktop.
-          On desktop this is a real column in the row, not an overlay: it
-          slides on its own margin and the right column simply gets what is
-          left, so nothing beside it is ever covered or clipped. On phones it
-          stays `fixed`, out of flow, and the row collapses to one column. */}
-      <div
-        className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
-          fixed inset-0 w-full ${listSurface}
-          sm:static sm:w-auto sm:self-stretch sm:rounded-none sm:border-0 sm:border-r ${
-          showPlaylist && !studioMode
-            ? 'translate-y-0 opacity-100'
-            : 'translate-y-full opacity-0 pointer-events-none sm:translate-y-0'
-        }`}
-        style={railStyle}
-      >
-        {/* Sheet header — phones only; desktop keeps the page header visible */}
-        <div className="sm:hidden flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
-          <img
-            src="https://media.parttimechiller.com/logo3.png"
-            alt="PTC"
-            className={`h-10 w-10${!darkMode ? ' invert' : ''}`}
-          />
-          <button
-            onClick={() => setShowPlaylist(false)}
-            aria-label="Close playlist"
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${listCloseBtn}`}
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-        </div>
-
-        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl border-b flex items-center justify-between ${listBarBg} ${listDivider}`}>
-          <span className={`text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
-          <div className="flex gap-1">
-            {(['all', 'track', 'mix'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? listFilterOn : listFilterOff}`}
-              >
-                {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
-              </button>
-            ))}
-            {/* The sheet's close button is phone-only, so the rail needs its
-                own way out besides the logo and the P shortcut */}
-            <button
-              onClick={() => setShowPlaylist(false)}
-              aria-label="Hide playlist"
-              className={`hidden sm:flex w-6 h-6 ml-1 items-center justify-center rounded transition-colors ${listFilterOff}`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        {/* Scrolls on its own so the header and filters stay put; the bottom
-            padding clears the player bar riding over the sheet */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-24 sm:pb-3 space-y-1">
-          {filteredMixes.map((mix, idx) => (
-            <div
-              key={idx}
-              onClick={() => handleMixSelect(mix)}
-              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
-                currentMix?.title === mix.title ? `border ${listRowActive}` : 'border border-transparent'
-              }`}
-            >
-              <img
-                src={mix.cover}
-                alt={mix.title}
-                className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
-                <div className={`text-xs truncate ${listSubtle}`}>{mix.description} &bull; {mix.duration}</div>
-              </div>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                mix.type === 'mix' ? pillMix : pillTrack
-              }`}>
-                {mix.type}
-              </span>
-              <TrackMenu mix={mix} position="below" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right column — everything that is not the rail. The rail is a real
-          sibling in the row, so this column is simply what is left over:
-          header, visualizer, intro titles and player bar all reflow with it
-          instead of being overlaid and clipped by the list. */}
-      <div className="relative flex-1 min-w-0 flex flex-col">
-      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
-      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
 
       {/* Header */}
       <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
@@ -1050,6 +964,110 @@ export default function DetailView({
         </div>
       </div>
 
+      {/* Middle row — the rail and the stage sit side by side under the
+          full-width header and above the full-width player bar.
+          Positioned only from `sm` up, on purpose: on a phone neither this
+          nor the stage column is a containing block, so the visualizer's
+          `absolute inset-0` still resolves against the viewport and keeps
+          running full-bleed behind the header and the player bar. */}
+      <div className="sm:relative flex-1 min-h-0 flex">
+      {/* Playlist — full-screen sheet on phones, left rail on desktop.
+          On desktop this is a real column in the row, not an overlay: it
+          slides on its own margin and the right column simply gets what is
+          left, so nothing beside it is ever covered or clipped. On phones it
+          stays `fixed`, out of flow, and the row collapses to one column. */}
+      <div
+        className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
+          fixed inset-0 w-full ${listSurface}
+          sm:static sm:w-auto sm:self-stretch sm:rounded-none sm:border-0 sm:border-r ${
+          showPlaylist && !studioMode
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full opacity-0 pointer-events-none sm:translate-y-0'
+        }`}
+        style={railStyle}
+      >
+        {/* Sheet header — phones only; desktop keeps the page header visible */}
+        <div className="sm:hidden flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
+          <img
+            src="https://media.parttimechiller.com/logo3.png"
+            alt="PTC"
+            className={`h-10 w-10${!darkMode ? ' invert' : ''}`}
+          />
+          <button
+            onClick={() => setShowPlaylist(false)}
+            aria-label="Close playlist"
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${listCloseBtn}`}
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl border-b flex items-center justify-between ${listBarBg} ${listDivider}`}>
+          <span className={`text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
+          <div className="flex gap-1">
+            {(['all', 'track', 'mix'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 sm:px-2 sm:py-0.5 text-xs rounded ${filter === f ? listFilterOn : listFilterOff}`}
+              >
+                {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
+              </button>
+            ))}
+            {/* The sheet's close button is phone-only, so the rail needs its
+                own way out besides the logo and the P shortcut */}
+            <button
+              onClick={() => setShowPlaylist(false)}
+              aria-label="Hide playlist"
+              className={`hidden sm:flex w-6 h-6 ml-1 items-center justify-center rounded transition-colors ${listFilterOff}`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        {/* Scrolls on its own so the header and filters stay put; the bottom
+            padding clears the player bar riding over the sheet */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-24 sm:pb-3 space-y-1">
+          {filteredMixes.map((mix, idx) => (
+            <div
+              key={idx}
+              onClick={() => handleMixSelect(mix)}
+              className={`flex items-center gap-3 p-2.5 sm:p-2 rounded-lg cursor-pointer transition-all active:scale-[0.99] ${listRowHover} ${
+                currentMix?.title === mix.title ? `border ${listRowActive}` : 'border border-transparent'
+              }`}
+            >
+              <img
+                src={mix.cover}
+                alt={mix.title}
+                className="w-12 h-12 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
+                <div className={`text-xs truncate ${listSubtle}`}>{mix.description} &bull; {mix.duration}</div>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                mix.type === 'mix' ? pillMix : pillTrack
+              }`}>
+                {mix.type}
+              </span>
+              <TrackMenu mix={mix} position="below" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Stage column — what is left of the row once the rail has its width.
+          The visualizer and the intro titles live here, so both reflow with
+          the rail instead of being overlaid and clipped by the list. */}
+      <div className="sm:relative flex-1 min-w-0 flex flex-col">
+      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
+      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
+
+
       {/* Control Panel: classic side panel, or the mobile sheet behind the feature flag */}
       {showControls && showVisualizer && (
         isMobileViewport && mobileControlsV2 ? (
@@ -1095,6 +1113,9 @@ export default function DetailView({
       </div>
 
 
+      </div>
+      </div>
+
       {/* Slim Player Bar */}
       <div
         className={`relative z-30 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
@@ -1138,7 +1159,7 @@ export default function DetailView({
             />
           </div>
           <div className="flex justify-between items-center mt-0.5">
-            <span className="text-[10px] sm:text-xs text-neutral-300">{formatTime(currentTime)} / {formatTime(duration)}</span>
+            <span className={`text-[10px] sm:text-xs ${barSubtle}`}>{formatTime(currentTime)} / {formatTime(duration)}</span>
           </div>
         </div>
 
@@ -1146,7 +1167,7 @@ export default function DetailView({
         <button
           onClick={toggleShuffle}
           className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all ${
-            shuffleMode ? 'text-white' : 'text-white/40 hover:text-white/70'
+            shuffleMode ? barActive : barMuted
           }`}
           style={shuffleMode ? { color: highlightColor } : undefined}
           aria-label="Toggle shuffle"
@@ -1201,7 +1222,7 @@ export default function DetailView({
         <button
           onClick={cycleRepeat}
           className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all relative ${
-            repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white/70'
+            repeatMode !== 'off' ? barActive : barMuted
           }`}
           style={repeatMode !== 'off' ? { color: highlightColor } : undefined}
           aria-label={`Repeat: ${repeatMode}`}
@@ -1218,7 +1239,7 @@ export default function DetailView({
         <div className="hidden md:flex items-center gap-1 flex-shrink-0">
           <button
             onClick={toggleMute}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-all"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${barMuted}`}
             aria-label={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted || volume === 0 ? (
@@ -1275,7 +1296,7 @@ export default function DetailView({
         {/* Fullscreen toggle — desktop only */}
         <button
           onClick={toggleFullscreen}
-          className="hidden sm:flex w-8 h-8 rounded-full flex-shrink-0 items-center justify-center text-white/40 hover:text-white/80 transition-all"
+          className={`hidden sm:flex w-8 h-8 rounded-full flex-shrink-0 items-center justify-center transition-all ${barMuted}`}
           aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
           {isFullscreen ? (
@@ -1291,7 +1312,6 @@ export default function DetailView({
 
         {/* Track menu */}
         <TrackMenu mix={currentMix} position="above" />
-      </div>
       </div>
     </div>
   );
