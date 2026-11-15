@@ -115,12 +115,12 @@ export default function DetailView({
   const accentColor = usePlayerStore((s) => s.accentColor);
   const highlightColor = darkMode ? accentColor : 'rgba(28, 28, 30, 0.85)';
 
-  // Playlist sheet palette — translucent black in dark mode, off-white with
-  // dark text in light mode
+  // Playlist palette. The phone sheet needs a surface of its own — it covers
+  // the visualizer — but the desktop rail sits on the page, so it carries no
+  // fill and no blur of its own and reads as part of the background.
   const listSurface = darkMode
-    ? 'bg-black/95 sm:bg-black/60 sm:border-white/10'
-    : 'bg-[#f1f3f5]/95 sm:bg-white/85 sm:border-black/10';
-  const listBarBg = darkMode ? 'sm:bg-black/80' : 'sm:bg-white/85';
+    ? 'bg-black/95 sm:bg-transparent'
+    : 'bg-[#f1f3f5]/95 sm:bg-transparent';
   const listCount = darkMode ? 'text-neutral-300' : 'text-neutral-600';
   const listTitle = darkMode ? 'text-white' : 'text-neutral-900';
   const listSubtle = darkMode ? 'text-neutral-400' : 'text-neutral-600';
@@ -1032,7 +1032,7 @@ export default function DetailView({
           left, so nothing beside it is ever covered or clipped. On phones it
           stays `fixed`, out of flow, and the row collapses to one column. */}
       <div
-        className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
+        className={`z-30 flex flex-col backdrop-blur-xl sm:backdrop-blur-none transition-all duration-300 overflow-hidden
           fixed inset-0 w-full ${listSurface}
           sm:static sm:w-auto sm:self-stretch sm:rounded-none sm:border-0 ${
           showPlaylist && !studioMode
@@ -1059,7 +1059,7 @@ export default function DetailView({
           </button>
         </div>
 
-        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl flex items-center gap-2 ${listBarBg}`}>
+        <div className="flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 flex items-center gap-2">
           <div className="flex gap-1">
             {(['all', 'track', 'mix'] as const).map(f => (
               <button
