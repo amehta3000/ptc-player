@@ -473,12 +473,20 @@ export default function DetailView({
         </div>
       )}
       </div>
-      <div className="absolute inset-y-0 right-0 z-[18]" style={stageLeftStyle}>
-      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below header/footer (z-30) */}
-      {showIntro && <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />}
-      </div>
-      <div className="absolute inset-y-0 right-0 z-20" style={stageLeftStyle}>
-      {/* Control Panel: classic side panel, or the mobile sheet behind the feature flag */}
+      {/* Intro sequence — z-[18] sits above visualizer (z-5) but below
+          header/footer (z-30). It is mounted only while it is showing: an
+          empty wrapper over the stage would swallow every drag and pinch
+          meant for the visualizer. */}
+      {showIntro && (
+        <div className="absolute inset-y-0 right-0 z-[18]" style={stageLeftStyle}>
+          <IntroSequence resetToken={currentMix?.slug} onDismiss={onIntroDismiss} autoTimeout={introTimeout} forceOut={introForceOut} currentMixTitle={currentMix?.title} darkMode={darkMode} />
+        </div>
+      )}
+
+      {/* Control Panel: classic side panel, or the mobile sheet behind the
+          feature flag. No wrapper: both anchor themselves to the window's
+          right edge, so they need no offset from the rail — and a wrapper
+          spanning the stage would cover the canvas. */}
       {showControls && showVisualizer && (
         isMobileViewport && mobileControlsV2 ? (
           <MobileVizControls
@@ -506,7 +514,6 @@ export default function DetailView({
           />
         )
       )}
-      </div>
 
       {/* Header */}
       <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
