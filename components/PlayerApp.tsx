@@ -11,6 +11,7 @@ import { trackEvent, trackGAEvent } from '../lib/analytics';
 import { ListenTracker } from '../lib/listenTracker';
 import { OverlayDrawerFn } from '../lib/exportManager';
 import { Mix, mixes, getMixBySlug } from '../data/mixes';
+import { pageBackground } from '../lib/theme';
 import { buildShareUrl, buildStudioShareUrl, parseShareParam } from '../lib/shareState';
 import DetailView from './DetailView';
 
@@ -559,7 +560,10 @@ export default function PlayerApp({ initialSlug, studioMix, onStudioNewTrack }: 
   }, [randomize, setVisualizerType]);
 
   return (
-    <div className="min-h-screen bg-black text-white relative" style={{ fontFamily: currentFont }}>
+    <div
+      className={`min-h-screen relative ${darkMode ? 'text-white' : 'text-neutral-900'}`}
+      style={{ fontFamily: currentFont, backgroundColor: pageBackground(darkMode) }}
+    >
       {currentMix && (
         <audio ref={audioRef} src={currentMix.audio} preload="metadata" crossOrigin="anonymous" />
       )}

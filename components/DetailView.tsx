@@ -11,6 +11,7 @@ import { trackEvent } from '../lib/analytics';
 import { Mix } from '../data/mixes';
 import { extractColors } from '../lib/colorExtractor';
 import TrackMenu from './TrackMenu';
+import { LIGHT_BG } from '../lib/theme';
 
 interface DetailViewProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -131,6 +132,11 @@ export default function DetailView({
   const listCloseBtn = darkMode
     ? 'bg-white/10 active:bg-white/20 text-white'
     : 'bg-black/10 active:bg-black/20 text-neutral-900';
+  // Player-bar chrome. The bar is translucent over the page background, so
+  // with a light page its icons need dark ink to stay legible.
+  const barActive = darkMode ? 'text-white' : 'text-neutral-900';
+  const barMuted = darkMode ? 'text-white/40 hover:text-white/70' : 'text-neutral-500 hover:text-neutral-900';
+  const barSubtle = darkMode ? 'text-neutral-300' : 'text-neutral-600';
   const pillMix = darkMode ? 'border-purple-500/40 text-purple-400/90' : 'border-purple-600/50 text-purple-700';
   const pillTrack = darkMode ? 'border-blue-500/40 text-blue-400/90' : 'border-blue-600/50 text-blue-700';
   const showVisualizer = usePlayerStore((s) => s.showVisualizer);
@@ -436,7 +442,12 @@ export default function DetailView({
           backgroundRepeat: 'no-repeat',
         }}
       >
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-3xl" />
+        {/* Light mode uses the visualizers' own clear colour, opaque, so the
+            padding around the canvas blends into it instead of framing it. */}
+        <div
+          className="absolute inset-0 backdrop-blur-3xl"
+          style={{ background: darkMode ? 'rgba(0,0,0,0.85)' : LIGHT_BG }}
+        />
       </div>
 
       {/* Playlist — full-screen sheet on phones, left rail on desktop.
@@ -1138,7 +1149,7 @@ export default function DetailView({
             />
           </div>
           <div className="flex justify-between items-center mt-0.5">
-            <span className="text-[10px] sm:text-xs text-neutral-300">{formatTime(currentTime)} / {formatTime(duration)}</span>
+            <span className={`text-[10px] sm:text-xs ${barSubtle}`}>{formatTime(currentTime)} / {formatTime(duration)}</span>
           </div>
         </div>
 
@@ -1146,7 +1157,7 @@ export default function DetailView({
         <button
           onClick={toggleShuffle}
           className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all ${
-            shuffleMode ? 'text-white' : 'text-white/40 hover:text-white/70'
+            shuffleMode ? barActive : barMuted
           }`}
           style={shuffleMode ? { color: highlightColor } : undefined}
           aria-label="Toggle shuffle"
@@ -1201,7 +1212,7 @@ export default function DetailView({
         <button
           onClick={cycleRepeat}
           className={`w-8 h-8 rounded-full flex-shrink-0 hidden sm:flex items-center justify-center transition-all relative ${
-            repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white/70'
+            repeatMode !== 'off' ? barActive : barMuted
           }`}
           style={repeatMode !== 'off' ? { color: highlightColor } : undefined}
           aria-label={`Repeat: ${repeatMode}`}
@@ -1218,7 +1229,7 @@ export default function DetailView({
         <div className="hidden md:flex items-center gap-1 flex-shrink-0">
           <button
             onClick={toggleMute}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-all"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${barMuted}`}
             aria-label={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted || volume === 0 ? (
@@ -1275,7 +1286,7 @@ export default function DetailView({
         {/* Fullscreen toggle — desktop only */}
         <button
           onClick={toggleFullscreen}
-          className="hidden sm:flex w-8 h-8 rounded-full flex-shrink-0 items-center justify-center text-white/40 hover:text-white/80 transition-all"
+          className={`hidden sm:flex w-8 h-8 rounded-full flex-shrink-0 items-center justify-center transition-all ${barMuted}`}
           aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
           {isFullscreen ? (
