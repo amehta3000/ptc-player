@@ -223,3 +223,25 @@ input[type='range'].viz-slider-hue::-moz-range-thumb {
   animation: introFadeOut 600ms ease-out forwards;
   pointer-events: none;
 }
+
+/* The intro type is sized against the column it sits in, not the viewport,
+   so it reflows instead of being clipped when the playlist rail opens.
+   The vw value is the fallback for browsers without container queries —
+   it matches the cqw value exactly while the column is full width. */
+.intro-stage { container-type: inline-size; }
+
+.intro-title   { font-size: 8vw;   font-size: 8cqw; }
+.intro-tagline { font-size: 3.8vw; font-size: 3.8cqw; }
+.intro-sub     { font-size: 2.4vw; font-size: 2.4cqw; }
+
+@media (min-width: 640px) {
+  .intro-title   { font-size: 7vw; font-size: 7cqw; }
+  .intro-tagline { font-size: 3vw; font-size: 3cqw; }
+  .intro-sub     { font-size: 1.9vw; font-size: 1.9cqw; }
+}
+
+@media (min-width: 768px) {
+  .intro-title   { font-size: 6.5vw; font-size: 6.5cqw; }
+  .intro-tagline { font-size: 2.6vw; font-size: 2.6cqw; }
+  .intro-sub     { font-size: 1.6vw; font-size: 1.6cqw; }
+}
