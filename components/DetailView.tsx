@@ -53,6 +53,50 @@ function formatTime(seconds: number) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Desktop playlist rail width. One CSS expression used in two places — the
+ * rail's own width and the left edge the visualizer starts at — so the canvas
+ * can never end up overlapping the list or leaving a gap beside it.
+ */
+const RAIL_WIDTH = 'clamp(260px, 28vw, 380px)';
+
+/** Milliseconds the rail takes to slide; the canvas resizes in step. */
+const RAIL_SLIDE_MS = 300;
+
+/** True at the `sm` breakpoint and up, where the playlist becomes a rail.
+ *  Starts false so the first client paint matches the static export; the
+ *  playlist is closed by default, so nothing visibly flips. */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+  return isDesktop;
+}
+
+/** Live offsetHeight of an element, so the rail can sit exactly between the
+ *  header and the player bar without either height being hard-coded.
+ *  A callback ref, not an effect over a RefObject: these elements render
+ *  behind an early return, so an effect would run once against null and
+ *  never see them appear. */
+function useBoxHeight(): [(el: HTMLElement | null) => void, number] {
+  const [height, setHeight] = useState(0);
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!el) return;
+    setHeight(el.offsetHeight);
+    observer.current = new ResizeObserver(() => setHeight(el.offsetHeight));
+    observer.current.observe(el);
+  }, []);
+  return [ref, height];
+}
+
 export default function DetailView({
   audioRef,
   containerRef,
@@ -174,6 +218,23 @@ export default function DetailView({
   const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMediaLoading, setIsMediaLoading] = useState(false);
+
+  // ── Desktop layout: playlist as a left rail, visualizer in what is left ──
+  const isDesktop = useIsDesktop();
+  const [headerRef, headerHeight] = useBoxHeight();
+  const [playerBarRef, playerBarHeight] = useBoxHeight();
+  const railOpen = isDesktop && showPlaylist && !studioMode;
+  // The rail spans the gap between header and player bar; on phones the
+  // playlist stays the full-screen sheet it already was.
+  const railStyle: React.CSSProperties = isDesktop
+    ? { width: RAIL_WIDTH, top: headerHeight, bottom: playerBarHeight }
+    : {};
+  // Giving up the left edge is what shrinks the canvas: the container's
+  // ResizeObserver fires and every visualizer refits to the new box.
+  const stageStyle: React.CSSProperties = {
+    left: railOpen ? RAIL_WIDTH : 0,
+    transition: `left ${RAIL_SLIDE_MS}ms ease`,
+  };
 
   // Mobile control sheet (feature flag): only kicks in below the sm breakpoint
   const mobileControlsV2 = usePlayerStore((s) => s.mobileControlsV2);
@@ -407,7 +468,7 @@ export default function DetailView({
       </div>
 
       {/* Header */}
-      <div className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
+      <div ref={headerRef} className={`relative z-30 flex items-center justify-between px-5 sm:px-6 pt-4 pb-3 transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => (studioMode ? onStudioNewTrack?.() : setShowPlaylist(!showPlaylist))}>
           <img src="https://media.parttimechiller.com/logo3.png" alt="PTC" className={`h-10 w-10${!darkMode ? ' invert' : ''}`} />
           <span className={`text-lg font-bold hidden sm:inline ${darkMode ? 'text-white' : 'text-black'}`}>{studioMode ? 'PTC Studio' : 'Part Time Chiller'}</span>
@@ -953,6 +1014,7 @@ export default function DetailView({
       {showVisualizer && (
         <div
           className="absolute inset-0 z-[5] p-0 sm:p-4"
+          style={stageStyle}
           onClick={() => { if (showControls && window.innerWidth < 640) setShowControls(false); }}
         >
           <VisualizerContainer containerRef={containerRef} />
@@ -960,21 +1022,26 @@ export default function DetailView({
       )}
 
       {/* Middle area — album art when not visualizing, spacer when visualizing */}
-      <div className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}>
+      <div
+        className={`relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6${showVisualizer ? ' pointer-events-none' : ''}`}
+        style={{ paddingLeft: railOpen ? RAIL_WIDTH : undefined, transition: `padding-left ${RAIL_SLIDE_MS}ms ease` }}
+      >
         {!showVisualizer && <VisualizerContainer containerRef={containerRef} />}
       </div>
 
-      {/* Playlist — full-screen sheet on phones, drawer above the player bar on
-          desktop. The player bar sits later in the DOM at the same z-index, so
-          it stays on top of the sheet and keeps working while the list is open. */}
+      {/* Playlist — full-screen sheet on phones, left rail on desktop. The rail
+          slides in between the header and the player bar and the visualizer
+          stage gives up exactly its width, so the two never overlap and you
+          can pick the next track with the visual still running beside it. */}
       <div
         className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
           fixed inset-0 w-full ${listSurface}
-          sm:absolute sm:inset-auto sm:bottom-[72px] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90%] sm:max-w-[60%] sm:max-h-[60vh] sm:rounded-t-lg sm:border sm:border-b-0 ${
+          sm:absolute sm:inset-auto sm:left-0 sm:rounded-none sm:border-0 sm:border-r ${
           showPlaylist && !studioMode
-            ? 'translate-y-0 opacity-100'
-            : 'translate-y-full sm:translate-y-4 opacity-0 pointer-events-none'
+            ? 'translate-y-0 opacity-100 sm:translate-x-0'
+            : 'translate-y-full opacity-0 pointer-events-none sm:translate-y-0 sm:-translate-x-full'
         }`}
+        style={railStyle}
       >
         {/* Sheet header — phones only; desktop keeps the page header visible */}
         <div className="sm:hidden flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
@@ -1006,6 +1073,17 @@ export default function DetailView({
                 {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
               </button>
             ))}
+            {/* The sheet's close button is phone-only, so the rail needs its
+                own way out besides the logo and the P shortcut */}
+            <button
+              onClick={() => setShowPlaylist(false)}
+              aria-label="Hide playlist"
+              className={`hidden sm:flex w-6 h-6 ml-1 items-center justify-center rounded transition-colors ${listFilterOff}`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
           </div>
         </div>
         {/* Scrolls on its own so the header and filters stay put; the bottom
@@ -1041,6 +1119,7 @@ export default function DetailView({
 
       {/* Slim Player Bar */}
       <div
+        ref={playerBarRef}
         className={`relative z-30 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-4 backdrop-blur-xl transition-all duration-500 ${uiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'}`}
         style={{
           background: `linear-gradient(to right, rgba(10,10,10,0.85), ${accentColor}15)`,
