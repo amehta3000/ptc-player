@@ -120,7 +120,6 @@ export default function DetailView({
   const listSurface = darkMode
     ? 'bg-black/95 sm:bg-black/60 sm:border-white/10'
     : 'bg-[#f1f3f5]/95 sm:bg-white/85 sm:border-black/10';
-  const listDivider = darkMode ? 'border-white/10' : 'border-black/10';
   const listBarBg = darkMode ? 'sm:bg-black/80' : 'sm:bg-white/85';
   const listCount = darkMode ? 'text-neutral-300' : 'text-neutral-600';
   const listTitle = darkMode ? 'text-white' : 'text-neutral-900';
@@ -138,8 +137,9 @@ export default function DetailView({
   const barActive = darkMode ? 'text-white' : 'text-neutral-900';
   const barMuted = darkMode ? 'text-white/40 hover:text-white/70' : 'text-neutral-500 hover:text-neutral-900';
   const barSubtle = darkMode ? 'text-neutral-300' : 'text-neutral-600';
-  const pillMix = darkMode ? 'border-purple-500/40 text-purple-400/90' : 'border-purple-600/50 text-purple-700';
-  const pillTrack = darkMode ? 'border-blue-500/40 text-blue-400/90' : 'border-blue-600/50 text-blue-700';
+  // Type tags are a flat tint, no outline
+  const pillMix = darkMode ? 'bg-purple-500/15 text-purple-300/90' : 'bg-purple-600/10 text-purple-700';
+  const pillTrack = darkMode ? 'bg-blue-500/15 text-blue-300/90' : 'bg-blue-600/10 text-blue-700';
   const showVisualizer = usePlayerStore((s) => s.showVisualizer);
   const setShowVisualizer = usePlayerStore((s) => s.setShowVisualizer);
   const showControls = usePlayerStore((s) => s.showControls);
@@ -1034,7 +1034,7 @@ export default function DetailView({
       <div
         className={`z-30 flex flex-col backdrop-blur-xl transition-all duration-300 overflow-hidden
           fixed inset-0 w-full ${listSurface}
-          sm:static sm:w-auto sm:self-stretch sm:rounded-none sm:border-0 sm:border-r ${
+          sm:static sm:w-auto sm:self-stretch sm:rounded-none sm:border-0 ${
           showPlaylist && !studioMode
             ? 'translate-y-0 opacity-100'
             : 'translate-y-full opacity-0 pointer-events-none sm:translate-y-0'
@@ -1059,8 +1059,7 @@ export default function DetailView({
           </button>
         </div>
 
-        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl border-b flex items-center justify-between ${listBarBg} ${listDivider}`}>
-          <span className={`text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
+        <div className={`flex-shrink-0 px-4 sm:px-3 pb-2 pt-0 sm:pt-3 sm:backdrop-blur-xl flex items-center gap-2 ${listBarBg}`}>
           <div className="flex gap-1">
             {(['all', 'track', 'mix'] as const).map(f => (
               <button
@@ -1071,6 +1070,11 @@ export default function DetailView({
                 {f === 'all' ? 'All' : f === 'track' ? 'Tracks' : 'Mixes'}
               </button>
             ))}
+          </div>
+
+          <span className={`ml-auto text-sm ${listCount}`}>{filteredMixes.length} tracks</span>
+
+          <div className="flex">
             {/* The sheet's close button is phone-only, so the rail needs its
                 own way out besides the logo and the P shortcut */}
             <button
@@ -1104,7 +1108,7 @@ export default function DetailView({
                 <div className={`text-sm font-medium truncate ${listTitle}`}>{mix.title}</div>
                 <div className={`text-xs truncate ${listSubtle}`}>{mix.description} &bull; {mix.duration}</div>
               </div>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
                 mix.type === 'mix' ? pillMix : pillTrack
               }`}>
                 {mix.type}
